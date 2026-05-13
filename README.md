@@ -122,7 +122,21 @@ The compiler translates it into Ren'Py code automatically.
 [[if JeanGrey.nearby]]
 ```
 
-The original function-call syntax is also supported for advanced users.
+The original function-call syntax is also supported:
+
+```
+[[if check_approval(JeanGrey, "love", "medium_stat")]]
+[[if JeanGrey.check_trait("shy")]]
+[[if JeanGrey.is_in_normal_mood()]]
+[[if JeanGrey.get_status() == "mad"]]
+[[if are_Characters_friends(JeanGrey, Rogue)]]
+[[if JeanGrey.History.check("kissed_player") > 0]]
+[[if Character_is_in_close_proximity(JeanGrey)]]
+```
+
+Both forms produce identical Ren'Py output. The DSL syntax is recommended
+for readability; the function-call syntax is available for advanced users
+or cases the DSL does not cover.
 
 ### Project-level aliases
 

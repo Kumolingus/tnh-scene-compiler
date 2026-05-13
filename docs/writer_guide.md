@@ -353,6 +353,41 @@ I guess it's okay.
 [[/if]]
 ```
 
+You can change approval values with named tiers:
+
+```
+[[approval JeanGrey love +small]]
+[[approval JeanGrey trust -medium]]
+```
+
+Tiers: `tiny` (+2), `small` (+5), `medium` (+10), `large` (+20), `massive` (+40).
+The sign (`+` or `-`) is mandatory.
+
+### Condition shortcuts
+
+The compiler provides writer-friendly shortcuts for common checks.
+Both the shortcut and the original function-call syntax work.
+
+**Character checks:**
+
+```
+[[if JeanGrey.has("shy")]]              Is the trait set?
+[[if JeanGrey.mood == "normal"]]        Is mood normal?
+[[if JeanGrey.mood == "mad"]]           Is status "mad"?
+[[if JeanGrey.friends_with(Rogue)]]     Are they friends?
+[[if JeanGrey.did("kissed_player")]]    Did this happen before?
+[[if JeanGrey.nearby]]                  Is the character close?
+[[if JeanGrey.personality("confidence", 50)]]  Personality check
+```
+
+**Combining conditions:**
+
+```
+[[if JeanGrey.love >= medium and JeanGrey.mood == "normal"]]
+[[if not JeanGrey.has("angry")]]
+[[if JeanGrey.mood == "mad" or JeanGrey.mood == "miffed"]]
+```
+
 ### What you can and cannot use in conditions
 
 | Construct | Allowed? |
@@ -361,14 +396,12 @@ I guess it's okay.
 | Logic: `and`, `or`, `not` | Yes |
 | Literals: integers, floats, strings, `True`, `False`, `None` | Yes |
 | Attribute access: `JeanGrey.love`, `player.petname` | Yes |
+| Condition shortcuts: `.has()`, `.mood`, `.did()`, `.nearby`, etc. | Yes |
+| Registered function calls: `check_approval(...)`, etc. | Yes |
 | `in` / `not in`: `"fire" in JeanGrey.traits` | Yes |
 | Parentheses for grouping | Yes |
 | Arithmetic (`+`, `-`, `*`, `/`) | No |
-| Function calls | No, except developer-registered helpers |
 | f-strings, lambdas, comprehensions, slicing | No |
-
-If you need arithmetic or something fancier, ask the developer. They
-either register a helper function or help you restructure the logic.
 
 
 ---
