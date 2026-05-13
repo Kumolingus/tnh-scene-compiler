@@ -9,6 +9,7 @@ down view focused on validation.
 from __future__ import annotations
 
 import difflib
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -199,6 +200,9 @@ class Allowlists:
     mod_operations: set[str] = field(default_factory=set)
     fx: set[str] = field(default_factory=set)
     condition_functions: set[str] = field(default_factory=set)
+    character_methods: set[str] = field(default_factory=set)
+    character_aliases: dict[str, str] = field(default_factory=dict)
+    function_aliases: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def load(cls, allowlists_dir: Path) -> Allowlists:
@@ -261,6 +265,32 @@ class Allowlists:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     condition_functions.add(item["name"])
 
+        character_methods_payload = _read_yaml(
+            allowlists_dir / "character_methods.yaml",
+        )
+        character_methods: set[str] = set()
+        if character_methods_payload and isinstance(
+            character_methods_payload.get("methods"), list,
+        ):
+            for item in character_methods_payload["methods"]:
+                if isinstance(item, dict) and isinstance(item.get("name"), str):
+                    character_methods.add(item["name"])
+
+        aliases_payload = _read_yaml(allowlists_dir / "aliases.yaml")
+        character_aliases: dict[str, str] = {}
+        function_aliases: dict[str, str] = {}
+        if aliases_payload:
+            raw_ca = aliases_payload.get("character_aliases")
+            if isinstance(raw_ca, dict):
+                character_aliases = {
+                    str(k): str(v) for k, v in raw_ca.items()
+                }
+            raw_fa = aliases_payload.get("function_aliases")
+            if isinstance(raw_fa, dict):
+                function_aliases = {
+                    str(k): str(v) for k, v in raw_fa.items()
+                }
+
         return cls(
             characters = characters,
             locations = locations,
@@ -280,6 +310,9 @@ class Allowlists:
             mod_operations = mod_operations,
             fx = fx,
             condition_functions = condition_functions,
+            character_methods = character_methods,
+            character_aliases = character_aliases,
+            function_aliases = function_aliases,
         )
 
     # --- Per-character slot membership helpers ----------------------------
@@ -350,6 +383,29 @@ class Allowlists:
         upper_to_canonical = {name.upper(): name for name in self.characters}
         return [upper_to_canonical[m] for m in matches if m in upper_to_canonical]
 
+    def match_location(self, text: str) -> str | None:
+        """Try to match *text* against registered locations.
+
+        Returns the canonical location key if found, ``None`` otherwise.
+        First tries an exact lookup.  If that fails, tries to match against
+        locations that contain ``[…]`` interpolation by collapsing each
+        ``[IDENT.ATTR]`` to just ``IDENT`` and comparing (e.g.
+        ``JEANGREY'S ROOM`` matches ``[JEANGREY.NAME]'S ROOM``).
+        """
+        if text in self.locations:
+            return text
+        for registered in self.locations:
+            if "[" not in registered:
+                continue
+            simplified = re.sub(
+                r"\[([A-Z_][A-Z0-9_]*)(?:\.[A-Za-z_.]+)?\]",
+                r"\1",
+                registered,
+            )
+            if simplified == text:
+                return registered
+        return None
+
     def suggest_slugline(self, text: str, *, max_suggestions: int = 3) -> list[str]:
         return difflib.get_close_matches(
             text, list(self.locations), n = max_suggestions, cutoff = 0.5,
@@ -358,6 +414,16 @@ class Allowlists:
     def suggest_interpolation(self, path: str, *, max_suggestions: int = 3) -> list[str]:
         return difflib.get_close_matches(
             path, list(self.interpolation), n = max_suggestions, cutoff = 0.5,
+        )
+
+    def suggest_condition_function(self, name: str, *, max_suggestions: int = 3) -> list[str]:
+        return difflib.get_close_matches(
+            name, list(self.condition_functions), n = max_suggestions, cutoff = 0.5,
+        )
+
+    def suggest_character_method(self, name: str, *, max_suggestions: int = 3) -> list[str]:
+        return difflib.get_close_matches(
+            name, list(self.character_methods), n = max_suggestions, cutoff = 0.5,
         )
 
     # --- Multi-layer support ------------------------------------------------
@@ -391,6 +457,9 @@ class Allowlists:
             mod_operations=self.mod_operations | other.mod_operations,
             fx=self.fx | other.fx,
             condition_functions=self.condition_functions | other.condition_functions,
+            character_methods=self.character_methods | other.character_methods,
+            character_aliases={**self.character_aliases, **other.character_aliases},
+            function_aliases={**self.function_aliases, **other.function_aliases},
         )
 
     @classmethod

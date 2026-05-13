@@ -46,7 +46,9 @@ from .ast_nodes import (
     Show,
     Slugline,
 )
+from .dsl import transform as dsl_transform
 from .errors import CompileError
+from .expr_parser import Attribute, BoolOp, Call, Compare, Expr, Member, Name, UnaryNot
 
 _SCENE_ID_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -190,7 +192,7 @@ def _validate_title_page(
     # Title-page Location, if set, must resolve.
     if tp.location:
         looked_up = _strip_time_suffix(tp.location)
-        if allow.locations and looked_up not in allow.locations:
+        if allow.locations and allow.match_location(looked_up) is None:
             suggestions = allow.suggest_slugline(looked_up)
             hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
             errors.append(CompileError(
@@ -209,7 +211,7 @@ def _validate_slugline(
     path: str,
 ) -> None:
     looked_up = _strip_time_suffix(slug.text)
-    if allow.locations and looked_up not in allow.locations:
+    if allow.locations and allow.match_location(looked_up) is None:
         suggestions = allow.suggest_slugline(looked_up)
         hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
         errors.append(CompileError(
@@ -571,9 +573,6 @@ def _validate_mod_set(
 ) -> None:
     """Ensure the [[mod_set]] target is registered in mod_operations.yaml."""
     if not allow.mod_operations:
-        # Allowlist empty — either not loaded (unit tests) or the writer
-        # hasn't registered any op yet. Flag it so the failure mode is
-        # informative rather than a silent pass.
         errors.append(CompileError(
             path = path,
             line = node.line,
@@ -581,7 +580,8 @@ def _validate_mod_set(
             message = (
                 f"[[mod_set {node.call_text}]] — the mod-operations "
                 "allowlist is empty. Add the operation to "
-                "scenes_source/_allowlists/mod_operations.yaml."
+                "scenes_source/_allowlists/mod_operations.yaml, "
+                "or use project mode."
             ),
         ))
         return
@@ -611,8 +611,8 @@ def _validate_fx(
             col = node.col,
             message = (
                 f"[[fx {node.call_text}]] — the engine-effects allowlist "
-                "is empty. Add the effect to "
-                "scenes_source/_allowlists/fx.yaml."
+                "is empty. Add the effect to fx.yaml, "
+                "or use project mode."
             ),
         ))
         return
@@ -655,6 +655,131 @@ def _validate_approval(
         ))
 
 
+def _collect_calls(expr: Expr) -> list[Call]:
+    """Recursively extract all ``Call`` nodes from an expression tree."""
+    if isinstance(expr, Call):
+        result = [expr]
+        for arg in expr.args:
+            result.extend(_collect_calls(arg))
+        return result
+    if isinstance(expr, BoolOp):
+        result: list[Call] = []
+        for operand in expr.operands:
+            result.extend(_collect_calls(operand))
+        return result
+    if isinstance(expr, UnaryNot):
+        return _collect_calls(expr.operand)
+    if isinstance(expr, Compare):
+        result = _collect_calls(expr.left)
+        for _, right in expr.ops_and_rights:
+            result.extend(_collect_calls(right))
+        return result
+    if isinstance(expr, Member):
+        result = _collect_calls(expr.left)
+        result.extend(_collect_calls(expr.right))
+        return result
+    return []
+
+
+def _validate_condition_calls(
+    condition: Expr,
+    allow: Allowlists,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    """Validate function calls in a condition expression.
+
+    The condition is first run through the DSL transformation layer so
+    writer-friendly sugar (``X.love >= medium``, ``X.has("shy")``) is
+    rewritten to canonical calls before validation.
+
+    Standalone calls (``func()``) are checked against
+    ``condition_functions``.  Method calls (``Character.method()``) are
+    checked against ``character_methods`` using the final attribute name.
+    """
+    condition = dsl_transform(
+        condition, allow.character_aliases, allow.function_aliases,
+    )
+    calls = _collect_calls(condition)
+    for call in calls:
+        if isinstance(call.target, Name):
+            _validate_standalone_call(call, allow, errors, path, line)
+        elif isinstance(call.target, Attribute):
+            _validate_method_call(call, allow, errors, path, line)
+
+
+def _validate_standalone_call(
+    call: Call,
+    allow: Allowlists,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    func_name = call.target.name  # type: ignore[union-attr]
+    if not allow.condition_functions:
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = call.col_offset,
+            message = (
+                f"Condition function {func_name!r} — the condition-functions "
+                "allowlist is empty. Add the function to "
+                "condition_functions.yaml, or use project mode."
+            ),
+        ))
+        return
+    if func_name not in allow.condition_functions:
+        suggestions = allow.suggest_condition_function(func_name)
+        hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = call.col_offset,
+            message = (
+                f"Condition function {func_name!r} is not registered "
+                "in condition_functions.yaml."
+            ),
+            hint = hint,
+        ))
+
+
+def _validate_method_call(
+    call: Call,
+    allow: Allowlists,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    attr: Attribute = call.target  # type: ignore[assignment]
+    method_name = attr.parts[-1]
+    if not allow.character_methods:
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = call.col_offset,
+            message = (
+                f"Method {method_name!r} — the character-methods "
+                "allowlist is empty. Add the method to "
+                "character_methods.yaml, or use project mode."
+            ),
+        ))
+        return
+    if method_name not in allow.character_methods:
+        suggestions = allow.suggest_character_method(method_name)
+        hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = call.col_offset,
+            message = (
+                f"Character method {method_name!r} is not registered "
+                "in character_methods.yaml."
+            ),
+            hint = hint,
+        ))
+
+
 def _validate_choice(
     node: Choice,
     allow: Allowlists,
@@ -664,7 +789,10 @@ def _validate_choice(
     scene_type: str,
 ) -> None:
     for option in node.options:
-        # Option text may contain [path] interpolation per §11.10.
+        if option.condition is not None:
+            _validate_condition_calls(
+                option.condition, allow, errors, path, option.line,
+            )
         _validate_interpolations_in(
             option.text,
             source_line = option.line,
@@ -686,7 +814,11 @@ def _validate_node_list(
     *,
     scene_type: str,
 ) -> None:
-    """Recurse into body nodes, validating each. Used by IfChain / Choice."""
+    """Recurse into body nodes, validating each. Used by IfChain / Choice.
+
+    Also validates function calls inside ``[[if]]`` / ``[[elif]]``
+    conditions against the condition_functions allowlist.
+    """
     for node in nodes:
         if isinstance(node, Slugline):
             _validate_slugline(node, allow, errors, path)
@@ -706,6 +838,10 @@ def _validate_node_list(
             _validate_phone_open(node, allow, errors, path)
         elif isinstance(node, IfChain):
             for branch in node.branches:
+                if branch.condition is not None:
+                    _validate_condition_calls(
+                        branch.condition, allow, errors, path, branch.line,
+                    )
                 _validate_node_list(
                     branch.body, allow, errors, path, scene_type = scene_type,
                 )

@@ -166,7 +166,7 @@ def _write_meta(
         "generated_at": generated_at.date().isoformat(),
         "tool_version": "1.0.0",
         "base_game_root": context.relative(context.base_game_root),
-        "mod_root": context.relative(context.mod_root),
+        "project_root": context.relative(context.project_root),
         "include_tnh": context.include_tnh,
         "stats": stats,
         "warnings": warnings,
@@ -199,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
 
     context = ScanContext(
         base_game_root = base_game,
-        mod_root = mod,
+        project_root = mod,
         repo_root = repo_root,
         include_tnh = args.include_tnh,
     )

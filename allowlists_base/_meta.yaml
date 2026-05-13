@@ -1,7 +1,7 @@
 generated_at: '2026-05-13'
 tool_version: 1.0.0
 base_game_root: TheNullHypothesis
-mod_root: PregnancyMod
+project_root: PregnancyMod
 include_tnh: true
 stats:
   characters: 31

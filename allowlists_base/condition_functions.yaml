@@ -3,9 +3,76 @@
 # it to non-dev writers, and the mod commits to keeping its signature
 # stable across releases.
 #
-# Example:
-# functions:
-#   - name: check_approval
-#     signature: "check_approval(Character, threshold: str) -> bool"
-#     source_file: TheNullHypothesis/game/core/mechanics/approval.rpy
-functions: []
+# Only standalone (non-method) functions are listed here. Character
+# methods like JeanGrey.is_in_normal_mood() are accessed via attribute
+# syntax and validated separately.
+source: TNH base game
+generated_at: '2026-05-13'
+functions:
+  # -- Approval and relationships -----------------------------------------
+  - name: check_approval
+    signature: "check_approval(Character, flavor: str | None, threshold: str | int | None) -> bool | int"
+    source_file: game/core/mechanics/approval.rpy
+    source_line: 16
+  - name: are_Characters_friends
+    signature: "are_Characters_friends(Characters, level: int = 1) -> bool"
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 15
+  - name: are_Characters_in_Partners
+    signature: "are_Characters_in_Partners(Characters, knows_about: bool = True) -> bool"
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 24
+  - name: get_best_Friend
+    signature: "get_best_Friend(Character, Characters) -> Character | None"
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 53
+  - name: get_worst_Enemy
+    signature: "get_worst_Enemy(Character, Characters) -> Character | None"
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 72
+
+  # -- Character status ---------------------------------------------------
+  - name: seen_Player_recently
+    signature: "seen_Player_recently(Character) -> bool"
+    source_file: game/core/mechanics/utilities.rpy
+    source_line: 143
+  - name: Character_is_in_close_proximity
+    signature: "Character_is_in_close_proximity(Character) -> bool"
+    source_file: game/core/mechanics/utilities.rpy
+    source_line: 265
+
+  # -- Location -----------------------------------------------------------
+  - name: get_Location
+    signature: "get_Location(location: str | None = None) -> Location | None"
+    source_file: game/core/mechanics/utilities.rpy
+    source_line: 243
+  - name: get_Room_Owner
+    signature: "get_Room_Owner(location: str | None = None) -> Character | None"
+    source_file: game/core/mechanics/utilities.rpy
+    source_line: 258
+  - name: get_present_Characters
+    signature: "get_present_Characters(Location) -> set[Character]"
+    source_file: game/core/mechanics/characters.rpy
+    source_line: 5
+  - name: get_visible_Characters
+    signature: "get_visible_Characters(Location) -> set[Character]"
+    source_file: game/core/mechanics/characters.rpy
+    source_line: 32
+
+  # -- Time ---------------------------------------------------------------
+  - name: get_time_since
+    signature: "get_time_since(date: tuple[int, int]) -> int"
+    source_file: game/core/mechanics/time.rpy
+    source_line: 3
+
+  # -- Clothing (writer-facing checks) ------------------------------------
+  - name: check_if_need_to_change
+    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True, check: bool = False) -> bool"
+    source_file: game/core/mechanics/clothing.rpy
+    source_line: 21
+
+  # -- History ------------------------------------------------------------
+  - name: chance_of_repeat_Event
+    signature: "chance_of_repeat_Event(History, Item: str, chance: float = 0, limit_day_chance: float = 1.0, limit_day: int = 5) -> float"
+    source_file: game/core/definitions/history.rpy
+    source_line: 128

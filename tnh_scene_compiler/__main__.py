@@ -23,7 +23,7 @@ from pathlib import Path
 from .allowlists import Allowlists
 from .ast_nodes import Scene
 from .codegen import CodegenContext, generate, generate_events_rpy
-from .config import Config, ConfigError, find_config, load_config
+from .config import Config, ConfigError, config_filename, find_config, get_data_root, load_config
 from .errors import CompileError
 from . import output as out
 from .parser import parse
@@ -92,7 +92,7 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
         "--config",
         type=Path,
         default=None,
-        help="Path to tnh_scene_compiler.yaml (default: auto-discover).",
+        help="Path to tnh_scene_compiler.<prefix>.yaml (default: auto-discover).",
     )
     parser.add_argument(
         "--verbose",
@@ -105,51 +105,64 @@ def _add_common_args(parser: argparse.ArgumentParser) -> None:
 # Config resolution
 # ---------------------------------------------------------------------------
 
-def _resolve_config(args: argparse.Namespace) -> Config:
-    """Find and load the config file, or exit on failure."""
-    if args.config:
-        config_path = args.config
-    else:
-        start = Path.cwd()
-        if hasattr(args, "files") and args.files:
-            start = args.files[0].resolve().parent
-        config_path = find_config(start)
-
+def resolve_config(
+    config_path: Path | None,
+    start: Path | None = None,
+) -> Config:
+    """Find and load the config file, or raise ``ConfigError``."""
     if config_path is None:
-        out.error(
-            "No tnh_scene_compiler.yaml found. "
+        if start is None:
+            start = Path.cwd()
+        config_path = find_config(start)
+    if config_path is None:
+        raise ConfigError(
+            "No tnh_scene_compiler.*.yaml found. "
             "Run 'tnh_scene_compiler init' or pass --config."
         )
-        sys.exit(2)
+    return load_config(config_path)
 
+
+def _resolve_config(args: argparse.Namespace) -> Config:
+    """CLI wrapper: resolve config or exit."""
+    start = Path.cwd()
+    if hasattr(args, "files") and args.files:
+        start = args.files[0].resolve().parent
     try:
-        return load_config(config_path)
+        return resolve_config(args.config, start)
     except ConfigError as exc:
         out.error(str(exc))
         sys.exit(2)
 
 
-def _build_allowlists(cfg: Config) -> Allowlists:
-    """Layer base + mod allowlists per config."""
+def build_allowlists(cfg: Config) -> Allowlists:
+    """Layer base + mod allowlists per config. Raises ``ConfigError``."""
     dirs: list[Path] = []
     base = cfg.base_allowlists_dir
     if base is not None:
         dirs.append(base)
-    if cfg.mod_allowlists.is_dir():
-        dirs.append(cfg.mod_allowlists)
+    if cfg.project_allowlists.is_dir():
+        dirs.append(cfg.project_allowlists)
 
     if not dirs:
-        out.error("No allowlists directories found (neither base nor mod).")
-        sys.exit(2)
+        raise ConfigError("No allowlists directories found (neither base nor mod).")
 
     return Allowlists.load_layered(dirs)
+
+
+def _build_allowlists(cfg: Config) -> Allowlists:
+    """CLI wrapper: build allowlists or exit."""
+    try:
+        return build_allowlists(cfg)
+    except ConfigError as exc:
+        out.error(str(exc))
+        sys.exit(2)
 
 
 # ---------------------------------------------------------------------------
 # Scene discovery
 # ---------------------------------------------------------------------------
 
-def _iter_scene_files(root: Path) -> Iterable[Path]:
+def iter_scene_files(root: Path) -> Iterable[Path]:
     """Yield every ``.scene`` file under *root* except the ``_allowlists/`` tree."""
     for path in sorted(root.rglob("*.scene")):
         if "_allowlists" in path.parts:
@@ -161,7 +174,7 @@ def _iter_scene_files(root: Path) -> Iterable[Path]:
 # Compilation core
 # ---------------------------------------------------------------------------
 
-def _compile_one(
+def compile_one(
     source: Path,
     allow: Allowlists,
     ctx: CodegenContext,
@@ -194,7 +207,7 @@ def _compile_one(
 def _cmd_compile(args: argparse.Namespace) -> int:
     cfg = _resolve_config(args)
     allow = _build_allowlists(cfg)
-    ctx = CodegenContext(mod_prefix=cfg.mod_prefix)
+    ctx = CodegenContext(project_prefix=cfg.project_prefix)
     repo_root = cfg.config_dir
 
     if args.files:
@@ -203,7 +216,7 @@ def _cmd_compile(args: argparse.Namespace) -> int:
         if not cfg.scenes_source.is_dir():
             out.error(f"Scenes source not found: {cfg.scenes_source}")
             return 2
-        sources = list(_iter_scene_files(cfg.scenes_source))
+        sources = list(iter_scene_files(cfg.scenes_source))
 
     if not sources:
         out.warning("No .scene files found.")
@@ -218,7 +231,7 @@ def _cmd_compile(args: argparse.Namespace) -> int:
 
     for source in sources:
         total += 1
-        scene, rpy, errors = _compile_one(source, allow, ctx, repo_root=repo_root)
+        scene, rpy, errors = compile_one(source, allow, ctx, repo_root=repo_root)
         if errors:
             had_errors = True
             for err in errors:
@@ -268,7 +281,7 @@ def _cmd_validate(args: argparse.Namespace) -> int:
         if not cfg.scenes_source.is_dir():
             out.error(f"Scenes source not found: {cfg.scenes_source}")
             return 2
-        sources = list(_iter_scene_files(cfg.scenes_source))
+        sources = list(iter_scene_files(cfg.scenes_source))
 
     if not sources:
         out.warning("No .scene files found.")
@@ -314,30 +327,30 @@ def _cmd_validate(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def _cmd_init(args: argparse.Namespace) -> int:
-    mod_prefix = args.mod_prefix
+    project_prefix = args.project_prefix
     output_dir = args.output_dir.resolve()
 
-    out.header(f"Initializing mod project with prefix '{mod_prefix}'...")
+    out.header(f"Initializing mod project with prefix '{project_prefix}'...")
 
-    config_path = output_dir / "tnh_scene_compiler.yaml"
+    config_path = output_dir / config_filename(project_prefix)
     if config_path.exists():
         out.warning(f"Config already exists: {config_path}")
     else:
         config_path.write_text(
-            _INIT_CONFIG_TEMPLATE.format(mod_prefix=mod_prefix),
+            _INIT_CONFIG_TEMPLATE.format(project_prefix=project_prefix),
             encoding="utf-8",
             newline="\n",
         )
         out.success(f"Created {config_path.name}")
 
-    templates_dir = Path(__file__).resolve().parent.parent / "templates"
+    templates_dir = get_data_root() / "templates"
     if not templates_dir.is_dir():
         out.warning("Templates directory not found — skipping runtime stubs.")
         return 0
 
     for tmpl_file in sorted(templates_dir.glob("*.tmpl")):
         content = tmpl_file.read_text(encoding="utf-8")
-        content = content.replace("{{mod_prefix}}", mod_prefix)
+        content = content.replace("{{project_prefix}}", project_prefix)
         out_name = tmpl_file.stem
         out_path = output_dir / out_name
         if out_path.exists():
@@ -351,19 +364,19 @@ def _cmd_init(args: argparse.Namespace) -> int:
 
 
 _INIT_CONFIG_TEMPLATE = """\
-# tnh_scene_compiler.yaml — configuration for the Fountain-TNH compiler.
+# tnh_scene_compiler.{project_prefix}.yaml — configuration for the Fountain-TNH compiler.
 
-# REQUIRED: your mod's unique prefix.
-mod_prefix: {mod_prefix}
+# REQUIRED: your project's unique prefix.
+project_prefix: {project_prefix}
 
 # Directory containing .scene source files (relative to this file).
 scenes_source: scenes_source/
 
-# Mod-specific allowlists (relative to this file).
-mod_allowlists: scenes_source/_allowlists/
+# Project-specific allowlists (relative to this file).
+project_allowlists: scenes_source/_allowlists/
 
 # Output directory for compiled .rpy files (relative to this file).
-output: game/{mod_prefix}/scenes/
+output: game/{project_prefix}/scenes/
 
 # Include the base TNH allowlists shipped with the compiler.
 include_base_allowlists: true
@@ -371,7 +384,7 @@ include_base_allowlists: true
 # Optional: paths for the allowlist-refresh tool.
 # refresh:
 #   base_game: ../TheNullHypothesis/
-#   mod_root: .
+#   project_root: .
 """
 
 

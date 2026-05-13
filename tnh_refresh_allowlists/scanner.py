@@ -26,7 +26,7 @@ def iter_all_rpy(context: ScanContext) -> Iterable[Path]:
     """Yield every ``.rpy`` file across TNH (when included) and the mod."""
     if context.include_tnh:
         yield from iter_rpy_files(context.base_game_root)
-    yield from iter_rpy_files(context.mod_root)
+    yield from iter_rpy_files(context.project_root)
 
 
 def safe_read_text(path: Path) -> str | None:

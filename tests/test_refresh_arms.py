@@ -43,7 +43,7 @@ def test_empty_when_no_poses(tmp_path):
 
     context = ScanContext(
         base_game_root = tmp_path / "tnh",
-        mod_root = tmp_path / "mod",
+        project_root = tmp_path / "mod",
         repo_root = tmp_path,
         include_tnh = True,
     )

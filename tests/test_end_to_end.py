@@ -9,7 +9,7 @@ from tnh_scene_compiler.codegen import CodegenContext, generate
 from tnh_scene_compiler.parser import parse
 from tnh_scene_compiler.validator import validate
 
-_CTX = CodegenContext(mod_prefix = "testmod")
+_CTX = CodegenContext(project_prefix = "testmod")
 
 
 def _compile(text: str, path: str, allowlists: Allowlists) -> str:

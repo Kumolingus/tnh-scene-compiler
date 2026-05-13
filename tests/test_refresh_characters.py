@@ -54,7 +54,7 @@ def test_mod_character_not_duplicated_when_same_name_exists_in_tnh(tmp_path, min
 
     context = ScanContext(
         base_game_root = mini_context.base_game_root,
-        mod_root = fake_mod,
+        project_root = fake_mod,
         repo_root = tmp_path,
         include_tnh = True,
     )

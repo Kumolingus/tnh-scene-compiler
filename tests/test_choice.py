@@ -15,7 +15,7 @@ _PREFIX = (
     "Scene Type: cinematic\nTrigger: manual\n\n"
 )
 
-_CTX = CodegenContext(mod_prefix = "testmod")
+_CTX = CodegenContext(project_prefix = "testmod")
 
 
 def test_parse_minimal_choice_block() -> None:

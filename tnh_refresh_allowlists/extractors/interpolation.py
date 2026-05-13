@@ -67,7 +67,7 @@ def _discover_character_tags(context: ScanContext) -> list[str]:
                 tags.append(folder.name)
                 seen.add(folder.name)
 
-    game_dir = context.mod_root / "game"
+    game_dir = context.project_root / "game"
     if game_dir.exists():
         for prefix in sorted(game_dir.iterdir()):
             if not prefix.is_dir():

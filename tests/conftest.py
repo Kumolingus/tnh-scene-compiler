@@ -68,7 +68,7 @@ def allowlists() -> Allowlists:
 @pytest.fixture
 def codegen_ctx() -> CodegenContext:
     """A CodegenContext for tests using a non-production prefix."""
-    return CodegenContext(mod_prefix = "testmod")
+    return CodegenContext(project_prefix = "testmod")
 
 
 # --- refresh_allowlists fixtures ---------------------------------------------
@@ -86,7 +86,7 @@ def mini_context() -> ScanContext:
     base = FIXTURES / "refresh_allowlists"
     return ScanContext(
         base_game_root = base / "mini_tnh",
-        mod_root = base / "mini_mod",
+        project_root = base / "mini_mod",
         repo_root = base,
         include_tnh = True,
     )
@@ -98,7 +98,7 @@ def mini_mod_only_context() -> ScanContext:
     base = FIXTURES / "refresh_allowlists"
     return ScanContext(
         base_game_root = base / "mini_tnh",
-        mod_root = base / "mini_mod",
+        project_root = base / "mini_mod",
         repo_root = base,
         include_tnh = False,
     )
