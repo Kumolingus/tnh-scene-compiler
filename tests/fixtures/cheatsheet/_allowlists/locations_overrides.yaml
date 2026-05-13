@@ -1,0 +1,6 @@
+overrides:
+- name: KITCHEN
+  source_file: manual
+  source_line: 0
+  location_id: loc_XavierSchool_Kitchen
+  display_name: Kitchen (manual override)

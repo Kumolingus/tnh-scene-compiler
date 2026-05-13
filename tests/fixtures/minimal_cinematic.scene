@@ -1,0 +1,19 @@
+Title: Minimal Test Scene
+Scene Id: mymod_scene_minimal
+Character: JeanGrey
+Scene Type: cinematic
+Trigger: manual
+Priority: 100
+Repeatable: false
+
+INT. JEANGREY'S ROOM
+
+She sits on her bed and sighs.
+
+JEANGREY
+Hey [player.petname], you awake?
+
+You nod silently.
+
+JEANGREY
+Good. I need you here tonight.

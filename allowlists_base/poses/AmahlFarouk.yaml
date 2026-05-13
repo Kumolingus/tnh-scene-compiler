@@ -1,0 +1,10 @@
+character: AmahlFarouk
+source: TNH + Mod
+generated_at: '2026-05-13'
+values:
+- name: monster
+  source_file: TheNullHypothesis/game/characters/AmahlFarouk/images/monster/monster.rpy
+  source_line: 136
+- name: standing
+  source_file: TheNullHypothesis/game/characters/AmahlFarouk/images/standing/standing.rpy
+  source_line: 51

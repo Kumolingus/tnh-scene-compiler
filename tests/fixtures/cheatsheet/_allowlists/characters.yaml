@@ -1,0 +1,12 @@
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: JeanGrey
+  source_file: TheNullHypothesis/game/characters/JeanGrey
+  source_line: 1
+- name: Narrator
+  source_file: <builtin>
+  source_line: 0
+- name: Rogue
+  source_file: TheNullHypothesis/game/characters/Rogue
+  source_line: 1

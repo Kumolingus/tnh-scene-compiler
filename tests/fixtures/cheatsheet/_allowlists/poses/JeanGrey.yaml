@@ -1,0 +1,7 @@
+character: JeanGrey
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: standing
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/standing.rpy
+  source_line: 1

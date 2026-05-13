@@ -1,0 +1,33 @@
+source: TNH + Mod
+generated_at: '2026-05-13'
+values:
+- name: achievement
+  source_file: TheNullHypothesis/game/sounds/interfaces/achievement.ogg
+  source_line: 0
+- name: cash_register
+  source_file: TheNullHypothesis/game/sounds/interfaces/cash_register.ogg
+  source_line: 0
+- name: click
+  source_file: TheNullHypothesis/game/sounds/interfaces/click.ogg
+  source_line: 0
+- name: hover
+  source_file: TheNullHypothesis/game/sounds/interfaces/hover.ogg
+  source_line: 0
+- name: jet
+  source_file: TheNullHypothesis/game/sounds/effects/jet.ogg
+  source_line: 0
+- name: message
+  source_file: TheNullHypothesis/game/sounds/interfaces/message.ogg
+  source_line: 0
+- name: microwave
+  source_file: TheNullHypothesis/game/sounds/effects/microwave.ogg
+  source_line: 0
+- name: phone
+  source_file: TheNullHypothesis/game/sounds/interfaces/phone.ogg
+  source_line: 0
+- name: press
+  source_file: TheNullHypothesis/game/sounds/interfaces/press.ogg
+  source_line: 0
+- name: zipper
+  source_file: TheNullHypothesis/game/sounds/interfaces/zipper.ogg
+  source_line: 0

@@ -1,0 +1,14 @@
+generated_at: '2026-04-23'
+tool_version: 1.0.0
+base_game_root: TheNullHypothesis
+mod_root: PregnancyMod
+include_tnh: true
+stats:
+  characters: 3
+  stages: 2
+  sfx: 2
+  locations: 2
+  looks: 2
+  interpolation: 2
+  condition_functions: 1
+warnings: []

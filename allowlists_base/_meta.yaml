@@ -1,0 +1,81 @@
+generated_at: '2026-05-13'
+tool_version: 1.0.0
+base_game_root: TheNullHypothesis
+mod_root: PregnancyMod
+include_tnh: true
+stats:
+  characters: 31
+  stages: 8
+  sfx: 10
+  locations: 31
+  looks: 8
+  interpolation: 91
+  condition_functions: 0
+  faces:
+    AmahlFarouk: 10
+    CharlesXavier: 35
+    JeanGrey: 59
+    KittyPryde: 59
+    KurtWagner: 49
+    LauraKinney: 61
+    OroroMunroe: 59
+    Rogue: 59
+  poses:
+    AmahlFarouk: 2
+    CharlesXavier: 1
+    JeanGrey: 7
+    KittyPryde: 1
+    KurtWagner: 1
+    LauraKinney: 7
+    OroroMunroe: 1
+    Rogue: 7
+    Dek8000: 1
+    DerpNibbles: 1
+    Gaspka: 1
+    NegaNexus: 1
+    PurePazaak: 1
+  arms:
+    AmahlFarouk: 13
+    CharlesXavier: 1
+    JeanGrey: 52
+    KittyPryde: 34
+    KurtWagner: 22
+    LauraKinney: 52
+    OroroMunroe: 38
+    Rogue: 46
+  outfits:
+    JeanGrey: 14
+    KittyPryde: 1
+    KurtWagner: 2
+    LauraKinney: 14
+    OroroMunroe: 3
+    Rogue: 14
+  moods:
+    JeanGrey: 5
+    KurtWagner: 4
+    LauraKinney: 34
+    OroroMunroe: 5
+warnings:
+- Location loc_MuirIsland_Facility2 is declared via .copy() and is not resolved in
+  V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_CharlesXavierRoom is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_JeanGreyRoom is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_JeanGreyShower is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_KurtWagnerRoom is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_LauraKinneyRoom is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_LauraKinneyShower is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_PlayerRoom is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_PlayerShower is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_RogueRoom is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_RogueShower is declared via .copy() and is not resolved
+  in V1; add it manually to locations_overrides.yaml if needed
+- Location loc_XavierSchool_Shower has no 'name' field

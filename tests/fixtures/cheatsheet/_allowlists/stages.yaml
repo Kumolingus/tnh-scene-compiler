@@ -1,0 +1,9 @@
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: stage_center
+  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
+  source_line: 73
+- name: stage_left
+  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
+  source_line: 72

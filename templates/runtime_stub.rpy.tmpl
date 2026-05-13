@@ -1,0 +1,23 @@
+# {{mod_prefix}}_runtime — scene state bridge for the Fountain-TNH compiler.
+#
+# This module lives outside the Ren'Py store so its attributes survive
+# invoke_in_new_context boundaries (used by the testing hub to preview
+# scenes without polluting the live game state).
+#
+# The compiled scenes read from this module at entry:
+#     $ _scene_state = dict(getattr({{mod_prefix}}_runtime, 'scene_state', None) or {})
+#
+# In normal gameplay both attributes are None and the dict comes out empty.
+
+init python:
+    import types as _types
+    import sys as _sys
+
+    if "{{mod_prefix}}_runtime" not in _sys.modules:
+        _mod = _types.ModuleType("{{mod_prefix}}_runtime")
+        _mod.scene_state = None
+        _mod.condition_overrides = None
+        _sys.modules["{{mod_prefix}}_runtime"] = _mod
+        del _mod
+
+    import {{mod_prefix}}_runtime

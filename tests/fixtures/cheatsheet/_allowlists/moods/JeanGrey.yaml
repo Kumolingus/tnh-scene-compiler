@@ -1,0 +1,11 @@
+character: JeanGrey
+source: TNH + Mod
+generated_at: '2026-04-23'
+inherits_from_shared: _shared.yaml
+values:
+- name: focused
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
+  source_line: 56
+- name: telepathic
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
+  source_line: 45

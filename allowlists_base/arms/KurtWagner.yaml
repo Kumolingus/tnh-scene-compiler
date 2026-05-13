@@ -1,0 +1,72 @@
+character: KurtWagner
+source: TNH + Mod
+generated_at: '2026-05-13'
+arms:
+- name: clenched
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 309
+- name: crossed
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 314
+- name: fight
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 319
+- name: fist_bump
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 324
+- name: gesturing
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 329
+- name: neutral
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 304
+- name: outstretched
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 334
+- name: question
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 349
+- name: sheepish
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 339
+- name: shrug
+  source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/expressions.rpy
+  source_line: 344
+left_arm:
+- name: crossed
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 89
+- name: extended
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 89
+- name: fight
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 89
+- name: fist
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 89
+- name: neutral
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 89
+- name: rub_neck
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 89
+right_arm:
+- name: crossed
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 90
+- name: extended
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 90
+- name: fight
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 90
+- name: fist
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 90
+- name: neutral
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 90
+- name: question
+  source_file: TheNullHypothesis/game/characters/KurtWagner/images/standing/standing.rpy
+  source_line: 90

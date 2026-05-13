@@ -1,0 +1,9 @@
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: happy
+  source_file: TheNullHypothesis/game/core/base/moods.rpy
+  source_line: 63
+- name: sad
+  source_file: TheNullHypothesis/game/core/base/moods.rpy
+  source_line: 187

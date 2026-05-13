@@ -1,0 +1,14 @@
+Title: With Conditions
+Scene Id: mymod_scene_with_conditions
+Character: JeanGrey
+Scene Type: cinematic
+Trigger: sleeping
+Conditions: JeanGrey.love >= 500 and JeanGrey.pregnancy_stage == "early"
+Priority: 175
+Repeatable: true
+Tags: mymod_tagged
+
+INT. JEANGREY'S ROOM
+
+JEANGREY
+You came.

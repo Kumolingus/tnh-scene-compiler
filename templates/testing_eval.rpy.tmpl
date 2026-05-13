@@ -1,0 +1,33 @@
+# {{mod_prefix}}_testing_eval_condition — condition wrapper for the testing hub.
+#
+# Compiled scenes route eligible condition-function calls through this wrapper
+# so the testing hub can substitute a preview value at runtime without
+# monkey-patching.  In normal gameplay the override dict is None and the
+# wrapper short-circuits to the original function call.
+
+init python:
+    def {{mod_prefix}}_testing_eval_condition(name, fn, args, arg_names):
+        """Evaluate a condition function, respecting testing-hub overrides.
+
+        Parameters
+        ----------
+        name : str
+            The function's registered name (e.g. "my_mod_is_ready").
+        fn : callable
+            The original function object.
+        args : tuple
+            Positional arguments to pass.
+        arg_names : tuple[str, ...]
+            String representations of ``args`` for override-key matching.
+
+        Returns
+        -------
+        bool
+            The function result (or the overridden value).
+        """
+        overrides = getattr({{mod_prefix}}_runtime, "condition_overrides", None)
+        if overrides is not None:
+            key = (name, arg_names)
+            if key in overrides:
+                return overrides[key]
+        return fn(*args)

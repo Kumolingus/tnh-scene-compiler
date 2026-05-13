@@ -1,0 +1,204 @@
+# Authoring Cheatsheet — Valid Values Reference
+
+Keep this open while writing. It lists every value the compiler
+accepts: characters, moods, faces, arms, locations, sound effects,
+interpolation paths, scene-type metadata keys.
+
+> **This file is auto-generated.**
+> Do not edit by hand. The build runs
+> `Tools/Generate-Cheatsheet.ps1` which reads the allowlists under
+> `scenes_source/_allowlists/` and rewrites this document. Edits to
+> this file will be lost on the next generation.
+>
+> **Generated at:** {{generated_at}}
+> **Source:** {{source_label}}
+
+## How to read this
+
+- **Values** are case-sensitive. `happy` and `Happy` are different.
+- **Per-character** sections list values valid for that character
+  only. A mood that works for Jean may not work for Rogue.
+- **Unknown values** produce a compile error with the full list, so
+  even without this cheatsheet you find your way back.
+
+## Parenthetical slots
+
+Positional order when writing without keys:
+
+```
+(mood, face, arms, look, outfit, stage)
+```
+
+Named-only slots (no positional slot):
+`left_arm`, `right_arm`, `pose`.
+
+Reserved value: `text` (on its own, switches the line to phone-text
+medium; mutually exclusive with visual attributes).
+
+Positional-skip token: `_` (skips the slot without changing it).
+
+## Speakers
+
+Valid speaker names for dialogue blocks. Use the `UPPERCASE` form as
+the line prefix in a `.scene` file, and refer to the same character
+in `[[if]]` expressions and interpolations with the PascalCase form.
+
+{{speakers}}
+
+## Stages
+
+Scene positions. Source: `_allowlists/stages.yaml`.
+
+{{stages}}
+
+## Locations (sluglines)
+
+Source: `_allowlists/locations.yaml` merged with
+`_allowlists/locations_overrides.yaml`. Sluglines are looked up by the
+exact text following the `INT.` / `EXT.` prefix. Entries tagged
+`override` win over the auto-scanned ones.
+
+{{locations}}
+
+Common time-of-day suffixes allowed on sluglines: ` - MORNING`,
+` - DAY`, ` - EVENING`, ` - NIGHT`.
+
+## Sound effects (SFX)
+
+Source: `_allowlists/sfx.yaml`. Files under
+`game/<modprefix>/sounds/sfx/<name>.ogg`.
+
+{{sfx}}
+
+## Engine effects (FX)
+
+Source: `_allowlists/fx.yaml` (manual). These are Python effect
+functions — visual or transient (phone shake, knock overlay, bamf
+flash, …), distinct from sound files. Called with
+`[[fx name(...)]]`; parentheses required even when empty;
+positional args only.
+
+See `scenes_source/_allowlists/fx.yaml` for the authoritative list
+and signatures. The common ones: `phone_buzz()`, `knock_on_door()`,
+`bamf()`, `smack()`, `crack()`, `pow_effect()`.
+
+## Looks
+
+Typically the same list for every character. Source:
+`_allowlists/looks.yaml`.
+
+{{looks}}
+
+## Moods (shared across characters)
+
+Source: `_allowlists/moods/_shared.yaml`. Every character inherits
+this list. Character-specific additions are listed under each
+character below.
+
+{{shared_moods}}
+
+## Per-character authoring values
+
+Each character listed below has at least one authoring value (mood,
+face, pose, arm, outfit). Speakers that appear only in the Speakers
+table have no authoring surface of their own.
+
+{{per_character}}
+
+## Interpolation paths
+
+Source: `_allowlists/interpolation.yaml` (auto) merged with
+`_allowlists/interpolation_custom.yaml` (manual). Usable anywhere
+inside dialogue or narration as `[path]`.
+
+{{interpolation}}
+
+## Condition functions
+
+Source: `_allowlists/condition_functions.yaml` (manual). Functions
+callable from `[[if]]` expressions. Adding one here is a stable
+contract: the signature must stay compatible across releases.
+
+{{condition_functions}}
+
+## Title page keys
+
+Source: hardcoded in the format (not an allowlist).
+
+| Key | Required | Type | Meaning |
+|---|---|---|---|
+| `Title` | Yes | string | Human-readable title |
+| `Scene Id` | Yes | snake_case | Becomes the label name |
+| `Character` | Yes | PascalCase | Owning character |
+| `Scene Type` | Yes | `cinematic` / `phone` / `texting` / `hub_option` | Compilation target |
+| `Trigger` | For `cinematic` only | enum | `manual`, `sleeping`, `waking`, `traveling`, `getting_ready_for_bed`, or a mod-prefixed flag. Other scene types default to `manual` if omitted. |
+| `Description` | No | string | One-line summary, helpful for the dev. Preserved when migrating from legacy JSON. |
+| `Conditions` | No | expression | Ren'Py condition, comma-joined clauses become `and` |
+| `Priority` | No | int | Event priority, default 50 |
+| `Repeatable` | No | bool | Default `false` |
+| `Tags` | No | comma list | Extra flags on the event |
+| `Location` | No | slugline text | Implied opening slugline |
+| `Openness` | For `phone` only | enum | `open`, `steady` |
+| `Stage` | For `phone` only | string | `early`, `middle`, `late`, `showing`, `due` |
+| `Format` | No | int | Format version override, default 1 |
+
+### Body comments
+
+Lines whose first non-whitespace character is `#` are comments —
+stripped at compile time, invisible at runtime. Use them to annotate
+a scene for other authors or the dev.
+
+`#` appearing in the middle of a regular line is **not** a comment
+(it's treated as prose).
+
+HTML-style `<!-- … -->` comments are **not** supported and produce a
+compile error.
+
+## Directive reference (syntax summary)
+
+Exact behaviour is documented in the Guide.
+
+| Directive | Purpose |
+|---|---|
+| `[[pause N]]` | N-second pause |
+| `[[sfx name]]` / `[[sfx name N]]` | Play a sound effect (a `.ogg` file) |
+| `[[fx name(...)]]` | Call an engine effect function (phone buzz, knock, bamf, …) |
+| `[[set key]]` / `[[set key = value]]` | Scene-local state |
+| `[[if expr]]` / `[[elif expr]]` / `[[else]]` / `[[/if]]` | Conditional |
+| `[[label name]]` | Anchor for `[[goto]]` |
+| `[[goto name]]` | Jump to a label in the scene |
+| `[[choice]]` / `= option` / `[[/choice]]` | Player choice |
+| `[[call scene_id]]` | Chain another scene |
+| `[[show Character …]]` / `[[hide Character]]` | Visual change without dialogue |
+| `[[phone open]]` / `[[phone open Character]]` / `[[phone close]]` | Phone UI |
+| `[[mod_set ...]]` | Persistent state change (only allowlisted operations) |
+| `[[approval Char love\|trust ±N]]` | Move love/trust by a stat tier (`tiny_stat` ... `massive_stat`) or integer (≥ 1) |
+
+## Expression grammar (inside `[[if]]`)
+
+Allowed:
+
+- Comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=`
+- Logic: `and`, `or`, `not`
+- Literals: int, float, str (`"..."`), `True`, `False`, `None`
+- Attribute access on allowlisted roots: `<Character>.attr`,
+  `player.attr`, or a scene-local state key
+- Membership: `x in y`, `x not in y`
+- Parentheses for grouping
+
+Not allowed:
+
+- Arithmetic (`+`, `-`, `*`, `/`)
+- Function calls, unless the function is in
+  `_allowlists/condition_functions.yaml`
+- f-strings, lambdas, comprehensions, slicing, indexing
+
+## Keeping this file fresh
+
+Run `Tools/Generate-Cheatsheet.ps1` whenever the mod adds a new
+mood, face, location, SFX, or interpolation path. The script reads
+every YAML under `scenes_source/_allowlists/` and rewrites this
+document in place.
+
+Never edit this file by hand. If a value is missing, fix the
+allowlist YAML and regenerate.

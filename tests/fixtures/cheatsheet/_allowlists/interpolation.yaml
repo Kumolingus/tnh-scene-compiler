@@ -1,0 +1,9 @@
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: day
+  source_file: <builtin>
+  source_line: 0
+- name: player.name
+  source_file: <builtin>
+  source_line: 0

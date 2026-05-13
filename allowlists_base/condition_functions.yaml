@@ -1,0 +1,11 @@
+# Functions callable from [[if]] expressions inside a .scene file.
+# Every entry is an explicit contract: adding a function here exposes
+# it to non-dev writers, and the mod commits to keeping its signature
+# stable across releases.
+#
+# Example:
+# functions:
+#   - name: check_approval
+#     signature: "check_approval(Character, threshold: str) -> bool"
+#     source_file: TheNullHypothesis/game/core/mechanics/approval.rpy
+functions: []

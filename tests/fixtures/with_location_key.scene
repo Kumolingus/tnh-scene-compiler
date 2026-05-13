@@ -1,0 +1,8 @@
+Title: Location Via Title Page
+Scene Id: mymod_scene_location_key
+Character: Rogue
+Scene Type: cinematic
+Trigger: manual
+Location: PLAYER'S ROOM
+
+You stare at the ceiling.

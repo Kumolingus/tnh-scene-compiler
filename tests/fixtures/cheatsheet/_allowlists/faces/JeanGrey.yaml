@@ -1,0 +1,10 @@
+character: JeanGrey
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: smile
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/face/smile.rpy
+  source_line: 1
+- name: smirk
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/face/smirk.rpy
+  source_line: 1

@@ -1,0 +1,10 @@
+character: JeanGrey
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: casual
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/outfits/casual.rpy
+  source_line: 1
+- name: uniform
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/outfits/uniform.rpy
+  source_line: 1

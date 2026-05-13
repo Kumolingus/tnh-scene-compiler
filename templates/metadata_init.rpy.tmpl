@@ -1,0 +1,9 @@
+# {{mod_prefix}}_scene_metadata — per-scene metadata dict populated at boot.
+#
+# Each compiled .rpy file appends one entry at init time.  The testing hub
+# reads this dict to discover available scenes, their state specs, condition
+# specs, and called-scene chains.
+
+init python:
+    if "{{mod_prefix}}_scene_metadata" not in dir(store):
+        {{mod_prefix}}_scene_metadata = {}

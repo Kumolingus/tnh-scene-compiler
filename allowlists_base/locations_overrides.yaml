@@ -1,0 +1,4 @@
+# Manual overrides for slugline -> location_id mapping.
+# Entries here win over the auto-generated locations.yaml.
+# Delete an entry to revert to auto.
+overrides: []

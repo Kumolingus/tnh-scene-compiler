@@ -1,0 +1,1 @@
+default Gamma = CompanionClass("Gamma")

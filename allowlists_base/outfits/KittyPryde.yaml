@@ -1,0 +1,7 @@
+character: KittyPryde
+source: TNH + Mod
+generated_at: '2026-05-13'
+values:
+- name: Nude
+  source_file: TheNullHypothesis/game/characters/KittyPryde/clothing/outfits.rpy
+  source_line: 6

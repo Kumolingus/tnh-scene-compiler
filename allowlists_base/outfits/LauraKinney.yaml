@@ -1,0 +1,46 @@
+character: LauraKinney
+source: TNH + Mod
+generated_at: '2026-05-13'
+values:
+- name: Casual 1
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 8
+- name: Casual 2
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 44
+- name: Casual 3
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 75
+- name: Datenight 1
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 189
+- name: Datenight 2
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 218
+- name: Exercise
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 114
+- name: Formal
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 244
+- name: Hero (Chapter I)
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 139
+- name: Lingerie 1
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 279
+- name: Lingerie 2
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 301
+- name: Nude
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 316
+- name: Pajamas
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 260
+- name: Swimsuit (Bikini)
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 175
+- name: Swimsuit (One-Piece)
+  source_file: TheNullHypothesis/game/characters/LauraKinney/clothing/outfits.rpy
+  source_line: 159

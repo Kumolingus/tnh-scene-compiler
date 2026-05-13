@@ -1,0 +1,4 @@
+functions:
+- name: check_approval
+  signature: "check_approval(Character, threshold: str) -> bool"
+  source_file: TheNullHypothesis/game/core/mechanics/approval.rpy

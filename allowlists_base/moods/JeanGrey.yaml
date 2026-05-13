@@ -1,0 +1,20 @@
+character: JeanGrey
+source: TNH + Mod
+generated_at: '2026-05-13'
+inherits_from_shared: _shared.yaml
+values:
+- name: aggressive
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
+  source_line: 31
+- name: alert
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
+  source_line: 6
+- name: defensive
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
+  source_line: 19
+- name: focused
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
+  source_line: 56
+- name: telepathic
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
+  source_line: 45

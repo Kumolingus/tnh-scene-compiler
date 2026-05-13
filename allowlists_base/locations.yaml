@@ -1,0 +1,158 @@
+source: TNH + Mod
+generated_at: '2026-05-13'
+values:
+- name: '[CHARLESXAVIER.NAME]''S ROOM'
+  source_file: TheNullHypothesis/game/characters/CharlesXavier/locations/locations.rpy
+  source_line: 1
+  location_id: loc_CharlesXavierRoom
+  display_name: '[CharlesXavier.name]''s Room'
+- name: '[CHARLESXAVIER.NAME]''S STUDY'
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Office/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Office
+  display_name: '[CharlesXavier.name]''s Study'
+- name: '[JEANGREY.NAME]''S ROOM'
+  source_file: TheNullHypothesis/game/characters/JeanGrey/locations/locations.rpy
+  source_line: 3
+  location_id: loc_JeanGreyRoom
+  display_name: '[JeanGrey.name]''s Room'
+- name: '[JEANGREY.NAME]''S SHOWER'
+  source_file: TheNullHypothesis/game/characters/JeanGrey/locations/locations.rpy
+  source_line: 34
+  location_id: loc_JeanGreyShower
+  display_name: '[JeanGrey.name]''s Shower'
+- name: '[KURTWAGNER.NAME]''S ROOM'
+  source_file: TheNullHypothesis/game/characters/KurtWagner/locations/locations.rpy
+  source_line: 1
+  location_id: loc_KurtWagnerRoom
+  display_name: '[KurtWagner.name]''s Room'
+- name: '[LAURAKINNEY.NAME]''S ROOM'
+  source_file: TheNullHypothesis/game/characters/LauraKinney/locations/locations.rpy
+  source_line: 3
+  location_id: loc_LauraKinneyRoom
+  display_name: '[LauraKinney.name]''s Room'
+- name: '[LAURAKINNEY.NAME]''S SHOWER'
+  source_file: TheNullHypothesis/game/characters/LauraKinney/locations/locations.rpy
+  source_line: 36
+  location_id: loc_LauraKinneyShower
+  display_name: '[LauraKinney.name]''s Shower'
+- name: '[PLAYER.FIRST_NAME]''S ROOM'
+  source_file: TheNullHypothesis/game/characters/Player/locations/locations.rpy
+  source_line: 3
+  location_id: loc_PlayerRoom
+  display_name: '[Player.first_name]''s Room'
+- name: '[PLAYER.FIRST_NAME]''S ROOM'
+  source_file: TheNullHypothesis/game/characters/Player/locations/locations.rpy
+  source_line: 36
+  location_id: loc_PlayerShower
+  display_name: '[Player.first_name]''s Room'
+- name: '[ROGUE.NAME]''S ROOM'
+  source_file: TheNullHypothesis/game/characters/Rogue/locations/locations.rpy
+  source_line: 3
+  location_id: loc_RogueRoom
+  display_name: '[Rogue.name]''s Room'
+- name: '[ROGUE.NAME]''S SHOWER'
+  source_file: TheNullHypothesis/game/characters/Rogue/locations/locations.rpy
+  source_line: 38
+  location_id: loc_RogueShower
+  display_name: '[Rogue.name]''s Shower'
+- name: ATTIC HALLWAY
+  source_file: TheNullHypothesis/game/locations/XavierSchool/AtticHallway/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_AtticHallway
+  display_name: Attic Hallway
+- name: BASEMENT HALLWAY
+  source_file: TheNullHypothesis/game/locations/XavierSchool/BasementHallway/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_BasementHallway
+  display_name: Basement Hallway
+- name: BAYVILLE MALL
+  source_file: TheNullHypothesis/game/locations/BayvilleTown/Mall/location.rpy
+  source_line: 1
+  location_id: loc_BayvilleTown_Mall
+  display_name: Bayville Mall
+- name: BOYS' HALL
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Hallway/location.rpy
+  source_line: 35
+  location_id: loc_XavierSchool_BoysHallway
+  display_name: Boys' Hall
+- name: CEREBRO
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Cerebro/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Cerebro
+  display_name: Cerebro
+- name: CLASSROOM
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Classroom/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Classroom
+  display_name: Classroom
+- name: DANGER ROOM
+  source_file: TheNullHypothesis/game/locations/XavierSchool/DangerRoom/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_DangerRoom
+  display_name: Danger Room
+- name: DOWNTOWN
+  source_file: TheNullHypothesis/game/locations/BayvilleTown/Downtown/location.rpy
+  source_line: 1
+  location_id: loc_BayvilleTown_Downtown
+  display_name: Downtown
+- name: GIRLS' HALL
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Hallway/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_GirlsHallway
+  display_name: Girls' Hall
+- name: GROUNDS
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Grounds/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Grounds
+  display_name: Grounds
+- name: INFIRMARY
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Infirmary/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Infirmary
+  display_name: Infirmary
+- name: KITCHEN
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Kitchen/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Kitchen
+  display_name: Kitchen
+- name: LOCKER ROOMS
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Lockers/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Lockers
+  display_name: Locker Rooms
+- name: MANSION ENTRANCE
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Entrance/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Entrance
+  display_name: Mansion Entrance
+- name: MOVIE THEATER
+  source_file: TheNullHypothesis/game/locations/Cinema/location.rpy
+  source_line: 1
+  location_id: loc_Cinema
+  display_name: Movie Theater
+- name: MUIR ISLAND (I)
+  source_file: TheNullHypothesis/game/locations/MuirIsland/Facility/location.rpy
+  source_line: 1
+  location_id: loc_MuirIsland_Facility1
+  display_name: Muir Island (I)
+- name: MUIR ISLAND LABORATORY
+  source_file: TheNullHypothesis/game/locations/MuirIsland/Laboratory/location.rpy
+  source_line: 1
+  location_id: loc_MuirIsland_Laboratory
+  display_name: Muir Island Laboratory
+- name: POOL
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Pool/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Pool
+  display_name: Pool
+- name: REC ROOM
+  source_file: TheNullHypothesis/game/locations/XavierSchool/RecRoom/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_RecRoom
+  display_name: Rec Room
+- name: RESTAURANT
+  source_file: TheNullHypothesis/game/locations/BayvilleTown/Restaurant/location.rpy
+  source_line: 1
+  location_id: loc_BayvilleTown_Restaurant
+  display_name: Restaurant

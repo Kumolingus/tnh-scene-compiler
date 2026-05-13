@@ -1,0 +1,18 @@
+character: JeanGrey
+source: TNH + Mod
+generated_at: '2026-04-23'
+arms:
+- name: crossed
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/standing/standing.rpy
+  source_line: 102
+left_arm:
+- name: extended
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/standing/standing.rpy
+  source_line: 103
+- name: hip
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/standing/standing.rpy
+  source_line: 103
+right_arm:
+- name: extended
+  source_file: TheNullHypothesis/game/characters/JeanGrey/images/standing/standing.rpy
+  source_line: 104

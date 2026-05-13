@@ -1,0 +1,13 @@
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: CLASSROOM
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Classroom/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Classroom
+  display_name: Classroom
+- name: KITCHEN
+  source_file: TheNullHypothesis/game/locations/XavierSchool/Kitchen/location.rpy
+  source_line: 1
+  location_id: loc_XavierSchool_Kitchen
+  display_name: Kitchen

@@ -1,0 +1,5 @@
+# Project-specific interpolation paths the Fountain-TNH compiler
+# should accept inside [...]. The compiler merges this list with
+# the auto-generated interpolation.yaml.
+# Each entry is a dotted path; no expressions, no calls.
+paths: []

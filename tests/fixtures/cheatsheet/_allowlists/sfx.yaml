@@ -1,0 +1,9 @@
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: click
+  source_file: TheNullHypothesis/game/sounds/interfaces/click.ogg
+  source_line: 0
+- name: phone
+  source_file: TheNullHypothesis/game/sounds/interfaces/phone.ogg
+  source_line: 0

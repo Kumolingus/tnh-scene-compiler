@@ -1,0 +1,7 @@
+character: Gaspka
+source: TNH + Mod
+generated_at: '2026-05-13'
+values:
+- name: standing
+  source_file: TheNullHypothesis/game/characters/Silhouettes/Gaspka/character.rpy
+  source_line: 42

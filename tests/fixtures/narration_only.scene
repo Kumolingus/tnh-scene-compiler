@@ -1,0 +1,9 @@
+Title: Narration Only
+Scene Id: mymod_scene_narration_only
+Character: JeanGrey
+Scene Type: cinematic
+Trigger: manual
+
+The room was quiet. Too quiet.
+
+You walked to the window.
