@@ -2,11 +2,20 @@
 # PyInstaller spec for TNH Scene Compiler GUI.
 
 import os
+import importlib.util
+
+_spec = importlib.util.spec_from_file_location(
+    "tnh_scene_compiler",
+    os.path.join("tnh_scene_compiler", "__init__.py"),
+)
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+_version = _mod.__version__
 
 block_cipher = None
 
 a = Analysis(
-    [os.path.join("tnh_scene_compiler", "gui.py")],
+    ["run_gui.py"],
     pathex=[],
     binaries=[],
     datas=[
@@ -32,7 +41,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="TNHSceneCompiler",
+    name=f"TNHSceneCompiler-{_version}",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
