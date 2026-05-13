@@ -169,12 +169,20 @@ Layers merge automatically: the project layer extends the base.
 
 ## GUI features
 
-- **Welcome screen** with Quick compile / Open project / Create project.
+- **Welcome screen** with New scene / Quick compile / Open project / Create project.
 - **Recent projects** list with persistence.
 - **Per-file status indicators** (pending / running / ok / error) during compilation.
 - **Drag-and-drop** support for `.scene` files (requires `tkinterdnd2`).
 - **Project settings** editor (paths, allowlists, base game options).
 - **Colored output pane** with real-time compilation feedback.
+- **Dark theme** with colored action buttons (compile, validate, edit, back).
+- **Integrated scene editor** with:
+  - Syntax highlighting for `.scene` format.
+  - Insertion palette with colored tabs: Characters, Locations, Directives, FX/SFX, Structures, Visuals.
+  - Character dialog for selecting medium, mood, face, pose, arms, outfit, look.
+  - Directive dialogs with per-directive forms and live preview.
+  - Inline validation with error navigation.
+  - Undo/redo, save, new scene template.
 
 ## Distribution
 

@@ -29,6 +29,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Drag-and-drop support via `tkinterdnd2` (optional dependency, graceful fallback).
   - Recent projects persistence (`%APPDATA%/tnh-scene-compiler/recent_projects.json`).
   - Project settings editor (paths, allowlists, base game options).
+- **Integrated scene editor** with insertion palette:
+  - Full text editor with syntax highlighting (sluglines, speakers, directives, comments, interpolation).
+  - Line numbers, undo/redo, Tab-to-spaces, Ctrl+/ comment toggle.
+  - Sidebar palette with colored section tabs (Chars, Locs, Directives, FX/SFX, Structures, Visuals).
+  - Character insertion dialog: select medium (spoken/text), mood, face, pose, arms, outfit, look with live preview.
+  - Directive insertion dialogs: per-directive forms (show, hide, approval, pause, set, call, etc.) with live preview.
+  - Visuals tab: character + category dropdowns to insert `[[show]]` directives.
+  - Location categories by school floor (Basement, Ground floor, Girls'/Boys' floor, Attic, Outdoors, Outside school).
+  - Character categories (Featured characters, NPCs, Player/Narrator).
+  - FX/SFX split into generic effects, character effects, and sounds.
+  - Call scene directive with project scene ID autocomplete.
+  - Inline validation: parse + validate on buffer, error underline, click-to-navigate.
+  - New scene creation with title page template.
+  - Save/Save As with unsaved changes prompt on back navigation.
+  - Editor preserves calling screen state (Quick/Project) on return.
   - Dark-themed output pane with colored log messages.
 - **DSL transformation layer** for writer-friendly condition syntax:
   - `Character.love >= medium` → `check_approval(Character, "love", "medium_stat")`.

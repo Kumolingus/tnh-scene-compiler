@@ -52,8 +52,8 @@ from .validator import validate
 
 _POLL_MS = 50
 _WINDOW_TITLE = "TNH Scene Compiler"
-_MIN_WIDTH = 750
-_MIN_HEIGHT = 520
+_MIN_WIDTH = 1100
+_MIN_HEIGHT = 700
 
 _TAG_COLORS: dict[str, dict[str, Any]] = {
     "header":        {"foreground": "#FFFFFF", "font": ("Consolas", 10, "bold")},
@@ -359,6 +359,21 @@ class WelcomeScreen(ttk.Frame):
         mode_frame = ttk.Frame(self)
         mode_frame.pack(pady=(0, 8))
 
+        # New scene
+        scene_frame = ttk.LabelFrame(
+            mode_frame, text="New scene", padding=8,
+        )
+        scene_frame.pack(side=tk.LEFT, padx=8, fill=tk.Y)
+        ttk.Label(
+            scene_frame,
+            text="Create a new scene\nfile and open it in\nthe editor.",
+            justify=tk.CENTER,
+        ).pack(pady=(0, 8))
+        ttk.Button(
+            scene_frame, text="New scene",
+            command=self._new_scene,
+        ).pack()
+
         # Quick compile
         quick_frame = ttk.LabelFrame(
             mode_frame, text="Quick compile", padding=8,
@@ -449,7 +464,7 @@ class WelcomeScreen(ttk.Frame):
             ).pack(side=tk.LEFT)
 
             ttk.Button(
-                recent_btn_frame, text="Remove from list",
+                recent_btn_frame, text="Remove from list", style="Danger.TButton",
                 command=self._remove_recent,
             ).pack(side=tk.LEFT, padx=4)
 
@@ -457,6 +472,26 @@ class WelcomeScreen(ttk.Frame):
 
     def _quick_compile(self) -> None:
         self._app.show_quick()
+
+    def _new_scene(self) -> None:
+        from .editor import EditorContext
+        from .allowlists import Allowlists
+        from .config import get_data_root
+
+        base_dir = get_data_root() / "allowlists_base"
+        if base_dir.is_dir():
+            allow = Allowlists.load_layered([base_dir])
+        else:
+            allow = Allowlists()
+
+        ctx = EditorContext(
+            file_path=None,
+            allowlists=allow,
+            project_prefix="my_project",
+            scenes_source=None,
+            origin="welcome",
+        )
+        self._app.show_editor(ctx)
 
     def _open_project(self) -> None:
         path = filedialog.askopenfilename(
@@ -570,7 +605,7 @@ class InitScreen(ttk.Frame):
         btn_frame.pack(anchor=tk.W, pady=(20, 0))
 
         ttk.Button(
-            btn_frame, text="Back", command=self._back,
+            btn_frame, text="Back", style="Danger.TButton", command=self._back,
         ).pack(side=tk.LEFT, padx=(0, 8))
 
         ttk.Button(
@@ -681,7 +716,7 @@ class QuickScreen(_WorkspaceBase):
         ).pack(side=tk.LEFT)
 
         ttk.Button(
-            frm, text="Back to home", command=lambda: self._app.show_welcome(),
+            frm, text="Back to home", style="Danger.TButton", command=lambda: self._app.show_welcome(),
         ).pack(side=tk.RIGHT)
 
     def _build_settings(self) -> None:
@@ -747,6 +782,8 @@ class QuickScreen(_WorkspaceBase):
             self._tree.drop_target_register(DND_FILES)
             self._tree.dnd_bind("<<Drop>>", self._on_drop)
 
+        self._tree.bind("<Double-1>", self._on_double_click_edit)
+
         # Buttons + hint
         btn_frame = ttk.Frame(frm)
         btn_frame.pack(fill=tk.X, pady=(4, 0))
@@ -755,10 +792,14 @@ class QuickScreen(_WorkspaceBase):
             btn_frame, text="Add files…", command=self._browse_files,
         ).pack(side=tk.LEFT)
         ttk.Button(
-            btn_frame, text="Remove selected", command=self._remove_selected,
+            btn_frame, text="Remove selected", style="Danger.TButton", command=self._remove_selected,
         ).pack(side=tk.LEFT, padx=4)
         ttk.Button(
-            btn_frame, text="Clear all", command=self._clear_files,
+            btn_frame, text="Clear all", style="Danger.TButton", command=self._clear_files,
+        ).pack(side=tk.LEFT, padx=4)
+
+        ttk.Button(
+            btn_frame, text="Edit scene", style="Edit.TButton", command=self._edit_selected,
         ).pack(side=tk.LEFT, padx=4)
 
         hint = "Drop .scene files here or use Add files…"
@@ -774,13 +815,13 @@ class QuickScreen(_WorkspaceBase):
         frm.pack(fill=tk.X, pady=(0, 4))
 
         compile_btn = ttk.Button(
-            frm, text="Compile", command=self._run_compile,
+            frm, text="Compile", style="Compile.TButton", command=self._run_compile,
         )
         compile_btn.pack(side=tk.LEFT, padx=(0, 4))
         self._action_buttons.append(compile_btn)
 
         validate_btn = ttk.Button(
-            frm, text="Validate", command=self._run_validate,
+            frm, text="Validate", style="Validate.TButton", command=self._run_validate,
         )
         validate_btn.pack(side=tk.LEFT)
         self._action_buttons.append(validate_btn)
@@ -836,6 +877,44 @@ class QuickScreen(_WorkspaceBase):
         for iid in self._tree.get_children():
             self._tree.item(iid, values=(self._S_PENDING, self._tree.set(iid, "file")))
             self._tree.item(iid, tags=("pending",))
+
+    # -- Editor integration -------------------------------------------------
+
+    def _edit_selected(self) -> None:
+        sel = self._tree.selection()
+        if len(sel) != 1:
+            messagebox.showinfo(
+                "Edit scene",
+                "Select a single scene to edit.",
+            )
+            return
+        path = self._file_paths.get(sel[0])
+        if path:
+            self._open_editor(path)
+
+    def _on_double_click_edit(self, _event: Any = None) -> None:
+        sel = self._tree.selection()
+        if not sel:
+            return
+        path = self._file_paths.get(sel[0])
+        if path:
+            self._open_editor(path)
+
+    def _open_editor(self, file_path: Path) -> None:
+        from .editor import EditorContext
+
+        allow = self._load_base_allowlists()
+        if allow is None:
+            return
+
+        ctx = EditorContext(
+            file_path=file_path,
+            allowlists=allow,
+            project_prefix=self._prefix_var.get().strip() or "my_project",
+            scenes_source=None,
+            origin="quick",
+        )
+        self._app.show_editor(ctx)
 
     # -- File dialogs / DnD -------------------------------------------------
 
@@ -1113,10 +1192,10 @@ class SettingsDialog(tk.Toplevel):
         btn_frame = ttk.Frame(body)
         btn_frame.grid(row=row, column=0, columnspan=3, sticky=tk.E, pady=(8, 0))
 
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(
+        ttk.Button(btn_frame, text="Cancel", style="Danger.TButton", command=self.destroy).pack(
             side=tk.LEFT, padx=(0, 4),
         )
-        ttk.Button(btn_frame, text="Save", command=self._save).pack(
+        ttk.Button(btn_frame, text="Save", style="Compile.TButton", command=self._save).pack(
             side=tk.LEFT,
         )
 
@@ -1259,7 +1338,7 @@ class ProjectScreen(_WorkspaceBase):
         self._header_path.pack(side=tk.LEFT, padx=(4, 0))
 
         ttk.Button(
-            frm, text="Back to home",
+            frm, text="Back to home", style="Danger.TButton",
             command=lambda: self._app.show_welcome(),
         ).pack(side=tk.RIGHT)
 
@@ -1309,23 +1388,33 @@ class ProjectScreen(_WorkspaceBase):
             btn_frame, text="Select all", command=self._select_all,
         ).pack(side=tk.LEFT, padx=4)
 
+        ttk.Button(
+            btn_frame, text="New Scene", style="New.TButton", command=self._new_scene,
+        ).pack(side=tk.LEFT, padx=4)
+
+        ttk.Button(
+            btn_frame, text="Edit scene", style="Edit.TButton", command=self._edit_selected,
+        ).pack(side=tk.LEFT, padx=4)
+
         self._scene_count_var = tk.StringVar()
         ttk.Label(
             btn_frame, textvariable=self._scene_count_var, foreground="gray",
         ).pack(side=tk.RIGHT)
+
+        self._tree.bind("<Double-1>", self._on_double_click)
 
     def _build_actions(self) -> None:
         frm = ttk.Frame(self)
         frm.pack(fill=tk.X, pady=(0, 4))
 
         compile_btn = ttk.Button(
-            frm, text="Compile", command=self._run_compile,
+            frm, text="Compile", style="Compile.TButton", command=self._run_compile,
         )
         compile_btn.pack(side=tk.LEFT, padx=(0, 4))
         self._action_buttons.append(compile_btn)
 
         validate_btn = ttk.Button(
-            frm, text="Validate", command=self._run_validate,
+            frm, text="Validate", style="Validate.TButton", command=self._run_validate,
         )
         validate_btn.pack(side=tk.LEFT, padx=(0, 8))
         self._action_buttons.append(validate_btn)
@@ -1335,6 +1424,50 @@ class ProjectScreen(_WorkspaceBase):
             text="Select scenes above, or leave empty to process all.",
             foreground="gray",
         ).pack(side=tk.LEFT)
+
+    # -- Editor integration -------------------------------------------------
+
+    def _on_double_click(self, _event: Any = None) -> None:
+        sel = self._tree.selection()
+        if not sel:
+            return
+        path = self._file_paths.get(sel[0])
+        if path:
+            self._open_editor(path)
+
+    def _edit_selected(self) -> None:
+        sel = self._tree.selection()
+        if len(sel) != 1:
+            messagebox.showinfo(
+                "Edit scene",
+                "Select a single scene to edit.",
+            )
+            return
+        path = self._file_paths.get(sel[0])
+        if path:
+            self._open_editor(path)
+
+    def _new_scene(self) -> None:
+        self._open_editor(None)
+
+    def _open_editor(self, file_path: Path | None) -> None:
+        from .editor import EditorContext
+
+        try:
+            allow = build_allowlists(self._cfg)
+        except ConfigError as exc:
+            messagebox.showerror("Configuration error", str(exc))
+            return
+
+        ctx = EditorContext(
+            file_path=file_path,
+            allowlists=allow,
+            project_prefix=self._cfg.project_prefix,
+            scenes_source=self._cfg.scenes_source,
+            origin="project",
+            cfg=self._cfg,
+        )
+        self._app.show_editor(ctx)
 
     # -- Settings -----------------------------------------------------------
 
@@ -1555,9 +1688,13 @@ class CompilerApp(ttk.Frame):
         super().__init__(master)
         self.pack(fill=tk.BOTH, expand=True)
         self._current: ttk.Frame | None = None
+        self._stashed: ttk.Frame | None = None
         self.show_welcome()
 
     def _switch_to(self, screen: ttk.Frame) -> None:
+        if self._stashed is not None:
+            self._stashed.destroy()
+            self._stashed = None
         if self._current is not None:
             self._current.destroy()
         self._current = screen
@@ -1575,10 +1712,103 @@ class CompilerApp(ttk.Frame):
     def show_project(self, cfg: Config) -> None:
         self._switch_to(ProjectScreen(self, self, cfg))
 
+    def show_editor(self, ctx) -> None:
+        from .editor import EditorScreen
+        if self._current is not None:
+            self._current.pack_forget()
+            self._stashed = self._current
+        editor = EditorScreen(self, self, ctx)
+        self._current = editor
+        editor.pack(fill=tk.BOTH, expand=True)
+
+    def restore_previous(self) -> None:
+        if self._current is not None:
+            self._current.destroy()
+        if self._stashed is not None:
+            self._current = self._stashed
+            self._stashed = None
+            self._current.pack(fill=tk.BOTH, expand=True)
+        else:
+            self.show_welcome()
+
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
+def _apply_dark_theme(root: tk.Tk) -> None:
+    root.configure(bg="#1E1E1E")
+
+    style = ttk.Style(root)
+    style.theme_use("clam")
+
+    style.configure(".", background="#1E1E1E", foreground="#D4D4D4",
+                     fieldbackground="#141414", borderwidth=1,
+                     troughcolor="#141414", arrowcolor="#D4D4D4")
+    style.configure("TFrame", background="#1E1E1E")
+    style.configure("TLabel", background="#1E1E1E", foreground="#D4D4D4")
+    style.configure("TButton", background="#2D2D2D", foreground="#D4D4D4")
+    style.map("TButton",
+              background=[("active", "#3C3C3C"), ("pressed", "#505050")])
+    style.configure("TEntry", fieldbackground="#141414", foreground="#D4D4D4")
+    style.configure("TCombobox", fieldbackground="#141414", foreground="#D4D4D4",
+                     selectbackground="#264F78", selectforeground="#FFFFFF",
+                     background="#141414")
+    style.map("TCombobox",
+              fieldbackground=[("readonly", "#141414")],
+              foreground=[("readonly", "#D4D4D4")],
+              selectbackground=[("readonly", "#264F78")],
+              selectforeground=[("readonly", "#FFFFFF")])
+    style.configure("TCheckbutton", background="#1E1E1E", foreground="#D4D4D4")
+    style.configure("TRadiobutton", background="#1E1E1E", foreground="#D4D4D4")
+    style.configure("TLabelframe", background="#1E1E1E", foreground="#D4D4D4")
+    style.configure("TLabelframe.Label", background="#1E1E1E", foreground="#D4D4D4")
+    style.configure("TNotebook", background="#1E1E1E")
+    style.configure("TNotebook.Tab", background="#2D2D2D", foreground="#D4D4D4",
+                     padding=[12, 5])
+    style.map("TNotebook.Tab",
+              background=[("selected", "#141414")],
+              foreground=[("selected", "#FFFFFF")])
+    style.configure("TSeparator", background="#3C3C3C")
+    style.configure("TPanedwindow", background="#1E1E1E")
+    style.configure("Treeview", background="#141414", foreground="#D4D4D4",
+                     fieldbackground="#141414", borderwidth=0)
+    style.configure("Treeview.Heading", background="#2D2D2D",
+                     foreground="#D4D4D4")
+    style.map("Treeview",
+              background=[("selected", "#264F78")],
+              foreground=[("selected", "#FFFFFF")])
+    style.configure("Vertical.TScrollbar", background="#2D2D2D",
+                     troughcolor="#141414", arrowcolor="#D4D4D4")
+    style.configure("Horizontal.TScrollbar", background="#2D2D2D",
+                     troughcolor="#141414", arrowcolor="#D4D4D4")
+
+    # Colored button styles
+    style.configure("Danger.TButton", background="#5C1E1E", foreground="#E8A0A0")
+    style.map("Danger.TButton",
+              background=[("active", "#7A2A2A"), ("pressed", "#8B3232")])
+
+    style.configure("Compile.TButton", background="#1E3A1E", foreground="#A0E8A0")
+    style.map("Compile.TButton",
+              background=[("active", "#2A5A2A"), ("pressed", "#327032")])
+
+    style.configure("Validate.TButton", background="#1E2E5C", foreground="#A0C0E8")
+    style.map("Validate.TButton",
+              background=[("active", "#2A3E7A"), ("pressed", "#324A8B")])
+
+    style.configure("Edit.TButton", background="#3A2E1E", foreground="#E8D0A0")
+    style.map("Edit.TButton",
+              background=[("active", "#5A4A2A"), ("pressed", "#705832")])
+
+    style.configure("New.TButton", background="#1E3A3A", foreground="#A0E8E0")
+    style.map("New.TButton",
+              background=[("active", "#2A5A5A"), ("pressed", "#327070")])
+
+    root.option_add("*TCombobox*Listbox.background", "#1E1E1E")
+    root.option_add("*TCombobox*Listbox.foreground", "#D4D4D4")
+    root.option_add("*TCombobox*Listbox.selectBackground", "#264F78")
+    root.option_add("*TCombobox*Listbox.selectForeground", "#FFFFFF")
+
 
 def main() -> None:
     if _HAS_DND:
@@ -1589,6 +1819,7 @@ def main() -> None:
     root.minsize(_MIN_WIDTH, _MIN_HEIGHT)
     root.geometry(f"{_MIN_WIDTH}x{_MIN_HEIGHT}")
 
+    _apply_dark_theme(root)
     CompilerApp(root)
     root.mainloop()
 
