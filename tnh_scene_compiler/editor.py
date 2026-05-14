@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
+from .action_builder import ActionBuilderDialog
 from .allowlists import Allowlists
 from .condition_builder import ConditionBuilderDialog
 from .config import Config
@@ -603,8 +604,45 @@ class _DirectiveDialog(tk.Toplevel):
     def _build_phone_close(self, parent: ttk.Frame, allow: Allowlists) -> None:
         pass
 
-    def _build_mod_set(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        ops = sorted(allow.mod_operations) if allow.mod_operations else []
+    def _build_give_trait(self, parent: ttk.Frame, allow: Allowlists) -> None:
+        chars = sorted(allow.characters)
+        self._add_combo(parent, 0, "Character", "char", chars)
+        traits = sorted(allow.traits) if allow.traits else []
+        if traits:
+            self._add_combo(parent, 1, "Trait", "trait", traits)
+        else:
+            self._add_entry(parent, 1, "Trait", "trait")
+
+    def _build_remove_trait(self, parent: ttk.Frame, allow: Allowlists) -> None:
+        chars = sorted(allow.characters)
+        self._add_combo(parent, 0, "Character", "char", chars)
+        traits = sorted(allow.traits) if allow.traits else []
+        if traits:
+            self._add_combo(parent, 1, "Trait", "trait", traits)
+        else:
+            self._add_entry(parent, 1, "Trait", "trait")
+
+    def _build_record(self, parent: ttk.Frame, allow: Allowlists) -> None:
+        chars = sorted(allow.characters)
+        self._add_combo(parent, 0, "Character", "char", chars)
+        events = sorted(allow.history_events) if allow.history_events else []
+        if events:
+            self._add_combo(parent, 1, "Event", "event", events)
+        else:
+            self._add_entry(parent, 1, "Event", "event")
+
+    def _build_set_personality(self, parent: ttk.Frame, allow: Allowlists) -> None:
+        chars = sorted(allow.characters)
+        self._add_combo(parent, 0, "Character", "char", chars)
+        personalities = sorted(allow.personalities) if allow.personalities else []
+        if personalities:
+            self._add_combo(parent, 1, "Trait", "trait", personalities)
+        else:
+            self._add_entry(parent, 1, "Trait", "trait")
+        self._add_entry(parent, 2, "Value", "value")
+
+    def _build_run(self, parent: ttk.Frame, allow: Allowlists) -> None:
+        ops = sorted(allow.run_operations) if allow.run_operations else []
         if ops:
             self._add_combo(parent, 0, "Operation", "op", ops)
         else:
@@ -669,11 +707,26 @@ class _DirectiveDialog(tk.Toplevel):
         if d == "phone close":
             return "[[phone close]]"
 
-        if d == "mod_set":
+        if d == "run":
             op = v.get("op", "function()")
             if "(" not in op:
                 op += "()"
-            return f"[[mod_set {op}]]"
+            return f"[[run {op}]]"
+
+        if d == "give_trait":
+            return f"[[give_trait {v.get('char', 'Character')} {v.get('trait', 'trait')}]]"
+
+        if d == "remove_trait":
+            return f"[[remove_trait {v.get('char', 'Character')} {v.get('trait', 'trait')}]]"
+
+        if d == "record":
+            return f"[[record {v.get('char', 'Character')} {v.get('event', 'event')}]]"
+
+        if d == "set_personality":
+            return (
+                f"[[set_personality {v.get('char', 'Character')} "
+                f"{v.get('trait', 'trait')} {v.get('value', '1')}]]"
+            )
 
         return f"[[{d}]]"
 
@@ -1032,7 +1085,11 @@ class _PaletteSidebar(ttk.Frame):
             ("call scene", "call"),
             ("phone open", "phone open"),
             ("phone close", "phone close"),
-            ("mod operation", "mod_set"),
+            ("run function", "run"),
+            ("give trait", "give_trait"),
+            ("remove trait", "remove_trait"),
+            ("record event", "record"),
+            ("set personality", "set_personality"),
         ]
 
         tab = self._register_tab("Direct.")
@@ -1105,9 +1162,18 @@ class _PaletteSidebar(ttk.Frame):
             command=self._open_condition_builder,
         )
         builder_btn.pack(fill=tk.X, pady=1)
+        action_btn = ttk.Button(
+            inner, text="Build action…",
+            style="Compile.TButton",
+            command=self._open_action_builder,
+        )
+        action_btn.pack(fill=tk.X, pady=1)
 
     def _open_condition_builder(self) -> None:
         ConditionBuilderDialog(self, self._allow, self._insert)
+
+    def _open_action_builder(self) -> None:
+        ActionBuilderDialog(self, self._allow, self._insert)
 
     # -- Visuals ------------------------------------------------------------
 

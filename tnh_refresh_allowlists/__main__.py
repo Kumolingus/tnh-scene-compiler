@@ -93,15 +93,15 @@ _MANUAL_SCAFFOLDS: tuple[tuple[str, str], ...] = (
         "functions: []\n",
     ),
     (
-        "mod_operations.yaml",
-        "# Operations callable from [[mod_set]] inside a .scene file.\n"
+        "run_operations.yaml",
+        "# Operations callable from [[run]] inside a .scene file.\n"
         "# These write persistent state (Character traits, History, mod\n"
         "# attributes) and must be hand-maintained: adding an entry here\n"
         "# exposes the helper to non-dev writers, and the mod commits to\n"
         "# keeping its signature stable across releases.\n"
         "#\n"
         "# Each entry's ``name`` is matched against the call target used in\n"
-        "# [[mod_set]] — either the bare function name (``mymod_set_stage``)\n"
+        "# [[run]] — either the bare function name (``mymod_set_stage``)\n"
         "# or the final attribute of a dotted method chain\n"
         "# (``JeanGrey.give_trait(\"x\")`` matches ``give_trait``).\n"
         "#\n"

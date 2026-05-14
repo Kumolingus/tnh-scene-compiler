@@ -333,7 +333,7 @@ Exact behaviour is documented in the Guide.
 | `[[call scene_id]]` | Chain another scene |
 | `[[show Character …]]` / `[[hide Character]]` | Visual change without dialogue |
 | `[[phone open]]` / `[[phone open Character]]` / `[[phone close]]` | Phone UI |
-| `[[mod_set ...]]` | Persistent state change (only allowlisted operations) |
+| `[[run ...]]` | Persistent state change (only allowlisted operations) |
 | `[[approval Char love\|trust ±N]]` | Move love/trust by a stat tier (`tiny_stat` ... `massive_stat`) or integer (≥ 1) |
 
 ## Expression grammar (inside `[[if]]`)

@@ -59,9 +59,12 @@ def allowlists() -> Allowlists:
         looks = {"at_player", "away", "down"},
         stages = {"stage_left", "stage_center", "stage_right"},
         sfx = {"phone_buzz", "click", "door_open"},
-        mod_operations = {"give_trait", "mymod_set_stage"},
+        run_operations = {"give_trait", "mymod_set_stage"},
         fx = {"phone_buzz", "knock_on_door", "bamf"},
         condition_functions = {"check_approval", "is_pregnant", "ready_for_parenthood"},
+        traits = {"shy", "bold", "romantic"},
+        personalities = {"dominant", "submissive", "loner"},
+        history_events = {"kissed_player", "fought_villain"},
     )
 
 

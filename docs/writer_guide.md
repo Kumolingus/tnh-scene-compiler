@@ -448,8 +448,41 @@ You're not being very subtle.
 
 State only exists for the duration of the scene. It is not saved, not
 remembered across scenes. For persistent state (character stats, mod
-variables), ask the developer — that requires a `[[mod_set]]`
-directive.
+variables), ask the developer — that requires a `[[run]]`
+directive (or one of the high-level directives described below).
+
+
+---
+
+## Persistent state — high-level directives
+
+For common state mutations, use these dedicated directives instead of `[[run]]`.
+They validate your inputs against the allowlists and provide better error messages.
+
+### `[[give_trait]]` / `[[remove_trait]]` — character traits
+
+```
+[[give_trait JeanGrey shy]]
+[[remove_trait JeanGrey shy]]
+```
+
+The trait must exist in `traits.yaml`. If you misspell it, the compiler suggests close matches.
+
+### `[[record]]` — history events
+
+```
+[[record JeanGrey kissed_player]]
+```
+
+Records that a character has done something. Later scenes can check this with `[[if JeanGrey.did("kissed_player")]]`.
+
+### `[[set_personality]]` — personality traits
+
+```
+[[set_personality JeanGrey dominant 3]]
+```
+
+Sets a numeric personality score. The trait must exist in `personalities.yaml`.
 
 
 ---
@@ -557,16 +590,16 @@ or `texting` scene types — those already run in phone mode.
 
 ### Approval changes
 
-The developer may set up `[[mod_set]]` operations that modify game
+The developer may set up `[[run]]` operations that modify game
 state (approval ratings, flags, relationship values). The developer
 tells you the exact syntax when it is needed:
 
 ```
-[[mod_set approval_up JeanGrey 10]]
+[[run approval_up JeanGrey 10]]
 ```
 
-You cannot invent `[[mod_set]]` operations. Each one must be
-registered by the developer.
+You cannot invent `[[run]]` operations. Each one must be
+registered by the developer in `run_operations.yaml`.
 
 
 ---
@@ -791,7 +824,8 @@ The format deliberately forbids:
 - Calling any function that is not allowlisted.
 - Loops (`while`, `for`).
 - Writing directly to character stats — only through
-  developer-provided `[[mod_set]]` operations.
+  developer-provided `[[run]]` operations (or the high-level
+  directives like `[[give_trait]]`, `[[record]]`, `[[set_personality]]`).
 
 If you need something the format does not express, ask the developer.
 They either add a new directive, register a helper function, or write

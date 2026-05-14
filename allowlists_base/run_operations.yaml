@@ -1,11 +1,11 @@
-# Operations callable from [[mod_set]] inside a .scene file.
+# Operations callable from [[run]] inside a .scene file.
 # These write persistent state (Character traits, History, mod
 # attributes) and must be hand-maintained: adding an entry here
 # exposes the helper to non-dev writers, and the mod commits to
 # keeping its signature stable across releases.
 #
 # Each entry's ``name`` is matched against the call target used in
-# [[mod_set]] — either the bare function name (``mymod_set_stage``)
+# [[run]] — either the bare function name (``mymod_set_stage``)
 # or the final attribute of a dotted method chain
 # (``JeanGrey.give_trait("x")`` matches ``give_trait``).
 #

@@ -102,7 +102,7 @@ def test_set_rejects_dotted_key() -> None:
     with pytest.raises(CompileError) as excinfo:
         _dir("[[set JeanGrey.mood = true]]")
 
-    assert "mod_set" in excinfo.value.message
+    assert "run" in excinfo.value.message
 
 
 def test_label_parses() -> None:
@@ -124,34 +124,123 @@ def test_goto_parses() -> None:
     assert node.name == "after_phone_check"
 
 
-def test_mod_set_parses_method_call() -> None:
-    from tnh_scene_compiler.ast_nodes import ModSet
-    node = _dir("[[mod_set JeanGrey.give_trait(\"x\")]]")
+def test_run_parses_method_call() -> None:
+    from tnh_scene_compiler.ast_nodes import Run
+    node = _dir("[[run JeanGrey.give_trait(\"x\")]]")
 
-    assert isinstance(node, ModSet)
+    assert isinstance(node, Run)
     assert node.target_name == "give_trait"
 
 
-def test_mod_set_parses_bare_function_call() -> None:
-    from tnh_scene_compiler.ast_nodes import ModSet
-    node = _dir("[[mod_set mymod_set_stage(JeanGrey, 2)]]")
+def test_run_parses_bare_function_call() -> None:
+    from tnh_scene_compiler.ast_nodes import Run
+    node = _dir("[[run mymod_set_stage(JeanGrey, 2)]]")
 
-    assert isinstance(node, ModSet)
+    assert isinstance(node, Run)
     assert node.target_name == "mymod_set_stage"
 
 
-def test_mod_set_rejects_non_call_body() -> None:
+def test_run_rejects_non_call_body() -> None:
     with pytest.raises(CompileError) as excinfo:
-        _dir("[[mod_set JeanGrey.love]]")
+        _dir("[[run JeanGrey.love]]")
 
     assert "call" in excinfo.value.message.lower()
 
 
-def test_mod_set_inherits_expression_grammar_rejections() -> None:
+def test_run_inherits_expression_grammar_rejections() -> None:
     with pytest.raises(CompileError) as excinfo:
-        _dir("[[mod_set fn(a + b)]]")
+        _dir("[[run fn(a + b)]]")
 
     assert "Arithmetic" in excinfo.value.message
+
+
+# -- give_trait ---------------------------------------------------------------
+
+
+def test_give_trait_parses() -> None:
+    from tnh_scene_compiler.ast_nodes import GiveTrait
+    node = _dir("[[give_trait JeanGrey shy]]")
+
+    assert isinstance(node, GiveTrait)
+    assert node.character == "JeanGrey"
+    assert node.trait == "shy"
+
+
+def test_give_trait_rejects_missing_args() -> None:
+    with pytest.raises(CompileError):
+        _dir("[[give_trait JeanGrey]]")
+
+
+def test_give_trait_rejects_extra_args() -> None:
+    with pytest.raises(CompileError):
+        _dir("[[give_trait JeanGrey shy extra]]")
+
+
+def test_give_trait_rejects_non_identifier_character() -> None:
+    with pytest.raises(CompileError):
+        _dir("[[give_trait 123 shy]]")
+
+
+# -- remove_trait -------------------------------------------------------------
+
+
+def test_remove_trait_parses() -> None:
+    from tnh_scene_compiler.ast_nodes import RemoveTrait
+    node = _dir("[[remove_trait JeanGrey shy]]")
+
+    assert isinstance(node, RemoveTrait)
+    assert node.character == "JeanGrey"
+    assert node.trait == "shy"
+
+
+def test_remove_trait_rejects_missing_args() -> None:
+    with pytest.raises(CompileError):
+        _dir("[[remove_trait JeanGrey]]")
+
+
+# -- record -------------------------------------------------------------------
+
+
+def test_record_parses() -> None:
+    from tnh_scene_compiler.ast_nodes import RecordEvent
+    node = _dir("[[record JeanGrey kissed_player]]")
+
+    assert isinstance(node, RecordEvent)
+    assert node.character == "JeanGrey"
+    assert node.event == "kissed_player"
+
+
+def test_record_rejects_missing_args() -> None:
+    with pytest.raises(CompileError):
+        _dir("[[record JeanGrey]]")
+
+
+# -- set_personality ----------------------------------------------------------
+
+
+def test_set_personality_parses() -> None:
+    from tnh_scene_compiler.ast_nodes import SetPersonality
+    node = _dir("[[set_personality JeanGrey dominant 3]]")
+
+    assert isinstance(node, SetPersonality)
+    assert node.character == "JeanGrey"
+    assert node.trait == "dominant"
+    assert node.value == 3
+
+
+def test_set_personality_rejects_non_integer_value() -> None:
+    with pytest.raises(CompileError) as excinfo:
+        _dir("[[set_personality JeanGrey bold abc]]")
+
+    assert "integer" in excinfo.value.message.lower()
+
+
+def test_set_personality_rejects_missing_args() -> None:
+    with pytest.raises(CompileError):
+        _dir("[[set_personality JeanGrey dominant]]")
+
+
+# -- fx -----------------------------------------------------------------------
 
 
 def test_fx_parses_function_call() -> None:

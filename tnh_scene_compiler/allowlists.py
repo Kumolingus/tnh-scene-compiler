@@ -197,7 +197,7 @@ class Allowlists:
     looks: set[str] = field(default_factory=set)
     stages: set[str] = field(default_factory=set)
     sfx: set[str] = field(default_factory=set)
-    mod_operations: set[str] = field(default_factory=set)
+    run_operations: set[str] = field(default_factory=set)
     fx: set[str] = field(default_factory=set)
     condition_functions: set[str] = field(default_factory=set)
     character_methods: set[str] = field(default_factory=set)
@@ -233,19 +233,19 @@ class Allowlists:
         sfx = set(_values_names(_read_yaml(allowlists_dir / "sfx.yaml")))
 
         # Mod-operations allowlist (hand-maintained manual scaffold).
-        mod_operations_payload = _read_yaml(allowlists_dir / "mod_operations.yaml")
-        mod_operations: set[str] = set()
-        if mod_operations_payload and isinstance(
-            mod_operations_payload.get("operations"), list,
+        run_operations_payload = _read_yaml(allowlists_dir / "run_operations.yaml")
+        run_operations: set[str] = set()
+        if run_operations_payload and isinstance(
+            run_operations_payload.get("operations"), list,
         ):
-            for item in mod_operations_payload["operations"]:
+            for item in run_operations_payload["operations"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
-                    mod_operations.add(item["name"])
+                    run_operations.add(item["name"])
 
         # Engine-effects allowlist (hand-maintained). Populated with the
         # TNH core helpers writers are allowed to trigger from [[fx]] —
         # phone_buzz, knock_on_door, bamf, and the displayables/effects
-        # family. Schema parallels mod_operations.yaml.
+        # family. Schema parallels run_operations.yaml.
         fx_payload = _read_yaml(allowlists_dir / "fx.yaml")
         fx: set[str] = set()
         if fx_payload and isinstance(fx_payload.get("effects"), list):
@@ -318,7 +318,7 @@ class Allowlists:
             looks = looks,
             stages = stages,
             sfx = sfx,
-            mod_operations = mod_operations,
+            run_operations = run_operations,
             fx = fx,
             condition_functions = condition_functions,
             character_methods = character_methods,
@@ -468,7 +468,7 @@ class Allowlists:
             looks=self.looks | other.looks,
             stages=self.stages | other.stages,
             sfx=self.sfx | other.sfx,
-            mod_operations=self.mod_operations | other.mod_operations,
+            run_operations=self.run_operations | other.run_operations,
             fx=self.fx | other.fx,
             condition_functions=self.condition_functions | other.condition_functions,
             character_methods=self.character_methods | other.character_methods,

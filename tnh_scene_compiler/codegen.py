@@ -40,7 +40,7 @@ the reference.
 
 Later phases will extend this with a centralised ``_events.rpy``
 registry (6D) and the remaining directives (6C: ``[[choice]]``,
-``[[call]]``, ``[[phone]]``, ``[[show]]``, ``[[mod_set]]``).
+``[[call]]``, ``[[phone]]``, ``[[show]]``, ``[[run]]``).
 """
 
 from __future__ import annotations
@@ -55,11 +55,14 @@ from .ast_nodes import (
     Choice,
     DialogueBlock,
     FxCall,
+    GiveTrait,
     Goto,
     Hide,
     IfChain,
     Label,
-    ModSet,
+    RecordEvent,
+    RemoveTrait,
+    Run,
     NarrationBlock,
     Parenthetical,
     Pause,
@@ -67,6 +70,7 @@ from .ast_nodes import (
     PhoneOpen,
     Scene,
     SetDirective,
+    SetPersonality,
     Sfx,
     Show,
     Slugline,
@@ -1062,7 +1066,7 @@ def _emit_body(
                 force_text_medium = force_text_medium,
                 clean_present_on_set_scene = clean_present_on_set_scene,
             ))
-        elif isinstance(node, ModSet):
+        elif isinstance(node, Run):
             # The call text came straight from the writer's source and has
             # already passed the safe-subset expression parser; it's safe
             # to splice into a ``$`` Python line verbatim.
@@ -1071,6 +1075,16 @@ def _emit_body(
             lines.append(f"{indent}$ {node.call_text}")
         elif isinstance(node, Approval):
             lines.append(_emit_approval(node, indent))
+        elif isinstance(node, GiveTrait):
+            lines.append(f'{indent}$ {node.character}.give_trait("{node.trait}")')
+        elif isinstance(node, RemoveTrait):
+            lines.append(f'{indent}$ {node.character}.remove_trait("{node.trait}")')
+        elif isinstance(node, RecordEvent):
+            lines.append(f'{indent}$ {node.character}.History.add("{node.event}")')
+        elif isinstance(node, SetPersonality):
+            lines.append(
+                f'{indent}$ {node.character}.set_personality("{node.trait}", {node.value})'
+            )
     return lines
 
 

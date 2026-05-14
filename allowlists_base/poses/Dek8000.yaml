@@ -1,6 +1,6 @@
 character: Dek8000
 source: TNH + Mod
-generated_at: '2026-05-13'
+generated_at: '2026-05-14'
 values:
 - name: standing
   source_file: TheNullHypothesis/game/characters/Silhouettes/Dek8000/character.rpy
