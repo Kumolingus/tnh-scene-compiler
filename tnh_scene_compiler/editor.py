@@ -10,8 +10,10 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 from .allowlists import Allowlists
+from .condition_builder import ConditionBuilderDialog
 from .config import Config
 from .errors import CompileError
+from .new_scene_dialog import NewSceneDialog
 from . import output as out
 from .parser import parse
 from .validator import validate
@@ -500,7 +502,10 @@ class _DirectiveDialog(tk.Toplevel):
         return row + 1
 
     def _build_show(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = sorted(allow.characters)
+        chars = sorted(
+            c for c in allow.characters
+            if allow.char_faces.get(c) or allow.char_moods.get(c)
+        )
         row = self._add_combo(parent, 0, "Character", "char", chars)
         moods = [""] + sorted(allow.shared_moods)
         row = self._add_combo(parent, row, "Mood", "mood", moods)
@@ -1093,6 +1098,17 @@ class _PaletteSidebar(ttk.Frame):
         for label, text in structures:
             self._add_item(inner, label, text, "struct")
 
+        ttk.Separator(inner, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=6)
+        builder_btn = ttk.Button(
+            inner, text="Build condition…",
+            style="Compile.TButton",
+            command=self._open_condition_builder,
+        )
+        builder_btn.pack(fill=tk.X, pady=1)
+
+    def _open_condition_builder(self) -> None:
+        ConditionBuilderDialog(self, self._allow, self._insert)
+
     # -- Visuals ------------------------------------------------------------
 
     def _build_visuals(self, allow: Allowlists) -> None:
@@ -1259,7 +1275,7 @@ class EditorScreen(ttk.Frame):
         if ctx.file_path and ctx.file_path.is_file():
             self._load_file(ctx.file_path)
         elif ctx.file_path is None:
-            self._insert_template()
+            self.after(100, self._show_new_scene_dialog)
 
         self._editor.edit_reset()
         self._editor.edit_modified(False)
@@ -1409,18 +1425,22 @@ class EditorScreen(ttk.Frame):
         self._editor.mark_set(tk.INSERT, "1.0")
         self._file_path = path
 
-    def _insert_template(self) -> None:
-        prefix = self._ctx.project_prefix
-        template = (
-            f"Title: \n"
-            f"Scene Id: {prefix}_\n"
-            f"Character: \n"
-            f"Scene Type: cinematic\n"
-            f"Trigger: manual\n"
-            f"\n"
+    def _show_new_scene_dialog(self) -> None:
+        NewSceneDialog(
+            self, self._ctx.allowlists, self._ctx.project_prefix,
+            on_create=self._apply_new_scene_text,
         )
-        self._editor.insert("1.0", template)
-        self._editor.mark_set(tk.INSERT, "1.7")
+
+    def _apply_new_scene_text(self, text: str) -> None:
+        self._editor.delete("1.0", tk.END)
+        self._editor.insert("1.0", text)
+        self._editor.mark_set(tk.INSERT, tk.END)
+        self._editor.edit_reset()
+        self._editor.edit_modified(False)
+        self._modified = False
+        self._update_title()
+        if hasattr(self, "_highlighter"):
+            self._highlighter.schedule()
 
     def _save(self) -> None:
         if self._file_path is None:

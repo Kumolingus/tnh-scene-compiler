@@ -22,14 +22,17 @@ from .extractors import (
     characters,
     condition_functions,
     faces,
+    history_events,
     interpolation,
     locations,
     looks,
     moods,
     outfits,
+    personalities,
     poses,
     sfx,
     stages,
+    traits,
 )
 from .models import ExtractionResult, ScanContext
 from .writer import write_flat, write_per_character
@@ -45,6 +48,9 @@ _FLAT_EXTRACTORS: tuple[_Extractor, ...] = (
     looks.extract,
     interpolation.extract,
     condition_functions.extract,
+    traits.extract,
+    personalities.extract,
+    history_events.extract,
 )
 
 _PER_CHARACTER_EXTRACTORS: tuple[_Extractor, ...] = (

@@ -201,6 +201,9 @@ class Allowlists:
     fx: set[str] = field(default_factory=set)
     condition_functions: set[str] = field(default_factory=set)
     character_methods: set[str] = field(default_factory=set)
+    traits: set[str] = field(default_factory=set)
+    personalities: set[str] = field(default_factory=set)
+    history_events: set[str] = field(default_factory=set)
     character_aliases: dict[str, str] = field(default_factory=dict)
     function_aliases: dict[str, str] = field(default_factory=dict)
 
@@ -276,6 +279,14 @@ class Allowlists:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     character_methods.add(item["name"])
 
+        traits = set(_values_names(_read_yaml(allowlists_dir / "traits.yaml")))
+        personalities = set(_values_names(
+            _read_yaml(allowlists_dir / "personalities.yaml"),
+        ))
+        history_events = set(_values_names(
+            _read_yaml(allowlists_dir / "history_events.yaml"),
+        ))
+
         aliases_payload = _read_yaml(allowlists_dir / "aliases.yaml")
         character_aliases: dict[str, str] = {}
         function_aliases: dict[str, str] = {}
@@ -311,6 +322,9 @@ class Allowlists:
             fx = fx,
             condition_functions = condition_functions,
             character_methods = character_methods,
+            traits = traits,
+            personalities = personalities,
+            history_events = history_events,
             character_aliases = character_aliases,
             function_aliases = function_aliases,
         )
@@ -458,6 +472,9 @@ class Allowlists:
             fx=self.fx | other.fx,
             condition_functions=self.condition_functions | other.condition_functions,
             character_methods=self.character_methods | other.character_methods,
+            traits=self.traits | other.traits,
+            personalities=self.personalities | other.personalities,
+            history_events=self.history_events | other.history_events,
             character_aliases={**self.character_aliases, **other.character_aliases},
             function_aliases={**self.function_aliases, **other.function_aliases},
         )

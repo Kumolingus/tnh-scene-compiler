@@ -11,7 +11,8 @@ page — no Python needed.
 
 ### I want to write a scene right now
 
-Open the app, click **New scene**, and start writing.
+Open the app, click **New scene**, fill in the guided form (title,
+character, scene type), pick a starting template, and start writing.
 See the [Quick start guide](docs/quick_start.md) for a 5-minute walkthrough.
 
 ### I want to compile scenes I already wrote
@@ -63,6 +64,10 @@ That's it. No Ren'Py syntax to learn. The compiler handles the rest.
 | [Writer guide](docs/writer_guide.md) | Complete guide for scene writers |
 | [Project setup](docs/project_setup.md) | Setting up and managing a project |
 | [Format specification](docs/format_spec.md) | Technical spec for developers |
+
+The integrated editor also includes a **Condition Builder** — open it
+from the Struct. palette tab to browse every available condition type
+and build expressions without memorizing the syntax.
 
 ## From source (for developers)
 

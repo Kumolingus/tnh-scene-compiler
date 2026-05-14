@@ -56,6 +56,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Original function-call syntax remains supported.
 - **Project-level aliases** (`aliases.yaml`): `character_aliases` and `function_aliases` allow projects to define custom DSL mappings (e.g. `JeanGrey.is_pregnant()` → `pregnancy_mod_is_pregnant(JeanGrey)`).
 - **Fuzzy location matching**: writers can type `JEANGREY'S ROOM` instead of `[JEANGREY.NAME]'S ROOM` — the compiler resolves interpolated location names automatically.
+- **Condition Builder dialog**: guided UI in the editor's Struct. palette tab for building `[[if]]` condition expressions. Dropdown-driven — select condition type, character, and parameters with live preview. Supports all 8 DSL condition forms plus standalone functions. Wrap mode selector (if block, elif, expression only).
+- **Traits allowlist and extractor**: new `traits.yaml` allowlist and `traits` extractor that scans for `give_trait`/`check_trait`/`remove_trait`/`has_trait` calls. Condition builder shows known traits in a dropdown when available.
+- **Personalities allowlist and extractor**: new `personalities.yaml` allowlist and `personalities` extractor that scans for `check_personality`/`set_personality` calls. Wired into the condition builder.
+- **History events allowlist and extractor**: new `history_events.yaml` allowlist and `history_events` extractor that scans for `History.check`/`History.add`/`History.record` and `.did()` calls. Wired into the condition builder.
+- **New Scene dialog**: guided form replaces the raw template when creating a new scene. Fill in Title (auto-generates Scene Id), Character (dropdown from allowlists), Scene Type (adapts fields: Trigger for cinematic, Openness+Stage for phone), Location. Choose from 4 starting templates: empty, simple dialogue, dialogue with choices, conditional scene. Live preview.
+- **Cheatsheet DSL conditions section**: the generated `Authoring_Cheatsheet.md` now documents all writer-friendly condition shorthands with syntax and examples.
 - **Condition function validation**: `[[if ...]]` expressions are now validated against `condition_functions.yaml` (standalone functions) and `character_methods.yaml` (character methods).
 - Base allowlists for `fx.yaml` (47 engine effects), `condition_functions.yaml` (14 functions), and `character_methods.yaml` (10 methods).
 - Pluggable output system (`output.set_callback`) allowing CLI and GUI to share the same compiler pipeline.
