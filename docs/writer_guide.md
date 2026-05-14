@@ -484,6 +484,10 @@ Records that a character has done something. Later scenes can check this with `[
 
 Sets a numeric personality score. The trait must exist in `personalities.yaml`.
 
+> **Trait or event not in the list?** Ask your mod developer to add it
+> to the project's `_allowlists/` directory. See the
+> [project setup guide](project_setup.md#example-adding-custom-traits)
+> for details.
 
 ---
 

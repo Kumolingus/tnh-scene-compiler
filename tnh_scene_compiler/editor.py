@@ -9,7 +9,6 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
-from .action_builder import ActionBuilderDialog
 from .allowlists import Allowlists
 from .condition_builder import ConditionBuilderDialog
 from .config import Config
@@ -1162,18 +1161,10 @@ class _PaletteSidebar(ttk.Frame):
             command=self._open_condition_builder,
         )
         builder_btn.pack(fill=tk.X, pady=1)
-        action_btn = ttk.Button(
-            inner, text="Build action…",
-            style="Compile.TButton",
-            command=self._open_action_builder,
-        )
-        action_btn.pack(fill=tk.X, pady=1)
 
     def _open_condition_builder(self) -> None:
         ConditionBuilderDialog(self, self._allow, self._insert)
 
-    def _open_action_builder(self) -> None:
-        ActionBuilderDialog(self, self._allow, self._insert)
 
     # -- Visuals ------------------------------------------------------------
 
