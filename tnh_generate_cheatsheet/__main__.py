@@ -31,17 +31,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--allowlists",
         type = Path,
-        default = Path("./scenes_source/_allowlists/"),
-        help = (
-            "Directory holding the generated YAML allowlists "
-            "(default: ./scenes_source/_allowlists/)."
-        ),
+        required = True,
+        help = "Directory holding the generated YAML allowlists.",
     )
     parser.add_argument(
         "--output",
         type = Path,
-        default = Path("./Docs/Authoring_Cheatsheet.md"),
-        help = "Destination markdown file (default: ./Docs/Authoring_Cheatsheet.md).",
+        required = True,
+        help = "Destination markdown file.",
     )
     parser.add_argument(
         "--check",

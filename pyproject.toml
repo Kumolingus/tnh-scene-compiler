@@ -27,6 +27,8 @@ build = [
 
 [project.scripts]
 tnh-scene-compiler = "tnh_scene_compiler.__main__:main"
+tnh-refresh-allowlists = "tnh_refresh_allowlists.__main__:main"
+tnh-generate-cheatsheet = "tnh_generate_cheatsheet.__main__:main"
 
 [project.gui-scripts]
 tnh-scene-compiler-gui = "tnh_scene_compiler.gui:main"

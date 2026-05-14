@@ -133,9 +133,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog = "tnh_refresh_allowlists",
         description = "Scan TNH + mod sources and emit YAML allowlists.",
     )
-    parser.add_argument("--base-game", type = Path, default = Path("./TheNullHypothesis/"))
-    parser.add_argument("--mod", type = Path, default = Path("./PregnancyMod/"))
-    parser.add_argument("--out", type = Path, default = Path("./scenes_source/_allowlists/"))
+    parser.add_argument("--base-game", type = Path, required = True,
+                        help = "Path to the TNH base game root (contains game/).")
+    parser.add_argument("--mod", type = Path, required = True,
+                        help = "Path to the mod source root.")
+    parser.add_argument("--out", type = Path, required = True,
+                        help = "Output directory for generated YAML allowlists.")
     parser.add_argument("--no-include-tnh", dest = "include_tnh", action = "store_false")
     parser.add_argument("--repo-root", type = Path, default = Path.cwd())
     parser.add_argument("--dry-run", action = "store_true")
