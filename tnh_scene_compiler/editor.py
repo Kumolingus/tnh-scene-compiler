@@ -571,8 +571,7 @@ class _DirectiveDialog(tk.Toplevel):
         self._add_combo(parent, 0, "Character", "char", self._ui_chars)
 
     def _build_approval(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = sorted(allow.characters)
-        row = self._add_combo(parent, 0, "Character", "char", chars)
+        row = self._add_combo(parent, 0, "Character", "char", self._ui_chars)
         row = self._add_combo(parent, row, "Axis", "axis", ["love", "trust"])
         row = self._add_combo(
             parent, row, "Sign", "sign", ["+", "-"], default="+",
@@ -806,7 +805,7 @@ class _PaletteSidebar(ttk.Frame):
         *,
         featured_only: bool = False,
     ) -> None:
-        super().__init__(master, width=340)
+        super().__init__(master, width=380)
         self.pack_propagate(False)
         self._insert = insert_cb
         self._allow = allow
@@ -860,7 +859,7 @@ class _PaletteSidebar(ttk.Frame):
         btn = tk.Button(
             self._tab_bar, text=name, bg=bg, fg=fg,
             activebackground=bg, activeforeground="#FFFFFF",
-            relief=tk.FLAT, bd=0, padx=8, pady=4,
+            relief=tk.FLAT, bd=0, padx=5, pady=4,
             font=("Segoe UI", 8, "bold"),
             command=lambda n=name: self._switch_tab(n),
         )
@@ -1026,7 +1025,7 @@ class _PaletteSidebar(ttk.Frame):
         cats["Player / Narrator"] = [(c, None) for c in sorted(special & set(allow.characters))]
         if has_visuals:
             cats["Featured characters"] = [(c, None) for c in has_visuals]
-        if npcs:
+        if npcs and not self._featured_only:
             cats["NPCs"] = [(c, None) for c in npcs]
 
         self._build_categorized_tab("Chars", cats, on_click="character")
@@ -1523,9 +1522,9 @@ class EditorScreen(ttk.Frame):
         self._editor.bind("<<Modified>>", self._on_text_modified)
 
         # Right: palette
-        featured = (
-            self._ctx.cfg.featured_characters_only
-            if self._ctx.cfg else False
+        featured = getattr(
+            getattr(self._app, "settings", None),
+            "featured_characters_only", False,
         )
         self._palette = _PaletteSidebar(
             paned, self._ctx.allowlists, self._insert_at_cursor,
@@ -1592,9 +1591,9 @@ class EditorScreen(ttk.Frame):
         self._file_path = path
 
     def _show_new_scene_dialog(self) -> None:
-        featured = (
-            self._ctx.cfg.featured_characters_only
-            if self._ctx.cfg else False
+        featured = getattr(
+            getattr(self._app, "settings", None),
+            "featured_characters_only", False,
         )
         chars = self._ctx.allowlists.ui_characters(featured_only=featured)
         NewSceneDialog(

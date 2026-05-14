@@ -43,6 +43,7 @@ from .config import Config, ConfigError, config_filename, find_config, get_data_
 from .errors import CompileError
 from . import output as out
 from .parser import parse
+from .settings import AppSettings
 from .validator import validate
 
 
@@ -329,6 +330,74 @@ class _WorkspaceBase(ttk.Frame):
 
 
 # ---------------------------------------------------------------------------
+# Settings dialog
+# ---------------------------------------------------------------------------
+
+class _SettingsDialog(tk.Toplevel):
+    """Application-level preferences dialog."""
+
+    def __init__(self, master: tk.Widget, app: CompilerApp) -> None:
+        super().__init__(master)
+        self.title("Settings")
+        self.resizable(False, False)
+        self.grab_set()
+
+        self._app = app
+        self._settings = app.settings
+
+        body = ttk.Frame(self, padding=16)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            body, text="Application Settings",
+            font=("Segoe UI", 12, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 12))
+
+        # -- Featured characters only ----------------------------------------
+        self._featured_var = tk.BooleanVar(
+            value=self._settings.featured_characters_only,
+        )
+        ttk.Checkbutton(
+            body,
+            text="Featured characters only",
+            variable=self._featured_var,
+        ).pack(anchor=tk.W, pady=2)
+        ttk.Label(
+            body,
+            text=(
+                "Only show characters with visual data (faces, moods)\n"
+                "in editor dropdowns. Hides NPCs without sprites."
+            ),
+            foreground="#808080", font=("Segoe UI", 8),
+        ).pack(anchor=tk.W, pady=(0, 12))
+
+        # -- Buttons ---------------------------------------------------------
+        btn_frame = ttk.Frame(body)
+        btn_frame.pack(fill=tk.X)
+        ttk.Button(
+            btn_frame, text="Cancel",
+            command=self.destroy,
+        ).pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(
+            btn_frame, text="Save",
+            style="Compile.TButton",
+            command=self._save,
+        ).pack(side=tk.RIGHT)
+
+        self.bind("<Escape>", lambda e: self.destroy())
+
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    def _save(self) -> None:
+        self._settings.featured_characters_only = self._featured_var.get()
+        self._settings.save()
+        self.destroy()
+
+
+# ---------------------------------------------------------------------------
 # Welcome screen
 # ---------------------------------------------------------------------------
 
@@ -418,6 +487,12 @@ class WelcomeScreen(ttk.Frame):
             create_frame, text="Create project",
             command=self._create_project,
         ).pack()
+
+        # -- Settings -------------------------------------------------------
+        ttk.Button(
+            self, text="Settings",
+            command=lambda: _SettingsDialog(self, app),
+        ).pack(anchor=tk.E, padx=8, pady=(12, 0))
 
         # -- Recent projects ------------------------------------------------
         self._recent_entries = _load_recent()
@@ -1689,6 +1764,7 @@ class CompilerApp(ttk.Frame):
         self.pack(fill=tk.BOTH, expand=True)
         self._current: ttk.Frame | None = None
         self._stashed: ttk.Frame | None = None
+        self.settings = AppSettings.load()
         self.show_welcome()
 
     def _switch_to(self, screen: ttk.Frame) -> None:
