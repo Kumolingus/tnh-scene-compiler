@@ -407,6 +407,27 @@ class _CharacterInsertDialog(tk.Toplevel):
 # Directive insertion dialog
 # ---------------------------------------------------------------------------
 
+_DIRECTIVE_DESCRIPTIONS: dict[str, str] = {
+    "show": "Show a character with optional visual attributes.",
+    "hide": "Remove a character from the screen.",
+    "approval": "Change a character's love or trust toward the player.",
+    "pause": "Pause the scene for a duration (seconds).",
+    "set": "Set a scene-local variable (only visible within this scene).",
+    "label": "Mark a position that can be jumped to with [[goto]].",
+    "goto": "Jump to a labeled position in this scene.",
+    "call": "Run another scene file, then return here.",
+    "phone open": "Open the phone UI, optionally showing a character.",
+    "phone close": "Close the phone UI.",
+    "run": "Call any allowlisted game function (persistent state).",
+    "give_trait": "Give a trait to a character.",
+    "remove_trait": "Remove a trait from a character.",
+    "record": "Record that a character did something (for history checks).",
+    "set_personality": "Set a character's personality score.",
+    "sfx": "Play a sound effect.",
+    "fx": "Trigger a visual effect or animation.",
+}
+
+
 class _DirectiveDialog(tk.Toplevel):
     """Mini-form for each directive type."""
 
@@ -434,7 +455,14 @@ class _DirectiveDialog(tk.Toplevel):
         ttk.Label(
             body, text=f"[[{directive}]]",
             font=("Consolas", 12, "bold"),
-        ).pack(anchor=tk.W, pady=(0, 8))
+        ).pack(anchor=tk.W, pady=(0, 2))
+
+        desc = _DIRECTIVE_DESCRIPTIONS.get(directive, "")
+        if desc:
+            ttk.Label(
+                body, text=desc, foreground="#808080",
+                font=("Segoe UI", 9), wraplength=300,
+            ).pack(anchor=tk.W, pady=(0, 8))
 
         fields = ttk.Frame(body)
         fields.pack(fill=tk.X)
@@ -647,6 +675,22 @@ class _DirectiveDialog(tk.Toplevel):
         else:
             self._add_entry(parent, 0, "Function call", "op")
 
+    def _build_sfx(self, parent: ttk.Frame, allow: Allowlists) -> None:
+        sfx_names = sorted(allow.sfx) if allow.sfx else []
+        if sfx_names:
+            row = self._add_combo(parent, 0, "Sound", "name", sfx_names)
+        else:
+            row = self._add_entry(parent, 0, "Sound name", "name")
+        self._add_entry(parent, row, "Duration (optional)", "duration")
+
+    def _build_fx(self, parent: ttk.Frame, allow: Allowlists) -> None:
+        fx_names = sorted(allow.fx) if allow.fx else []
+        if fx_names:
+            row = self._add_combo(parent, 0, "Effect", "name", fx_names)
+        else:
+            row = self._add_entry(parent, 0, "Effect name", "name")
+        self._add_entry(parent, row, "Arguments (optional)", "args")
+
     # -- Preview + insert ---------------------------------------------------
 
     def _update_preview(self, *_args: Any) -> None:
@@ -727,6 +771,20 @@ class _DirectiveDialog(tk.Toplevel):
                 f"{v.get('trait', 'trait')} {v.get('value', '1')}]]"
             )
 
+        if d == "sfx":
+            name = v.get("name", "sound")
+            dur = v.get("duration", "")
+            if dur:
+                return f"[[sfx {name} {dur}]]"
+            return f"[[sfx {name}]]"
+
+        if d == "fx":
+            name = v.get("name", "effect")
+            args = v.get("args", "")
+            if args:
+                return f"[[fx {name}({args})]]"
+            return f"[[fx {name}()]]"
+
         return f"[[{d}]]"
 
     def _do_insert(self) -> None:
@@ -768,6 +826,7 @@ class _PaletteSidebar(ttk.Frame):
             "FX/SFX":  ("#3A1E2E", "#E8A0C0"),
             "Struct.": ("#1E3A2E", "#A0E8C0"),
             "Visuals": ("#1E3A3A", "#A0E8E0"),
+            "Interp.": ("#2E2E1E", "#E8E0A0"),
         }
 
         # Custom tab bar + stacked frames
@@ -787,6 +846,7 @@ class _PaletteSidebar(ttk.Frame):
         self._build_directives()
         self._build_fx_sfx(allow)
         self._build_structures()
+        self._build_interpolation(allow)
         self._build_visuals(allow)
 
         if self._tabs:
@@ -1072,39 +1132,60 @@ class _PaletteSidebar(ttk.Frame):
 
     # -- Directives ---------------------------------------------------------
 
+    _DIRECTIVE_KEY_MAP: dict[str, str] = {
+        "show": "show",
+        "hide": "hide",
+        "phone open": "phone open",
+        "phone close": "phone close",
+        "approval": "approval",
+        "give trait": "give_trait",
+        "remove trait": "remove_trait",
+        "record event": "record",
+        "set personality": "set_personality",
+        "set variable": "set",
+        "run function": "run",
+        "mark label": "label",
+        "goto label": "goto",
+        "call scene": "call",
+        "pause": "pause",
+        "sfx": "sfx",
+        "fx": "fx",
+    }
+
     def _build_directives(self) -> None:
-        directive_defs = [
-            ("show", "show"),
-            ("hide", "hide"),
-            ("approval", "approval"),
-            ("pause", "pause"),
-            ("set variable", "set"),
-            ("mark label", "label"),
-            ("goto label", "goto"),
-            ("call scene", "call"),
-            ("phone open", "phone open"),
-            ("phone close", "phone close"),
-            ("run function", "run"),
-            ("give trait", "give_trait"),
-            ("remove trait", "remove_trait"),
-            ("record event", "record"),
-            ("set personality", "set_personality"),
-        ]
+        cats: dict[str, list[tuple[str, str | None]]] = {
+            "Appearance": [
+                ("show", None),
+                ("hide", None),
+                ("phone open", None),
+                ("phone close", None),
+            ],
+            "State changes": [
+                ("approval", None),
+                ("give trait", None),
+                ("remove trait", None),
+                ("record event", None),
+                ("set personality", None),
+                ("set variable", None),
+                ("run function", None),
+            ],
+            "Scene flow": [
+                ("mark label", None),
+                ("goto label", None),
+                ("call scene", None),
+            ],
+            "Effects": [
+                ("pause", None),
+                ("sfx", None),
+                ("fx", None),
+            ],
+        }
+        self._build_categorized_tab("Direct.", cats, on_click="directive")
 
-        tab = self._register_tab("Direct.")
-        inner = self._make_scrollable(tab)
-
-        for display, key in directive_defs:
-            btn = ttk.Button(
-                inner, text=display,
-                command=lambda k=key: self._on_directive_click(k),
-            )
-            btn.pack(fill=tk.X, pady=1)
-            self._all_items.append((btn, display.lower(), "direct"))
-
-    def _on_directive_click(self, name: str) -> None:
+    def _on_directive_click(self, display: str) -> None:
+        key = self._DIRECTIVE_KEY_MAP.get(display, display)
         _DirectiveDialog(
-            self, name, self._allow, self._insert, self._scenes_source,
+            self, key, self._allow, self._insert, self._scenes_source,
         )
 
     # -- FX / SFX -----------------------------------------------------------
@@ -1165,6 +1246,28 @@ class _PaletteSidebar(ttk.Frame):
     def _open_condition_builder(self) -> None:
         ConditionBuilderDialog(self, self._allow, self._insert)
 
+
+    # -- Interpolation ------------------------------------------------------
+
+    def _build_interpolation(self, allow: Allowlists) -> None:
+        if not allow.interpolation:
+            return
+        cats: dict[str, list[tuple[str, str | None]]] = {}
+        for path in sorted(allow.interpolation):
+            if "." in path:
+                prefix = path.split(".")[0]
+            else:
+                prefix = "Global"
+            cats.setdefault(prefix, []).append((path, f"[{path}]"))
+
+        ordered: dict[str, list[tuple[str, str | None]]] = {}
+        for key in ["Player", "Global"]:
+            if key in cats:
+                ordered[key] = cats.pop(key)
+        for key in sorted(cats):
+            ordered[key] = cats[key]
+
+        self._build_categorized_tab("Interp.", ordered)
 
     # -- Visuals ------------------------------------------------------------
 

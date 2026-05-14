@@ -18,6 +18,13 @@ from .allowlists import Allowlists
 
 SCENE_TYPES: list[str] = ["cinematic", "phone", "texting", "hub_option"]
 
+SCENE_TYPE_DESCRIPTIONS: dict[str, str] = {
+    "cinematic": "Full visual scene with character sprites and backgrounds.",
+    "phone": "Phone conversation — characters appear in phone UI overlay.",
+    "texting": "Text message exchange — text-only, no visual sprites.",
+    "hub_option": "Hub menu option — appears as a choice in the hub screen.",
+}
+
 TRIGGERS: list[str] = [
     "manual", "sleeping", "waking", "traveling", "getting_ready_for_bed",
 ]
@@ -234,6 +241,15 @@ class NewSceneDialog(tk.Toplevel):
         type_combo.bind("<<ComboboxSelected>>", self._on_type_change)
         row += 1
 
+        self._type_desc_var = tk.StringVar(
+            value=SCENE_TYPE_DESCRIPTIONS.get("cinematic", ""),
+        )
+        ttk.Label(
+            form, textvariable=self._type_desc_var,
+            foreground="#808080", font=("Segoe UI", 8), wraplength=280,
+        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 4))
+        row += 1
+
         # Dynamic fields container (Trigger / Openness+Stage)
         self._dynamic_frame = ttk.Frame(form)
         self._dynamic_frame.grid(
@@ -407,6 +423,9 @@ class NewSceneDialog(tk.Toplevel):
     # -- Dynamic fields (Trigger / Openness+Stage) ---------------------------
 
     def _on_type_change(self, _event: Any = None) -> None:
+        self._type_desc_var.set(
+            SCENE_TYPE_DESCRIPTIONS.get(self._scene_type_var.get(), ""),
+        )
         self._build_dynamic_fields()
         self._update_preview()
 
