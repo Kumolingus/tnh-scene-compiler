@@ -353,6 +353,41 @@ I guess it's okay.
 [[/if]]
 ```
 
+You can change approval values with named tiers:
+
+```
+[[approval JeanGrey love +small]]
+[[approval JeanGrey trust -medium]]
+```
+
+Tiers: `tiny` (+2), `small` (+5), `medium` (+10), `large` (+20), `massive` (+40).
+The sign (`+` or `-`) is mandatory.
+
+### Condition shortcuts
+
+The compiler provides writer-friendly shortcuts for common checks.
+Both the shortcut and the original function-call syntax work.
+
+**Character checks:**
+
+```
+[[if JeanGrey.has("shy")]]              Is the trait set?
+[[if JeanGrey.mood == "normal"]]        Is mood normal?
+[[if JeanGrey.mood == "mad"]]           Is status "mad"?
+[[if JeanGrey.friends_with(Rogue)]]     Are they friends?
+[[if JeanGrey.did("kissed_player")]]    Did this happen before?
+[[if JeanGrey.nearby]]                  Is the character close?
+[[if JeanGrey.personality("confidence", 50)]]  Personality check
+```
+
+**Combining conditions:**
+
+```
+[[if JeanGrey.love >= medium and JeanGrey.mood == "normal"]]
+[[if not JeanGrey.has("angry")]]
+[[if JeanGrey.mood == "mad" or JeanGrey.mood == "miffed"]]
+```
+
 ### What you can and cannot use in conditions
 
 | Construct | Allowed? |
@@ -361,14 +396,12 @@ I guess it's okay.
 | Logic: `and`, `or`, `not` | Yes |
 | Literals: integers, floats, strings, `True`, `False`, `None` | Yes |
 | Attribute access: `JeanGrey.love`, `player.petname` | Yes |
+| Condition shortcuts: `.has()`, `.mood`, `.did()`, `.nearby`, etc. | Yes |
+| Registered function calls: `check_approval(...)`, etc. | Yes |
 | `in` / `not in`: `"fire" in JeanGrey.traits` | Yes |
 | Parentheses for grouping | Yes |
 | Arithmetic (`+`, `-`, `*`, `/`) | No |
-| Function calls | No, except developer-registered helpers |
 | f-strings, lambdas, comprehensions, slicing | No |
-
-If you need arithmetic or something fancier, ask the developer. They
-either register a helper function or help you restructure the logic.
 
 
 ---
@@ -415,9 +448,46 @@ You're not being very subtle.
 
 State only exists for the duration of the scene. It is not saved, not
 remembered across scenes. For persistent state (character stats, mod
-variables), ask the developer — that requires a `[[mod_set]]`
-directive.
+variables), ask the developer — that requires a `[[run]]`
+directive (or one of the high-level directives described below).
 
+
+---
+
+## Persistent state — high-level directives
+
+For common state mutations, use these dedicated directives instead of `[[run]]`.
+They validate your inputs against the allowlists and provide better error messages.
+
+### `[[give_trait]]` / `[[remove_trait]]` — character traits
+
+```
+[[give_trait JeanGrey shy]]
+[[remove_trait JeanGrey shy]]
+```
+
+The trait must exist in `traits.yaml`. If you misspell it, the compiler suggests close matches.
+
+### `[[record]]` — history events
+
+```
+[[record JeanGrey kissed_player]]
+```
+
+Records that a character has done something. Later scenes can check this with `[[if JeanGrey.did("kissed_player")]]`.
+
+### `[[set_personality]]` — personality traits
+
+```
+[[set_personality JeanGrey dominant 3]]
+```
+
+Sets a numeric personality score. The trait must exist in `personalities.yaml`.
+
+> **Trait or event not in the list?** Ask your mod developer to add it
+> to the project's `_allowlists/` directory. See the
+> [project setup guide](project_setup.md#example-adding-custom-traits)
+> for details.
 
 ---
 
@@ -524,16 +594,16 @@ or `texting` scene types — those already run in phone mode.
 
 ### Approval changes
 
-The developer may set up `[[mod_set]]` operations that modify game
+The developer may set up `[[run]]` operations that modify game
 state (approval ratings, flags, relationship values). The developer
 tells you the exact syntax when it is needed:
 
 ```
-[[mod_set approval_up JeanGrey 10]]
+[[run approval_up JeanGrey 10]]
 ```
 
-You cannot invent `[[mod_set]]` operations. Each one must be
-registered by the developer.
+You cannot invent `[[run]]` operations. Each one must be
+registered by the developer in `run_operations.yaml`.
 
 
 ---
@@ -758,7 +828,8 @@ The format deliberately forbids:
 - Calling any function that is not allowlisted.
 - Loops (`while`, `for`).
 - Writing directly to character stats — only through
-  developer-provided `[[mod_set]]` operations.
+  developer-provided `[[run]]` operations (or the high-level
+  directives like `[[give_trait]]`, `[[record]]`, `[[set_personality]]`).
 
 If you need something the format does not express, ask the developer.
 They either add a new directive, register a helper function, or write

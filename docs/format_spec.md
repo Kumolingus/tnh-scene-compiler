@@ -436,14 +436,21 @@ Compiles to `$ <name>(args)`.
 |---|---|---|
 | `[[sfx name]]` | A `.ogg` sound file | `sfx.yaml` |
 | `[[fx name(...)]]` | A Python effect function (phone buzz visual, knock overlay, etc.) | `fx.yaml` |
-| `[[mod_set call]]` | Persistent state mutation (traits, History, mod attributes) | `mod_operations.yaml` |
+| `[[run call]]` | Persistent state mutation (generic fallback) | `run_operations.yaml` |
 | `[[approval Char axis +/-N]]` | Move TNH's love/trust | hardcoded enums + `characters.yaml` |
+| `[[give_trait Char trait]]` | Grant a character trait | `characters.yaml` + `traits.yaml` |
+| `[[remove_trait Char trait]]` | Revoke a character trait | `characters.yaml` + `traits.yaml` |
+| `[[record Char event]]` | Record a history event | `characters.yaml` + `history_events.yaml` |
+| `[[set_personality Char trait N]]` | Set a personality score | `characters.yaml` + `personalities.yaml` |
 
 Rule of thumb: if the target is a sound file, use `[[sfx]]`. If it is
 a Python function that draws or animates something for a beat and
-returns, use `[[fx]]`. If it writes state that persists past the
-scene, use `[[mod_set]]`. If it nudges a character's love/trust, use
-`[[approval]]`.
+returns, use `[[fx]]`. If it grants or revokes a trait, use
+`[[give_trait]]` / `[[remove_trait]]`. If it records a history event,
+use `[[record]]`. If it sets a personality score, use
+`[[set_personality]]`. If it nudges a character's love/trust, use
+`[[approval]]`. For any other persistent state mutation not covered by
+a dedicated directive, use `[[run]]`.
 
 ### 8.4 set (scene-local state)
 
@@ -458,7 +465,7 @@ scene, use `[[mod_set]]`. If it nudges a character's love/trust, use
   string).
 - Scene-local state lives in a dict reset per scene run; accessed in
   conditions as bare names: `[[if lied_about_sleep]]`.
-- For mod-wide persistent state, use `[[mod_set]]` instead (section
+- For mod-wide persistent state, use `[[run]]` instead (section
   8.12).
 
 Function calls are not allowed in `[[set]]` values.
@@ -616,18 +623,23 @@ list-style buttons, not chat bubbles.
   `$ renpy.show_screen("phone_screen")`.
 - Closing compiles to `$ renpy.hide_screen("phone_screen")`.
 
-### 8.12 mod_set (mod-wide state)
+### 8.12 run (persistent state)
 
 ```
-[[mod_set JeanGrey.trait("my_mod_discussed_topic") = true]]
+[[run JeanGrey.trait("my_mod_discussed_topic") = true]]
 ```
 
 - For persistent state changes the scene must commit (traits, History,
   attributes).
-- Only operations from the `mod_operations.yaml` allowlist are
+- Only operations from the `run_operations.yaml` allowlist are
   accepted. Arbitrary Python is banned.
 - Compiles to `$ <call_text>` verbatim (the call text has already
   passed through the safe-subset expression parser).
+- Prefer the dedicated directives (`[[give_trait]]`, `[[remove_trait]]`,
+  `[[record]]`, `[[set_personality]]`, `[[approval]]`) when they cover
+  the operation -- they enforce tighter validation and produce better
+  error messages. Use `[[run]]` only for operations that have no
+  dedicated directive.
 
 ### 8.13 approval
 
@@ -659,9 +671,53 @@ Named tiers are preferred; they keep the emitted line readable and
 benefit from any base-game rebalance.
 
 - Compiles to `$ update_approval(<Character>, "<axis>", [-]<magnitude>)`.
-- Use `[[approval]]` instead of `[[mod_set update_approval(...)]]`.
+- Use `[[approval]]` instead of `[[run update_approval(...)]]`.
   The dedicated directive enforces the closed enums and produces
   better error messages.
+
+### 8.14 give_trait
+
+```
+[[give_trait JeanGrey shy]]
+```
+
+- Grants a character trait.
+- Character is validated against `characters.yaml`.
+- Trait is validated against `traits.yaml` (with fuzzy suggestions on mismatch).
+- Compiles to `$ JeanGrey.give_trait("shy")`.
+
+### 8.15 remove_trait
+
+```
+[[remove_trait JeanGrey shy]]
+```
+
+- Revokes a character trait.
+- Same validation as `[[give_trait]]`.
+- Compiles to `$ JeanGrey.remove_trait("shy")`.
+
+### 8.16 record
+
+```
+[[record JeanGrey kissed_player]]
+```
+
+- Records a history event for a character.
+- Character is validated against `characters.yaml`.
+- Event is validated against `history_events.yaml` (with fuzzy suggestions).
+- Compiles to `$ JeanGrey.History.add("kissed_player")`.
+
+### 8.17 set_personality
+
+```
+[[set_personality JeanGrey dominant 3]]
+```
+
+- Sets a personality score for a character.
+- Character validated against `characters.yaml`.
+- Trait validated against `personalities.yaml` (with fuzzy suggestions).
+- Value must be an integer.
+- Compiles to `$ JeanGrey.set_personality("dominant", 3)`.
 
 ---
 
@@ -785,16 +841,17 @@ You knock on [jeangrey.petname]'s door.
 
 ### 11.2 Mod state
 
-- Written via `[[mod_set]]` or `[[approval]]`.
-- Calls through to Character traits, History, or registered mod
-  attributes.
+- Written via `[[run]]`, `[[approval]]`, `[[give_trait]]`,
+  `[[remove_trait]]`, `[[record]]`, or `[[set_personality]]`.
+- Calls through to Character traits, History, personality scores, or
+  registered mod attributes.
 - Persists across scenes and saves.
 
 ### 11.3 Enforcement
 
 A scene never writes to base-game state directly; it may read any game
 state in `[[if]]` conditions. `[[set]]` targeting a Character
-attribute is a compile error -- use `[[mod_set]]`.
+attribute is a compile error -- use `[[run]]`.
 
 ### 11.4 Testing-hub override channel
 
@@ -875,10 +932,13 @@ controls whether the base layer is included at all.
 | 9 | `locations.yaml` + `locations_overrides.yaml` | Slugline text -> location ID mapping | auto + manual overrides |
 | 10 | `sfx.yaml` | Names valid in `[[sfx]]` | auto-generated |
 | 11 | `interpolation.yaml` + `interpolation_custom.yaml` | Paths valid inside `[...]` interpolation | auto + manual custom |
-| 12 | `mod_operations.yaml` | Helpers callable from `[[mod_set]]` | manual |
+| 12 | `run_operations.yaml` | Operations callable from `[[run]]` | manual |
 | 13 | `fx.yaml` | Functions callable from `[[fx]]` | manual |
 | 14 | `condition_functions.yaml` | Functions callable from `[[if]]`/`[[elif]]`/option conditions | manual |
-| 15 | `_meta.yaml` | Generation metadata (tool version, stats) -- not used for validation | auto-generated |
+| 15 | `traits.yaml` | Trait names valid in `[[give_trait]]` / `[[remove_trait]]` | auto-generated |
+| 16 | `history_events.yaml` | Event names valid in `[[record]]` | auto-generated |
+| 17 | `personalities.yaml` | Personality trait names valid in `[[set_personality]]` | auto-generated |
+| 18 | `_meta.yaml` | Generation metadata (tool version, stats) -- not used for validation | auto-generated |
 
 ### 12.2 Regenerating allowlists
 
@@ -886,7 +946,7 @@ The companion tool `tnh_refresh_allowlists` (invoked via
 `scripts/refresh-allowlists.bat` or `python -m tnh_refresh_allowlists`)
 scans the TNH base game and the mod source to regenerate the
 auto-generated allowlist files. Manual allowlists (`fx.yaml`,
-`mod_operations.yaml`, `condition_functions.yaml`,
+`run_operations.yaml`, `condition_functions.yaml`,
 `locations_overrides.yaml`, `interpolation_custom.yaml`) are not
 overwritten -- the developer maintains them by hand.
 
@@ -1137,7 +1197,7 @@ The compiler rejects, with an error pointing at the rejected
 construct:
 
 - **Arbitrary Python expressions** outside of `[[if]]`.
-- **Function calls** not present in the mod-operations or
+- **Function calls** not present in the run-operations or
   condition-functions allowlists.
 - **Inline `.rpy` escape hatches.** There is no "raw Ren'Py" mode.
 - **Screen definitions, transforms, `init python:` blocks, image
@@ -1148,7 +1208,7 @@ construct:
 When a scene needs something the format does not express, the writer
 escalates to the developer, who either:
 
-1. Adds a helper to the appropriate allowlist (`mod_operations.yaml`,
+1. Adds a helper to the appropriate allowlist (`run_operations.yaml`,
    `condition_functions.yaml`, `fx.yaml`).
 2. Adds a new directive to the format (bumps the format version,
    regenerates scenes).

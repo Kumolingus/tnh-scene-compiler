@@ -1,146 +1,83 @@
-# tnh-scene-compiler
+# TNH Scene Compiler
 
-Fountain-TNH scene compiler for **The Null Hypothesis** (Ren'Py game).
+Write dialogue scenes for **The Null Hypothesis** in plain text,
+compile them to Ren'Py code.
 
-Converts human-readable `.scene` files into native Ren'Py `.rpy` scripts,
-with allowlist-driven validation, colored error reporting, and drag-and-drop
-support on Windows.
+## Get started
 
-## Who is this for?
+Download the app from the
+[Releases](https://github.com/Kumolingus/tnh-scene-compiler/releases)
+page — no Python needed.
 
-- **TNH modders** who want authored dialogue scenes compiled to `.rpy`
-  without hand-writing Ren'Py boilerplate.
-- **Writers** contributing dialogue to any TNH mod — the `.scene` format
-  is designed so non-programmers can write scenes in a plain text editor.
+### I want to write a scene right now
 
-## Quick start
+Open the app, click **New scene**, fill in the guided form (title,
+character, scene type), pick a starting template, and start writing.
+See the [Quick start guide](docs/quick_start.md) for a 5-minute walkthrough.
 
-### 1. Get the tool
+### I want to compile scenes I already wrote
 
-Clone (or add as a submodule in your mod repo):
+Open the app, click **Quick compile**, add your `.scene` files, and hit
+**Compile**. The compiled `.rpy` files appear in the output folder.
 
-```bash
-git clone https://github.com/Ethyl39/tnh-scene-compiler.git
-```
+### I want to manage a full project
 
-### 2. Install the dependency
+Click **Create project**, pick a name and folder. The app sets everything
+up. See the [Project setup guide](docs/project_setup.md) for details.
 
-The only runtime dependency is [PyYAML](https://pyyaml.org/):
-
-```bash
-pip install pyyaml
-```
-
-### 3. Initialize your mod project
-
-```bash
-python -m tnh_scene_compiler init --mod-prefix my_mod
-```
-
-This creates:
-- `tnh_scene_compiler.yaml` — the project config file.
-- Runtime `.rpy` stubs your mod needs (metadata dict, runtime module,
-  testing-hub condition wrapper).
-
-### 4. Write a scene
-
-Create `scenes_source/JeanGrey/my_mod_dialogue_jeangrey_hello.scene`:
+## What does a `.scene` file look like?
 
 ```
-Title: Jean says hello
-Scene Id: my_mod_dialogue_jeangrey_hello
+Title: A morning chat
+Scene Id: my_project_morning_chat
 Character: JeanGrey
 Scene Type: cinematic
 Trigger: manual
-Description: A short greeting scene.
 
-INT. JEANGREY'S ROOM
+INT. KITCHEN
 
 JEANGREY (happy)
-Hey, [player.petname]. How's it going?
+Good morning! Sleep well?
+
+PLAYER
+Not really...
+
+JEANGREY (concerned)
+What happened?
+
+[[if JeanGrey.love >= 500]]
+
+JEANGREY
+You know you can tell me anything.
+
+[[/if]]
 ```
 
-### 5. Compile
-
-```bash
-python -m tnh_scene_compiler compile --verbose
-```
-
-Or on Windows — drag `.scene` files onto `scripts/compile.bat`.
-
-The compiled `.rpy` appears under your configured output directory.
-
-## Commands
-
-| Command | Purpose |
-|---|---|
-| `compile [files...]` | Compile `.scene` files to `.rpy`. Omit files to compile all. |
-| `validate [files...]` | Parse + validate without writing output (for CI). |
-| `init --mod-prefix <prefix>` | Bootstrap config + runtime stubs for a new mod. |
-
-Common flags: `--config <path>` (force config location), `--verbose`.
-
-## Configuration
-
-Each mod repo has a `tnh_scene_compiler.yaml` at its root:
-
-```yaml
-mod_prefix: my_mod
-scenes_source: scenes_source/
-mod_allowlists: scenes_source/_allowlists/
-output: game/my_mod/scenes/
-include_base_allowlists: true
-```
-
-The compiler discovers this file by walking up from the current directory
-(or from the first dropped file).
-
-## Allowlist system
-
-The compiler validates every character name, mood, face, location, SFX,
-and interpolation path against YAML allowlists.
-
-**Two-layer architecture:**
-
-1. **Base layer** (`allowlists_base/`) — vanilla TNH data, ships with this tool.
-2. **Mod layer** (`mod_allowlists` in your config) — your mod's additions
-   (custom characters, mod operations, condition functions, etc.).
-
-Layers merge automatically: the mod layer extends the base. A mod that adds
-no custom data needs zero allowlist files.
-
-## Drag-and-drop (Windows)
-
-Drop `.scene` files onto `scripts/compile.bat`. A console window opens,
-shows colored compilation output, and pauses so you can read the results.
+That's it. No Ren'Py syntax to learn. The compiler handles the rest.
 
 ## Documentation
 
-| Document | Audience |
+| Document | What's inside |
 |---|---|
-| [Format specification](docs/format_spec.md) | Developers building or extending the compiler |
-| [Writer guide](docs/writer_guide.md) | Scene writers (non-programmers) |
-| [Modder setup guide](docs/modder_setup.md) | Mod developers integrating the tool |
+| [Quick start](docs/quick_start.md) | Write and compile your first scene in 5 minutes |
+| [Scene cheatsheet](docs/scene_cheatsheet.md) | One-page reference — copy-paste examples for every feature |
+| [Writer guide](docs/writer_guide.md) | Complete guide for scene writers |
+| [Project setup](docs/project_setup.md) | Setting up and managing a project |
+| [Format specification](docs/format_spec.md) | Technical spec for developers |
 
-## As a git submodule
+The integrated editor also includes a **Condition Builder** — open it
+from the Struct. palette tab to browse every available condition type
+and build expressions without memorizing the syntax.
 
-Add to your mod repo:
+## From source (for developers)
 
 ```bash
-git submodule add https://github.com/Ethyl39/tnh-scene-compiler.git Tools/tnh-scene-compiler
+pip install pyyaml
+pip install tkinterdnd2  # optional, for drag-and-drop
+python -m tnh_scene_compiler.gui
 ```
 
-Then point `PYTHONPATH` at the submodule root before invoking:
-
-```powershell
-$env:PYTHONPATH = "Tools/tnh-scene-compiler"
-python -m tnh_scene_compiler compile --verbose
-```
-
-## Requirements
-
-- Python 3.10+
-- PyYAML >= 6.0
+CLI: `python -m tnh_scene_compiler compile --verbose`
 
 ## License
 

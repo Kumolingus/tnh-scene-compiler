@@ -16,7 +16,7 @@ from tnh_scene_compiler.parser import parse
 
 # All tests in this file use a "testmod" prefix so assertions don't depend
 # on the pregnancy mod's concrete prefix.
-_CTX = CodegenContext(mod_prefix = "testmod")
+_CTX = CodegenContext(project_prefix = "testmod")
 
 
 def test_codegen_scene_rpy_has_label_but_no_event_block(

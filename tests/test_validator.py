@@ -269,11 +269,11 @@ def test_validate_duplicate_label_is_rejected(allowlists: Allowlists) -> None:
     assert "twice" in errors[0].message
 
 
-def test_validate_mod_set_allowed_operation(allowlists: Allowlists) -> None:
+def test_validate_run_allowed_operation(allowlists: Allowlists) -> None:
     scene = _scene(
         "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
         "Scene Type: cinematic\nTrigger: manual\n\n"
-        "[[mod_set JeanGrey.give_trait(\"x\")]]\n",
+        "[[run JeanGrey.give_trait(\"x\")]]\n",
     )
 
     errors = validate(scene, allowlists)
@@ -281,17 +281,117 @@ def test_validate_mod_set_allowed_operation(allowlists: Allowlists) -> None:
     assert errors == []
 
 
-def test_validate_mod_set_unknown_operation_is_rejected(allowlists: Allowlists) -> None:
+def test_validate_run_unknown_operation_is_rejected(allowlists: Allowlists) -> None:
     scene = _scene(
         "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
         "Scene Type: cinematic\nTrigger: manual\n\n"
-        "[[mod_set JeanGrey.nuke_the_world()]]\n",
+        "[[run JeanGrey.nuke_the_world()]]\n",
     )
 
     errors = validate(scene, allowlists)
 
     assert errors
     assert "nuke_the_world" in errors[0].message
+
+
+# -- give_trait / remove_trait ------------------------------------------------
+
+
+def test_validate_give_trait_known(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[give_trait JeanGrey shy]]\n",
+    )
+
+    assert validate(scene, allowlists) == []
+
+
+def test_validate_give_trait_unknown_character(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[give_trait UnknownChar shy]]\n",
+    )
+
+    errors = validate(scene, allowlists)
+    assert errors
+    assert "UnknownChar" in errors[0].message
+
+
+def test_validate_give_trait_unknown_trait(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[give_trait JeanGrey nonexistent_trait]]\n",
+    )
+
+    errors = validate(scene, allowlists)
+    assert errors
+    assert "nonexistent_trait" in errors[0].message
+
+
+def test_validate_remove_trait_known(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[remove_trait JeanGrey bold]]\n",
+    )
+
+    assert validate(scene, allowlists) == []
+
+
+# -- record -------------------------------------------------------------------
+
+
+def test_validate_record_known(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[record JeanGrey kissed_player]]\n",
+    )
+
+    assert validate(scene, allowlists) == []
+
+
+def test_validate_record_unknown_event(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[record JeanGrey made_up_event]]\n",
+    )
+
+    errors = validate(scene, allowlists)
+    assert errors
+    assert "made_up_event" in errors[0].message
+
+
+# -- set_personality ----------------------------------------------------------
+
+
+def test_validate_set_personality_known(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[set_personality JeanGrey dominant 3]]\n",
+    )
+
+    assert validate(scene, allowlists) == []
+
+
+def test_validate_set_personality_unknown_trait(allowlists: Allowlists) -> None:
+    scene = _scene(
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+        "Scene Type: cinematic\nTrigger: manual\n\n"
+        "[[set_personality JeanGrey fake_personality 3]]\n",
+    )
+
+    errors = validate(scene, allowlists)
+    assert errors
+    assert "fake_personality" in errors[0].message
+
+
+# -- fx -----------------------------------------------------------------------
 
 
 def test_validate_fx_allowed_effect(allowlists: Allowlists) -> None:

@@ -17,9 +17,19 @@ dependencies = [
 test = [
     "pytest>=7.0",
 ]
+dnd = [
+    "tkinterdnd2>=0.3",
+]
+build = [
+    "pyinstaller>=6.0",
+    "tkinterdnd2>=0.3",
+]
 
 [project.scripts]
 tnh-scene-compiler = "tnh_scene_compiler.__main__:main"
+
+[project.gui-scripts]
+tnh-scene-compiler-gui = "tnh_scene_compiler.gui:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

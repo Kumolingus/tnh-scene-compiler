@@ -38,7 +38,7 @@ def test_deduplicates_by_name(tmp_path):
 
     context = ScanContext(
         base_game_root = tmp_path / "TheNullHypothesis",
-        mod_root = tmp_path / "mod",
+        project_root = tmp_path / "mod",
         repo_root = tmp_path,
         include_tnh = True,
     )

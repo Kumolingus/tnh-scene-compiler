@@ -1,0 +1,153 @@
+# Engine effects callable from [[fx function_name()]] in .scene files.
+# Extracted from TheNullHypothesis base game source.
+source: TNH base game
+generated_at: '2026-05-13'
+effects:
+  # -- Mechanics ----------------------------------------------------------
+  - name: knock_on_door
+    source_file: game/core/mechanics/knocking.rpy
+    source_line: 229
+  - name: phone_buzz
+    source_file: game/core/mechanics/phone.rpy
+    source_line: 3
+
+  # -- Standard visual effects (labels) -----------------------------------
+  - name: bamf
+    source_file: game/displayables/effects.rpy
+    source_line: 132
+  - name: boom
+    source_file: game/displayables/effects.rpy
+    source_line: 144
+  - name: bone_crack
+    source_file: game/displayables/effects.rpy
+    source_line: 184
+  - name: bzilll
+    source_file: game/displayables/effects.rpy
+    source_line: 194
+  - name: clash
+    source_file: game/displayables/effects.rpy
+    source_line: 204
+  - name: clang
+    source_file: game/displayables/effects.rpy
+    source_line: 214
+  - name: click
+    source_file: game/displayables/effects.rpy
+    source_line: 231
+  - name: crack
+    source_file: game/displayables/effects.rpy
+    source_line: 241
+  - name: crash
+    source_file: game/displayables/effects.rpy
+    source_line: 247
+  - name: green_smack
+    source_file: game/displayables/effects.rpy
+    source_line: 345
+  - name: kaboom
+    source_file: game/displayables/effects.rpy
+    source_line: 257
+  - name: pow
+    source_file: game/displayables/effects.rpy
+    source_line: 297
+  - name: roar
+    source_file: game/displayables/effects.rpy
+    source_line: 303
+  - name: shirk
+    source_file: game/displayables/effects.rpy
+    source_line: 326
+  - name: smack
+    source_file: game/displayables/effects.rpy
+    source_line: 336
+  - name: snakt
+    source_file: game/displayables/effects.rpy
+    source_line: 351
+  - name: snikt
+    source_file: game/displayables/effects.rpy
+    source_line: 360
+  - name: zing
+    source_file: game/displayables/effects.rpy
+    source_line: 369
+  - name: zirk
+    source_file: game/displayables/effects.rpy
+    source_line: 386
+
+  # -- Cinematic layer variants -------------------------------------------
+  - name: cinematic_bamf
+    source_file: game/displayables/effects.rpy
+    source_line: 396
+  - name: cinematic_boom
+    source_file: game/displayables/effects.rpy
+    source_line: 436
+  - name: cinematic_bone_crack
+    source_file: game/displayables/effects.rpy
+    source_line: 492
+  - name: cinematic_bzilll
+    source_file: game/displayables/effects.rpy
+    source_line: 502
+  - name: cinematic_clash
+    source_file: game/displayables/effects.rpy
+    source_line: 512
+  - name: cinematic_clang
+    source_file: game/displayables/effects.rpy
+    source_line: 522
+  - name: cinematic_click
+    source_file: game/displayables/effects.rpy
+    source_line: 539
+  - name: cinematic_crack
+    source_file: game/displayables/effects.rpy
+    source_line: 549
+  - name: cinematic_crash
+    source_file: game/displayables/effects.rpy
+    source_line: 559
+  - name: cinematic_green_smack
+    source_file: game/displayables/effects.rpy
+    source_line: 678
+  - name: cinematic_kaboom
+    source_file: game/displayables/effects.rpy
+    source_line: 569
+  - name: cinematic_knock
+    source_file: game/displayables/effects.rpy
+    source_line: 609
+  - name: cinematic_phone_buzz
+    source_file: game/displayables/effects.rpy
+    source_line: 476
+  - name: cinematic_pow
+    source_file: game/displayables/effects.rpy
+    source_line: 626
+  - name: cinematic_roar
+    source_file: game/displayables/effects.rpy
+    source_line: 636
+  - name: cinematic_shirk
+    source_file: game/displayables/effects.rpy
+    source_line: 659
+  - name: cinematic_smack
+    source_file: game/displayables/effects.rpy
+    source_line: 669
+  - name: cinematic_snakt
+    source_file: game/displayables/effects.rpy
+    source_line: 684
+  - name: cinematic_snikt
+    source_file: game/displayables/effects.rpy
+    source_line: 693
+  - name: cinematic_zing
+    source_file: game/displayables/effects.rpy
+    source_line: 702
+  - name: cinematic_zirk
+    source_file: game/displayables/effects.rpy
+    source_line: 719
+
+  # -- Character animations -----------------------------------------------
+  - name: JeanGrey_animations_activate_power
+    source_file: game/characters/JeanGrey/animations.rpy
+    source_line: 13
+  - name: JeanGrey_animations_deactivate_power
+    source_file: game/characters/JeanGrey/animations.rpy
+    source_line: 23
+  - name: KurtWagner_animations_teleports_in
+    source_file: game/characters/KurtWagner/animations.rpy
+    source_line: 33
+  - name: LauraKinney_animations_sheathes_claws
+    source_file: game/characters/LauraKinney/animations.rpy
+    source_line: 34
+  - name: LauraKinney_animations_unsheathes_claws
+    source_file: game/characters/LauraKinney/animations.rpy
+    source_line: 13

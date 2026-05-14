@@ -1,6 +1,6 @@
 character: CharlesXavier
 source: TNH + Mod
-generated_at: '2026-05-13'
+generated_at: '2026-05-14'
 values:
 - name: amused
   source_file: TheNullHypothesis/game/characters/CharlesXavier/definitions/expressions.rpy

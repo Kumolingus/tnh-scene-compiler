@@ -179,14 +179,14 @@ class Goto:
 
 
 @dataclass(frozen=True, slots=True)
-class ModSet:
-    """``[[mod_set <call>]]`` — allowlisted persistent-state mutation.
+class Run:
+    """``[[run <call>]]`` — allowlisted persistent-state mutation.
 
     Attributes:
-        call_text: The raw call expression between ``[[mod_set`` and ``]]``,
+        call_text: The raw call expression between ``[[run`` and ``]]``,
             kept verbatim for codegen. Stored as a string rather than a
-            full AST since §11.12 freezes the allowlisted operations as
-            explicit contracts; the parser only checks that the target
+            full AST since the allowlisted operations are explicit
+            contracts; the parser only checks that the target
             function/method matches an allowlist entry.
         target_name: The function name (bare) or last attribute
             (``Char.method`` -> ``method``) used for allowlist lookup.
@@ -202,15 +202,15 @@ class ModSet:
 class FxCall:
     """``[[fx <call>]]`` — allowlisted engine-effect invocation.
 
-    Distinct from :class:`ModSet`: ``fx`` is side-effect only (plays a
+    Distinct from :class:`Run`: ``fx`` is side-effect only (plays a
     visual / transient animation via a TNH core helper like
-    ``phone_buzz()`` or ``knock_on_door()``), while ``mod_set`` writes
+    ``phone_buzz()`` or ``knock_on_door()``), while ``run`` writes
     persistent state. Keeping them separate makes the intent of each
     scene line obvious to a reader and lets the allowlists stay
     purpose-specific: ``fx.yaml`` lists engine effects,
-    ``mod_operations.yaml`` lists state mutations.
+    ``run_operations.yaml`` lists state mutations.
 
-    Attributes match :class:`ModSet` — ``call_text`` is the verbatim
+    Attributes match :class:`Run` — ``call_text`` is the verbatim
     source to splice into ``$ …``, ``target_name`` is the allowlist key.
     """
 
@@ -259,6 +259,47 @@ class Approval:
     axis: str
     magnitude_text: str
     sign: str
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class GiveTrait:
+    """``[[give_trait Character trait]]`` — grant a character trait."""
+
+    character: str
+    trait: str
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class RemoveTrait:
+    """``[[remove_trait Character trait]]`` — revoke a character trait."""
+
+    character: str
+    trait: str
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class RecordEvent:
+    """``[[record Character event]]`` — record a history event."""
+
+    character: str
+    event: str
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class SetPersonality:
+    """``[[set_personality Character trait value]]`` — set a personality score."""
+
+    character: str
+    trait: str
+    value: int
     line: int = 0
     col: int = 0
 
@@ -374,7 +415,8 @@ class IfChain:
 BodyNode = (
     Slugline | DialogueBlock | NarrationBlock
     | Pause | Sfx | SetDirective | Label | Goto | IfChain
-    | CallScene | PhoneOpen | PhoneClose | Show | Hide | Choice | ModSet | FxCall
+    | CallScene | PhoneOpen | PhoneClose | Show | Hide | Choice | Run | FxCall
+    | Approval | GiveTrait | RemoveTrait | RecordEvent | SetPersonality
 )
 
 

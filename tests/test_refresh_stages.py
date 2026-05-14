@@ -48,7 +48,7 @@ def test_no_extraction_when_include_tnh_is_false(mini_mod_only_context):
 def test_warns_when_expected_file_missing(tmp_path):
     context = ScanContext(
         base_game_root = tmp_path,
-        mod_root = tmp_path,
+        project_root = tmp_path,
         repo_root = tmp_path,
         include_tnh = True,
     )

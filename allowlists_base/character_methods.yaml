@@ -1,0 +1,57 @@
+# Character methods callable in [[if Character.method()]] conditions.
+# Only read-only methods suitable for branching logic are listed.
+# Side-effect methods (give_trait, change_mood, etc.) are excluded.
+source: TNH base game
+generated_at: '2026-05-13'
+methods:
+  # -- Trait checks (BaseClass / TraitClass) ------------------------------
+  - name: check_trait
+    signature: "Character.check_trait(trait: str) -> bool"
+    source_file: game/core/definitions/base.rpy
+    source_line: 73
+  - name: get_trait
+    signature: "Character.get_trait(trait: str, default = None) -> Any"
+    source_file: game/core/definitions/base.rpy
+    source_line: 82
+
+  # -- Personality (CharacterClass) ---------------------------------------
+  - name: check_personality
+    signature: "Character.check_personality(trait: str, threshold: int | None = None) -> bool | int"
+    source_file: game/core/definitions/characters.rpy
+    source_line: 79
+
+  # -- Mood and status (NPCClass) -----------------------------------------
+  - name: is_in_normal_mood
+    signature: "Character.is_in_normal_mood(check_alone_time: bool = True) -> bool"
+    source_file: game/core/definitions/npcs.rpy
+    source_line: 96
+  - name: get_status
+    signature: "Character.get_status() -> str | None"
+    source_file: game/core/definitions/npcs.rpy
+    source_line: 86
+  - name: default_mood
+    signature: "Character.default_mood() -> str"
+    source_file: game/core/definitions/npcs.rpy
+    source_line: 105
+
+  # -- Relationships (NPCClass) -------------------------------------------
+  - name: get_friendship
+    signature: "Character.get_friendship(other: Character) -> int"
+    source_file: game/core/definitions/npcs.rpy
+    source_line: 375
+
+  # -- Features (NPCClass) ------------------------------------------------
+  - name: feature_enabled
+    signature: "Character.feature_enabled(feature_name: str) -> bool"
+    source_file: game/core/definitions/npcs.rpy
+    source_line: 482
+
+  # -- History (via Character.History) -------------------------------------
+  - name: check
+    signature: "Character.History.check(Item: str, tracker: str = 'persistent', after = 0) -> int"
+    source_file: game/core/definitions/history.rpy
+    source_line: 50
+  - name: check_when
+    signature: "Character.History.check_when(item: str, tracker: str = 'persistent') -> tuple"
+    source_file: game/core/definitions/history.rpy
+    source_line: 69

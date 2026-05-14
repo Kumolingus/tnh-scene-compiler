@@ -59,16 +59,19 @@ def allowlists() -> Allowlists:
         looks = {"at_player", "away", "down"},
         stages = {"stage_left", "stage_center", "stage_right"},
         sfx = {"phone_buzz", "click", "door_open"},
-        mod_operations = {"give_trait", "mymod_set_stage"},
+        run_operations = {"give_trait", "mymod_set_stage"},
         fx = {"phone_buzz", "knock_on_door", "bamf"},
         condition_functions = {"check_approval", "is_pregnant", "ready_for_parenthood"},
+        traits = {"shy", "bold", "romantic"},
+        personalities = {"dominant", "submissive", "loner"},
+        history_events = {"kissed_player", "fought_villain"},
     )
 
 
 @pytest.fixture
 def codegen_ctx() -> CodegenContext:
     """A CodegenContext for tests using a non-production prefix."""
-    return CodegenContext(mod_prefix = "testmod")
+    return CodegenContext(project_prefix = "testmod")
 
 
 # --- refresh_allowlists fixtures ---------------------------------------------
@@ -86,7 +89,7 @@ def mini_context() -> ScanContext:
     base = FIXTURES / "refresh_allowlists"
     return ScanContext(
         base_game_root = base / "mini_tnh",
-        mod_root = base / "mini_mod",
+        project_root = base / "mini_mod",
         repo_root = base,
         include_tnh = True,
     )
@@ -98,7 +101,7 @@ def mini_mod_only_context() -> ScanContext:
     base = FIXTURES / "refresh_allowlists"
     return ScanContext(
         base_game_root = base / "mini_tnh",
-        mod_root = base / "mini_mod",
+        project_root = base / "mini_mod",
         repo_root = base,
         include_tnh = False,
     )

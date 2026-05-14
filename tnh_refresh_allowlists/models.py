@@ -69,13 +69,13 @@ class ScanContext:
 
     Attributes:
         base_game_root: Absolute path to the extracted TNH build root.
-        mod_root: Absolute path to the mod source root.
+        project_root: Absolute path to the mod source root.
         repo_root: Absolute path used to compute repo-relative source paths.
         include_tnh: Whether to include values derived from the TNH build.
     """
 
     base_game_root: Path
-    mod_root: Path
+    project_root: Path
     repo_root: Path
     include_tnh: bool = True
 

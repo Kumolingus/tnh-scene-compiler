@@ -1,16 +1,19 @@
-generated_at: '2026-05-13'
+generated_at: '2026-05-14'
 tool_version: 1.0.0
 base_game_root: TheNullHypothesis
-mod_root: PregnancyMod
+project_root: C:/Users/flori/AppData/Local/Temp/tnh_empty_mod
 include_tnh: true
 stats:
-  characters: 31
+  characters: 30
   stages: 8
   sfx: 10
   locations: 31
   looks: 8
   interpolation: 91
   condition_functions: 0
+  traits: 303
+  personalities: 8
+  history_events: 99
   faces:
     AmahlFarouk: 10
     CharlesXavier: 35

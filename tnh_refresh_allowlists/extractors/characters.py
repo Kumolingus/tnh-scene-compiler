@@ -29,14 +29,14 @@ _CH_DEFINE_RE = re.compile(
 )
 
 
-def _find_mod_characters_root(mod_root: Path) -> Path | None:
+def _find_mod_characters_root(project_root: Path) -> Path | None:
     """Return the mod's ``characters/`` folder if the mod ships one, else None.
 
     The mod's prefix folder under ``game/`` is discovered by listing ``game/``
     subdirectories; the first subfolder that contains a ``characters/``
     subdirectory is picked.
     """
-    game_dir = mod_root / "game"
+    game_dir = project_root / "game"
     if not game_dir.exists():
         return None
 
@@ -66,7 +66,7 @@ def extract(context: ScanContext) -> ExtractionResult:
             )
 
     # Mod characters.
-    mod_chars = _find_mod_characters_root(context.mod_root)
+    mod_chars = _find_mod_characters_root(context.project_root)
     if mod_chars is not None:
         for folder in list_character_folders(mod_chars):
             already_known = any(entry.name == folder.name for entry in result.entries)

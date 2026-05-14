@@ -3,9 +3,7 @@
 Phases 6B-3 and 6C cover most single-line directives: ``pause``, ``sfx``,
 ``set``, ``label``, ``goto``, ``call``, ``phone``, ``show``, ``hide``.
 ``if`` / ``elif`` / ``else`` / ``/if`` and ``choice`` / ``/choice`` stay
-in the main parser because they nest or carry option lines. ``mod_set``
-is intentionally deferred to 6D — it needs the mod-operations allowlist
-that doesn't exist yet.
+in the main parser because they nest or carry option lines.
 
 Every function raises :class:`CompileError` on malformed input with an
 anchored ``line:col`` so the writer sees exactly where the problem is.
@@ -19,14 +17,18 @@ from .ast_nodes import (
     Approval,
     CallScene,
     FxCall,
+    GiveTrait,
     Goto,
     Hide,
     Label,
-    ModSet,
+    RecordEvent,
+    RemoveTrait,
+    Run,
     Pause,
     PhoneClose,
     PhoneOpen,
     SetDirective,
+    SetPersonality,
     Sfx,
     Show,
 )
@@ -153,14 +155,14 @@ def parse_set(raw: str, *, path: str, line: int, col: int) -> SetDirective:
         key_raw, _, value_raw = remainder.partition("=")
         key = key_raw.strip()
         # Dotted keys first — writers who tried to target a character attribute
-        # get pointed at [[mod_set]] rather than a generic "not an identifier"
+        # get pointed at [[run]] rather than a generic "not an identifier"
         # error they'd struggle to act on.
         if "." in key:
             raise CompileError(
                 path = path, line = line, col = col,
                 message = (
                     "[[set]] targets scene-local state only. "
-                    "To write to a character attribute, use [[mod_set]]."
+                    "To write to a character attribute, use [[run]]."
                 ),
             )
         if not _RE_IDENT.match(key):
@@ -197,7 +199,7 @@ def parse_set(raw: str, *, path: str, line: int, col: int) -> SetDirective:
             path = path, line = line, col = col,
             message = (
                 "[[set]] targets scene-local state only. "
-                "To write to a character attribute, use [[mod_set]]."
+                "To write to a character attribute, use [[run]]."
             ),
         )
     return SetDirective(key = remainder, value = True, line = line, col = col)
@@ -375,47 +377,162 @@ def parse_show(raw: str, *, path: str, line: int, col: int) -> Show:
     return Show(character = character, attrs = attrs, line = line, col = col)
 
 
-def parse_mod_set(raw: str, *, path: str, line: int, col: int) -> ModSet:
-    """Parse ``[[mod_set <call>]]`` — a function or method invocation.
+# -- High-level state-mutation directives ------------------------------------
+
+
+def parse_give_trait(raw: str, *, path: str, line: int, col: int) -> GiveTrait:
+    """Parse ``[[give_trait Character trait]]``."""
+    body = _strip_directive(raw)
+    parts = body.split()
+    if len(parts) != 3 or parts[0] != "give_trait":
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = (
+                "Malformed [[give_trait]] directive. Expected "
+                "'[[give_trait Character trait]]'."
+            ),
+        )
+    _, character, trait = parts
+    if not _RE_IDENT.match(character):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Character {character!r} is not a plain identifier.",
+        )
+    if not _RE_IDENT.match(trait):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Trait {trait!r} is not a plain identifier.",
+        )
+    return GiveTrait(character = character, trait = trait, line = line, col = col)
+
+
+def parse_remove_trait(raw: str, *, path: str, line: int, col: int) -> RemoveTrait:
+    """Parse ``[[remove_trait Character trait]]``."""
+    body = _strip_directive(raw)
+    parts = body.split()
+    if len(parts) != 3 or parts[0] != "remove_trait":
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = (
+                "Malformed [[remove_trait]] directive. Expected "
+                "'[[remove_trait Character trait]]'."
+            ),
+        )
+    _, character, trait = parts
+    if not _RE_IDENT.match(character):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Character {character!r} is not a plain identifier.",
+        )
+    if not _RE_IDENT.match(trait):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Trait {trait!r} is not a plain identifier.",
+        )
+    return RemoveTrait(character = character, trait = trait, line = line, col = col)
+
+
+def parse_record(raw: str, *, path: str, line: int, col: int) -> RecordEvent:
+    """Parse ``[[record Character event]]``."""
+    body = _strip_directive(raw)
+    parts = body.split()
+    if len(parts) != 3 or parts[0] != "record":
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = (
+                "Malformed [[record]] directive. Expected "
+                "'[[record Character event]]'."
+            ),
+        )
+    _, character, event = parts
+    if not _RE_IDENT.match(character):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Character {character!r} is not a plain identifier.",
+        )
+    if not _RE_IDENT.match(event):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Event {event!r} is not a plain identifier.",
+        )
+    return RecordEvent(character = character, event = event, line = line, col = col)
+
+
+def parse_set_personality(
+    raw: str, *, path: str, line: int, col: int,
+) -> SetPersonality:
+    """Parse ``[[set_personality Character trait value]]``."""
+    body = _strip_directive(raw)
+    parts = body.split()
+    if len(parts) != 4 or parts[0] != "set_personality":
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = (
+                "Malformed [[set_personality]] directive. Expected "
+                "'[[set_personality Character trait value]]'."
+            ),
+        )
+    _, character, trait, value_str = parts
+    if not _RE_IDENT.match(character):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Character {character!r} is not a plain identifier.",
+        )
+    if not _RE_IDENT.match(trait):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Personality trait {trait!r} is not a plain identifier.",
+        )
+    try:
+        value = int(value_str)
+    except ValueError as exc:
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Value {value_str!r} must be an integer.",
+        ) from exc
+    return SetPersonality(
+        character = character, trait = trait, value = value,
+        line = line, col = col,
+    )
+
+
+def parse_run(raw: str, *, path: str, line: int, col: int) -> Run:
+    """Parse ``[[run <call>]]`` — a function or method invocation.
 
     The body is parsed with the safe-subset expression parser; the
     top-level node must be a :class:`Call`. Every construct §11.9.1
     forbids (arithmetic, subscript, ternary, …) is rejected automatically
     by the expression scanner. Validation of the target against the
-    mod-operations allowlist happens in the validator.
+    run-operations allowlist happens in the validator.
     """
     body = _strip_directive(raw)
-    if not body.startswith("mod_set"):
+    if not body.startswith("run"):
         raise CompileError(
             path = path, line = line, col = col,
-            message = "Malformed [[mod_set]] directive.",
+            message = "Malformed [[run]] directive.",
         )
-    remainder = body[len("mod_set"):].strip()
+    remainder = body[len("run"):].strip()
     if not remainder:
         raise CompileError(
             path = path, line = line, col = col,
-            message = "[[mod_set]] requires a call expression.",
+            message = "[[run]] requires a call expression.",
         )
 
-    # ``base_col`` points at the first character of the remainder so column
-    # numbers in nested errors line up with the original source.
     expr = parse_expression(
         remainder,
         path = path,
         line = line,
-        base_col = col + len("[[mod_set ") + 1 - 1,
+        base_col = col + len("[[run ") + 1 - 1,
     )
     if not isinstance(expr, Call):
         raise CompileError(
             path = path, line = line, col = col,
             message = (
-                "[[mod_set]] must be a function or method call. "
+                "[[run]] must be a function or method call. "
                 "Plain values and assignments are not allowed."
             ),
         )
 
-    # Determine the allowlist key: bare function name, or the final
-    # attribute of a dotted method chain (Char.give_trait -> give_trait).
     target = expr.target
     if isinstance(target, Name):
         target_name = target.name
@@ -424,10 +541,10 @@ def parse_mod_set(raw: str, *, path: str, line: int, col: int) -> ModSet:
     else:
         raise CompileError(
             path = path, line = line, col = col,
-            message = "[[mod_set]] call target is not a plain function or method.",
+            message = "[[run]] call target is not a plain function or method.",
         )
 
-    return ModSet(
+    return Run(
         call_text = remainder,
         target_name = target_name,
         line = line,
@@ -438,11 +555,11 @@ def parse_mod_set(raw: str, *, path: str, line: int, col: int) -> ModSet:
 def parse_fx(raw: str, *, path: str, line: int, col: int) -> FxCall:
     """Parse ``[[fx <call>]]`` — an engine-effect invocation.
 
-    Structurally identical to ``[[mod_set]]`` (call expression, target
+    Structurally identical to ``[[run]]`` (call expression, target
     name extracted for allowlist lookup) but routed through a separate
     allowlist (``fx.yaml``) because ``fx`` is side-effect only (plays a
     visual / transient animation like ``phone_buzz()`` or
-    ``knock_on_door()``) while ``mod_set`` writes persistent state.
+    ``knock_on_door()``) while ``run`` writes persistent state.
     Keeping the two directives apart makes a scene line's intent
     obvious.
     """
@@ -617,8 +734,16 @@ def parse_directive(raw: str, *, path: str, line: int, col: int):
         return parse_show(raw, path = path, line = line, col = col)
     if first == "hide":
         return parse_hide(raw, path = path, line = line, col = col)
-    if first == "mod_set":
-        return parse_mod_set(raw, path = path, line = line, col = col)
+    if first == "run":
+        return parse_run(raw, path = path, line = line, col = col)
+    if first == "give_trait":
+        return parse_give_trait(raw, path = path, line = line, col = col)
+    if first == "remove_trait":
+        return parse_remove_trait(raw, path = path, line = line, col = col)
+    if first == "record":
+        return parse_record(raw, path = path, line = line, col = col)
+    if first == "set_personality":
+        return parse_set_personality(raw, path = path, line = line, col = col)
     if first == "fx":
         return parse_fx(raw, path = path, line = line, col = col)
     if first == "approval":

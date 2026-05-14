@@ -48,12 +48,12 @@ def test_deduplicates_same_location_id(tmp_path):
         encoding = "utf-8",
     )
 
-    mod_root = tmp_path / "mod"
-    (mod_root / "game").mkdir(parents = True)
+    project_root = tmp_path / "mod"
+    (project_root / "game").mkdir(parents = True)
 
     context = ScanContext(
         base_game_root = dup_root,
-        mod_root = mod_root,
+        project_root = project_root,
         repo_root = tmp_path,
         include_tnh = True,
     )

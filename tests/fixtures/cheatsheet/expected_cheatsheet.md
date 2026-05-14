@@ -200,6 +200,91 @@ contract: the signature must stay compatible across releases.
 |---|---|---|
 | `check_approval` | `check_approval(Character, threshold: str) -> bool` | `TheNullHypothesis/game/core/mechanics/approval.rpy` |
 
+## Writer-friendly conditions (DSL)
+
+The compiler supports shorthand syntax that is easier to read and
+write than the raw function calls listed above. Use these inside
+`[[if]]`, `[[elif]]`, and choice guards.
+
+### Love / Trust check
+
+```
+[[if Character.love >= tier]]
+[[if Character.trust >= tier]]
+```
+
+Tiers from weakest to strongest:
+`tiny` < `small` < `medium` < `large` < `massive`
+
+Example: `[[if JeanGrey.love >= medium]]`
+
+### Trait check
+
+```
+[[if Character.has("trait")]]
+```
+
+Example: `[[if JeanGrey.has("shy")]]`
+
+### History check
+
+```
+[[if Character.did("event")]]
+```
+
+Checks if the character has done this event at least once.
+
+Example: `[[if JeanGrey.did("kissed_player")]]`
+
+### Mood check
+
+```
+[[if Character.mood == "value"]]
+```
+
+Values come from the per-character mood lists above.
+
+Example: `[[if KurtWagner.mood == "normal"]]`
+
+### Friendship check
+
+```
+[[if Character.friends_with(OtherCharacter)]]
+```
+
+Example: `[[if JeanGrey.friends_with(Rogue)]]`
+
+### Nearby check
+
+```
+[[if Character.nearby]]
+```
+
+True when the character is in close proximity to the player.
+
+Example: `[[if LauraKinney.nearby]]`
+
+### Personality check
+
+```
+[[if Character.personality("trait")]]
+[[if Character.personality("trait", threshold)]]
+```
+
+Optional numeric threshold for comparison.
+
+Example: `[[if JeanGrey.personality("bold")]]`
+
+### Combining conditions
+
+Use `and`, `or`, `not`, and parentheses:
+
+```
+[[if JeanGrey.love >= medium and JeanGrey.has("romantic")]]
+[[if not LauraKinney.nearby]]
+[[if (Rogue.trust >= small) or JeanGrey.friends_with(Rogue)]]
+```
+
 ## Title page keys
 
 Source: hardcoded in the format (not an allowlist).
@@ -217,8 +302,6 @@ Source: hardcoded in the format (not an allowlist).
 | `Repeatable` | No | bool | Default `false` |
 | `Tags` | No | comma list | Extra flags on the event |
 | `Location` | No | slugline text | Implied opening slugline |
-| `Openness` | For `phone` only | enum | `open`, `steady` |
-| `Stage` | For `phone` only | string | `early`, `middle`, `late`, `showing`, `due` |
 | `Format` | No | int | Format version override, default 1 |
 
 ### Body comments
@@ -250,7 +333,7 @@ Exact behaviour is documented in the Guide.
 | `[[call scene_id]]` | Chain another scene |
 | `[[show Character …]]` / `[[hide Character]]` | Visual change without dialogue |
 | `[[phone open]]` / `[[phone open Character]]` / `[[phone close]]` | Phone UI |
-| `[[mod_set ...]]` | Persistent state change (only allowlisted operations) |
+| `[[run ...]]` | Persistent state change (only allowlisted operations) |
 | `[[approval Char love\|trust ±N]]` | Move love/trust by a stat tier (`tiny_stat` ... `massive_stat`) or integer (≥ 1) |
 
 ## Expression grammar (inside `[[if]]`)

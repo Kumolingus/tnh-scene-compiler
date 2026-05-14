@@ -134,11 +134,18 @@ location overrides win on collision).
 | `characters.yaml` | Your mod adds a new character (e.g. an OC) |
 | `moods/<Char>.yaml` | Your mod adds custom moods for a character |
 | `faces/<Char>.yaml` | Your mod adds custom face expressions |
+| `traits.yaml` | Your mod introduces custom traits (for `[[give_trait]]` / `[[if Character.has(...)]]`) |
+| `personalities.yaml` | Your mod introduces custom personality axes (for `[[set_personality]]`) |
+| `history_events.yaml` | Your mod introduces custom events (for `[[record]]` / `[[if Character.did(...)]]`) |
 | `condition_functions.yaml` | Your mod defines `[[if]]`-callable helpers |
-| `mod_operations.yaml` | Your mod defines `[[mod_set]]`-callable helpers |
+| `run_operations.yaml` | Your mod defines `[[run]]`-callable helpers |
 | `fx.yaml` | Your mod adds `[[fx]]`-callable visual effects |
 | `interpolation_custom.yaml` | Your mod adds custom `[path]` interpolation targets |
 | `locations_overrides.yaml` | Your mod adds short-form sluglines for locations |
+
+Every file you add in your project's `_allowlists/` directory is
+**merged with the base game layer** at compile time. You only need to
+list your additions — the base game values are included automatically.
 
 ### Example: adding a custom character
 
@@ -155,9 +162,9 @@ values:
 
 The compiler merges this with the 31 vanilla characters from the base layer.
 
-### Example: adding a mod operation
+### Example: adding a run operation
 
-Create `scenes_source/_allowlists/mod_operations.yaml`:
+Create `scenes_source/_allowlists/run_operations.yaml`:
 
 ```yaml
 operations:
@@ -168,8 +175,45 @@ operations:
       Valid values: "accept", "refuse".
 ```
 
-Writers can now use `[[mod_set my_mod_record_choice("accept")]]` in their
+Writers can now use `[[run my_mod_record_choice("accept")]]` in their
 scenes.
+
+### Example: adding custom traits
+
+If your mod introduces traits that don't exist in the base game, create
+`scenes_source/_allowlists/traits.yaml`:
+
+```yaml
+source: MyMod
+values:
+  - name: my_mod_pregnant
+  - name: my_mod_aware_of_pregnancy
+```
+
+Writers can now use these traits in directives and conditions:
+
+```
+[[give_trait JeanGrey my_mod_pregnant]]
+[[if JeanGrey.has("my_mod_pregnant")]]
+```
+
+The same pattern works for **personalities** and **history events**:
+
+```yaml
+# scenes_source/_allowlists/personalities.yaml
+source: MyMod
+values:
+  - name: maternal
+
+# scenes_source/_allowlists/history_events.yaml
+source: MyMod
+values:
+  - name: learned_about_pregnancy
+  - name: told_partner
+```
+
+These values are merged with the base game allowlists. They appear
+in the editor dropdowns and are accepted by the validator.
 
 ### Refreshing allowlists from the base game
 
@@ -283,7 +327,7 @@ my-tnh-mod/
 ├── scenes_source/
 │   ├── _allowlists/               ← mod-specific extensions
 │   │   ├── characters.yaml        ← only if adding characters
-│   │   ├── mod_operations.yaml    ← your [[mod_set]] helpers
+│   │   ├── run_operations.yaml    ← your [[run]] helpers
 │   │   └── condition_functions.yaml
 │   ├── JeanGrey/
 │   │   └── my_mod_dialogue_jeangrey_greeting.scene

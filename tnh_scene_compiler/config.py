@@ -1,14 +1,34 @@
-"""Load and validate ``tnh_scene_compiler.yaml`` configuration."""
+"""Load and validate ``tnh_scene_compiler.<prefix>.yaml`` configuration."""
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-_CONFIG_FILENAME = "tnh_scene_compiler.yaml"
+
+def get_data_root() -> Path:
+    """Return the root directory for bundled data files.
+
+    Inside a PyInstaller bundle ``sys.frozen`` is set and data lives
+    under ``sys._MEIPASS``.  Otherwise fall back to the repository root
+    (one level above this package).
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)  # type: ignore[attr-defined]
+    return Path(__file__).resolve().parent.parent
+
+
+_CONFIG_GLOB = "tnh_scene_compiler.*.yaml"
+_CONFIG_LEGACY = "tnh_scene_compiler.yaml"
+
+
+def config_filename(project_prefix: str) -> str:
+    """Return the canonical config filename for *project_prefix*."""
+    return f"tnh_scene_compiler.{project_prefix}.yaml"
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,16 +36,16 @@ class RefreshConfig:
     """Optional settings for the allowlist-refresh tool."""
 
     base_game: Path
-    mod_root: Path
+    project_root: Path
 
 
 @dataclass(frozen=True, slots=True)
 class Config:
     """Resolved configuration for a single mod project."""
 
-    mod_prefix: str
+    project_prefix: str
     scenes_source: Path
-    mod_allowlists: Path
+    project_allowlists: Path
     output: Path
     include_base_allowlists: bool
     refresh: RefreshConfig | None
@@ -36,8 +56,7 @@ class Config:
         """Path to the base allowlists shipped with the tool, or ``None``."""
         if not self.include_base_allowlists:
             return None
-        tool_root = Path(__file__).resolve().parent.parent
-        candidate = tool_root / "allowlists_base"
+        candidate = get_data_root() / "allowlists_base"
         if candidate.is_dir():
             return candidate
         return None
@@ -48,12 +67,23 @@ class ConfigError(Exception):
 
 
 def find_config(start: Path) -> Path | None:
-    """Walk up from *start* until a ``tnh_scene_compiler.yaml`` is found."""
+    """Walk up from *start* looking for a config file.
+
+    Searches for ``tnh_scene_compiler.*.yaml`` first, then falls back
+    to the legacy ``tnh_scene_compiler.yaml``.  Returns ``None`` when
+    nothing is found or when multiple new-style files exist in the
+    same directory (ambiguous — user must specify).
+    """
     current = start.resolve()
     while True:
-        candidate = current / _CONFIG_FILENAME
-        if candidate.is_file():
-            return candidate
+        matches = sorted(current.glob(_CONFIG_GLOB))
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            return None
+        legacy = current / _CONFIG_LEGACY
+        if legacy.is_file():
+            return legacy
         parent = current.parent
         if parent == current:
             return None
@@ -73,18 +103,18 @@ def load_config(path: Path) -> Config:
 
     config_dir = path.resolve().parent
 
-    mod_prefix = raw.get("mod_prefix")
-    if not mod_prefix or not isinstance(mod_prefix, str):
-        raise ConfigError("'mod_prefix' is required in config and must be a non-empty string.")
-    if not _is_valid_prefix(mod_prefix):
+    project_prefix = raw.get("project_prefix")
+    if not project_prefix or not isinstance(project_prefix, str):
+        raise ConfigError("'project_prefix' is required in config and must be a non-empty string.")
+    if not _is_valid_prefix(project_prefix):
         raise ConfigError(
-            f"'mod_prefix' must match [a-z][a-z0-9_]*, got: {mod_prefix!r}"
+            f"'project_prefix' must match [a-z][a-z0-9_]*, got: {project_prefix!r}"
         )
 
     scenes_source = _resolve(config_dir, raw.get("scenes_source", "scenes_source/"))
-    mod_allowlists = _resolve(config_dir, raw.get("mod_allowlists", "scenes_source/_allowlists/"))
+    project_allowlists = _resolve(config_dir, raw.get("project_allowlists", "scenes_source/_allowlists/"))
 
-    default_output = f"game/{mod_prefix}/scenes/"
+    default_output = f"game/{project_prefix}/scenes/"
     output = _resolve(config_dir, raw.get("output", default_output))
 
     include_base = raw.get("include_base_allowlists", True)
@@ -96,13 +126,13 @@ def load_config(path: Path) -> Config:
     if isinstance(refresh_raw, dict):
         refresh = RefreshConfig(
             base_game=_resolve(config_dir, refresh_raw.get("base_game", "../TheNullHypothesis/")),
-            mod_root=_resolve(config_dir, refresh_raw.get("mod_root", ".")),
+            project_root=_resolve(config_dir, refresh_raw.get("project_root", ".")),
         )
 
     return Config(
-        mod_prefix=mod_prefix,
+        project_prefix=project_prefix,
         scenes_source=scenes_source,
-        mod_allowlists=mod_allowlists,
+        project_allowlists=project_allowlists,
         output=output,
         include_base_allowlists=include_base,
         refresh=refresh,

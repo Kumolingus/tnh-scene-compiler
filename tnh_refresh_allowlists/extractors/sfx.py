@@ -19,9 +19,9 @@ from ..models import AllowlistEntry, ExtractionResult, ScanContext
 from ..scanner import iter_audio_files
 
 
-def _mod_sfx_roots(mod_root: Path) -> list[Path]:
-    """Return every ``<mod>/game/<modprefix>/sounds/sfx`` folder under ``mod_root``."""
-    game_dir = mod_root / "game"
+def _mod_sfx_roots(project_root: Path) -> list[Path]:
+    """Return every ``<mod>/game/<modprefix>/sounds/sfx`` folder under ``project_root``."""
+    game_dir = project_root / "game"
     if not game_dir.exists():
         return []
 
@@ -43,7 +43,7 @@ def extract(context: ScanContext) -> ExtractionResult:
     if context.include_tnh:
         roots.append(context.base_game_root / "game" / "sounds" / "effects")
         roots.append(context.base_game_root / "game" / "sounds" / "interfaces")
-    roots.extend(_mod_sfx_roots(context.mod_root))
+    roots.extend(_mod_sfx_roots(context.project_root))
 
     seen: set[str] = set()
     for root in roots:

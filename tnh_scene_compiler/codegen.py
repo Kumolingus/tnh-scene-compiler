@@ -40,7 +40,7 @@ the reference.
 
 Later phases will extend this with a centralised ``_events.rpy``
 registry (6D) and the remaining directives (6C: ``[[choice]]``,
-``[[call]]``, ``[[phone]]``, ``[[show]]``, ``[[mod_set]]``).
+``[[call]]``, ``[[phone]]``, ``[[show]]``, ``[[run]]``).
 """
 
 from __future__ import annotations
@@ -48,17 +48,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .allowlists import Allowlists
+from .dsl import transform as dsl_transform
 from .ast_nodes import (
     Approval,
     CallScene,
     Choice,
     DialogueBlock,
     FxCall,
+    GiveTrait,
     Goto,
     Hide,
     IfChain,
     Label,
-    ModSet,
+    RecordEvent,
+    RemoveTrait,
+    Run,
     NarrationBlock,
     Parenthetical,
     Pause,
@@ -66,6 +70,7 @@ from .ast_nodes import (
     PhoneOpen,
     Scene,
     SetDirective,
+    SetPersonality,
     Sfx,
     Show,
     Slugline,
@@ -85,7 +90,7 @@ from .expr_parser import (
 @dataclass(frozen=True, slots=True)
 class CodegenContext:
     """Per-mod configuration injected by the CLI."""
-    mod_prefix: str
+    project_prefix: str
 
 
 # Body indent unit inside a Ren'Py ``label`` block. Matches the rest of the mod.
@@ -133,7 +138,7 @@ def _escape_rpy_string(text: str) -> str:
 _TIME_SUFFIXES: tuple[str, ...] = (" - MORNING", " - DAY", " - EVENING", " - NIGHT")
 
 # Map the slugline suffix to TNH's ``store.time_index`` value. Mirrors the
-# mod runner's ``{mod_prefix}_scene_time_value_aliases`` table:
+# mod runner's ``{project_prefix}_scene_time_value_aliases`` table:
 # morning=0, day=1, evening=2, night=3. Sluglines without a suffix leave
 # ``time_index`` untouched.
 _TIME_SUFFIX_TO_INDEX: dict[str, int] = {
@@ -149,6 +154,16 @@ def _strip_time_suffix(text: str) -> str:
         if text.endswith(suffix):
             return text[: -len(suffix)]
     return text
+
+
+def _resolve_location_id(looked_up: str, allow: Allowlists) -> str:
+    """Return the location_id for *looked_up*, using fuzzy interpolation match as fallback."""
+    if looked_up in allow.locations:
+        return allow.locations[looked_up]
+    matched_key = allow.match_location(looked_up)
+    if matched_key is not None:
+        return allow.locations[matched_key]
+    return looked_up
 
 
 def _time_index_for_suffix(text: str) -> int | None:
@@ -366,6 +381,7 @@ def _is_overridable_condition_call(expr, allow: Allowlists) -> bool:
     args fall through to the default rendering and are not exposed in
     the hub.
     """
+    expr = dsl_transform(expr, allow.character_aliases, allow.function_aliases)
     if not isinstance(expr, Call):
         return False
     target = expr.target
@@ -412,11 +428,14 @@ class _ConditionSpecCollector:
                     self.visit_body(option.body)
 
     def visit_expr(self, expr) -> None:
-        if _is_overridable_condition_call(expr, self._allow):
-            assert isinstance(expr, Call)
-            assert isinstance(expr.target, Name)
-            arg_names = tuple(arg.name for arg in expr.args if isinstance(arg, Name))
-            key = (expr.target.name, arg_names)
+        transformed = dsl_transform(
+            expr, self._allow.character_aliases, self._allow.function_aliases,
+        )
+        if _is_overridable_condition_call(transformed, self._allow):
+            assert isinstance(transformed, Call)
+            assert isinstance(transformed.target, Name)
+            arg_names = tuple(arg.name for arg in transformed.args if isinstance(arg, Name))
+            key = (transformed.target.name, arg_names)
             if key not in self._seen:
                 self._seen.add(key)
                 self._ordered_keys.append(key)
@@ -495,6 +514,9 @@ def _render_expr(
 ) -> str:
     """Render an :class:`Expr` into Ren'Py source.
 
+    The expression is first run through the DSL transformation layer so
+    writer-friendly sugar is rewritten before emission.
+
     Bare :class:`Name` nodes are resolved in precedence order:
 
     1. Registered character -> leave as-is (``JeanGrey``).
@@ -505,6 +527,7 @@ def _render_expr(
     6. Anything else -> default to ``_scene_state.get("key")``; the validator
        is expected to have rejected unknown roots before this runs.
     """
+    expr = dsl_transform(expr, allow.character_aliases, allow.function_aliases)
     if isinstance(expr, Literal):
         return expr.to_rpy()
     if isinstance(expr, Name):
@@ -516,7 +539,7 @@ def _render_expr(
     if isinstance(expr, Call):
         # Calls into condition-functions where every arg is a bare
         # character / player Name route through
-        # ``{mod_prefix}_testing_eval_condition`` so the testing hub
+        # ``{project_prefix}_testing_eval_condition`` so the testing hub
         # can substitute a preview value at runtime. In normal
         # gameplay the override store-var is ``None`` and the wrapper
         # falls back to the original ``fn(*args)`` call.
@@ -529,7 +552,7 @@ def _render_expr(
                 [repr(arg) for arg in arg_runtime],
             )
             return (
-                f"{ctx.mod_prefix}_testing_eval_condition("
+                f"{ctx.project_prefix}_testing_eval_condition("
                 f"{name!r}, {name}, {arg_runtime_literal}, {arg_name_literal})"
             )
         target_str = _render_call_target(expr.target, scene_local, allow)
@@ -987,7 +1010,7 @@ def _emit_body(
     for node in body:
         if isinstance(node, Slugline):
             looked_up = _strip_time_suffix(node.text)
-            loc_id = allow.locations.get(looked_up, looked_up)
+            loc_id = _resolve_location_id(looked_up, allow)
             time_index = _time_index_for_suffix(node.text)
             lines.extend(_emit_set_scene(
                 loc_id, indent,
@@ -1043,7 +1066,7 @@ def _emit_body(
                 force_text_medium = force_text_medium,
                 clean_present_on_set_scene = clean_present_on_set_scene,
             ))
-        elif isinstance(node, ModSet):
+        elif isinstance(node, Run):
             # The call text came straight from the writer's source and has
             # already passed the safe-subset expression parser; it's safe
             # to splice into a ``$`` Python line verbatim.
@@ -1052,6 +1075,16 @@ def _emit_body(
             lines.append(f"{indent}$ {node.call_text}")
         elif isinstance(node, Approval):
             lines.append(_emit_approval(node, indent))
+        elif isinstance(node, GiveTrait):
+            lines.append(f'{indent}$ {node.character}.give_trait("{node.trait}")')
+        elif isinstance(node, RemoveTrait):
+            lines.append(f'{indent}$ {node.character}.remove_trait("{node.trait}")')
+        elif isinstance(node, RecordEvent):
+            lines.append(f'{indent}$ {node.character}.History.add("{node.event}")')
+        elif isinstance(node, SetPersonality):
+            lines.append(
+                f'{indent}$ {node.character}.set_personality("{node.trait}", {node.value})'
+            )
     return lines
 
 
@@ -1137,7 +1170,7 @@ def _emit_metadata_block(
     called_scenes: list[str],
     ctx: CodegenContext,
 ) -> list[str]:
-    """Return the ``init python: {mod_prefix}_scene_metadata[...] = {...}`` lines.
+    """Return the ``init python: {project_prefix}_scene_metadata[...] = {...}`` lines.
 
     The block declares one entry per compiled scene; entries from every
     compiled ``.rpy`` aggregate into the dict at boot. Removing a
@@ -1152,7 +1185,7 @@ def _emit_metadata_block(
     lines: list[str] = ["init python:"]
     scene_id_literal = _format_metadata_value(tp.scene_id)
     lines.append(
-        f"{_INDENT}{ctx.mod_prefix}_scene_metadata[{scene_id_literal}] = {{",
+        f"{_INDENT}{ctx.project_prefix}_scene_metadata[{scene_id_literal}] = {{",
     )
     lines.append(f"{_INDENT}{_INDENT}\"character\": {_format_metadata_value(tp.character)},")
     lines.append(f"{_INDENT}{_INDENT}\"scene_type\": {_format_metadata_value(tp.scene_type)},")
@@ -1217,7 +1250,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
     tp = scene.title_page
 
     # Testing-hub metadata — declared at module scope so the per-scene
-    # entries aggregate into ``{mod_prefix}_scene_metadata`` at boot.
+    # entries aggregate into ``{project_prefix}_scene_metadata`` at boot.
     state_specs = _collect_state_specs(scene.body, allow)
     condition_specs = _collect_condition_specs(scene.body, allow)
     called_scenes = _collect_called_scenes(scene.body)
@@ -1228,7 +1261,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
 
     # Header metadata as comments for phone scenes — the dev uses
     # Openness/Stage to wire the compiled label into the phone pool
-    # registry (see {mod_prefix}_register_character_dialogue).
+    # registry (see {project_prefix}_register_character_dialogue).
     if tp.scene_type == "phone":
         if tp.openness:
             lines.append(f"# Openness: {tp.openness}")
@@ -1241,7 +1274,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
     if tp.scene_type == "cinematic":
         lines.append(f"{_INDENT}$ ongoing_Event = True")
     # Seed scene-local state from the testing-hub override channel.
-    # ``{mod_prefix}_runtime`` is a standalone Python module
+    # ``{project_prefix}_runtime`` is a standalone Python module
     # imported by the dispatch shim; module globals live outside the
     # Ren'Py store, so the value survives the
     # ``invoke_in_new_context`` boundary the hub uses to play preview
@@ -1251,7 +1284,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
     # ``_scene_state = {}``.
     lines.append(
         f"{_INDENT}$ _scene_state = "
-        f"dict(getattr({ctx.mod_prefix}_runtime, 'scene_state', None) or {{}})",
+        f"dict(getattr({ctx.project_prefix}_runtime, 'scene_state', None) or {{}})",
     )
 
     is_cinematic = tp.scene_type == "cinematic"
@@ -1261,7 +1294,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
     )
     if first_slugline is None and tp.location:
         looked_up = _strip_time_suffix(tp.location)
-        loc_id = allow.locations.get(looked_up, looked_up)
+        loc_id = _resolve_location_id(looked_up, allow)
         time_index = _time_index_for_suffix(tp.location)
         lines.append("")
         lines.extend(_emit_set_scene(

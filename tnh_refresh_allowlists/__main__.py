@@ -22,14 +22,17 @@ from .extractors import (
     characters,
     condition_functions,
     faces,
+    history_events,
     interpolation,
     locations,
     looks,
     moods,
     outfits,
+    personalities,
     poses,
     sfx,
     stages,
+    traits,
 )
 from .models import ExtractionResult, ScanContext
 from .writer import write_flat, write_per_character
@@ -45,6 +48,9 @@ _FLAT_EXTRACTORS: tuple[_Extractor, ...] = (
     looks.extract,
     interpolation.extract,
     condition_functions.extract,
+    traits.extract,
+    personalities.extract,
+    history_events.extract,
 )
 
 _PER_CHARACTER_EXTRACTORS: tuple[_Extractor, ...] = (
@@ -87,15 +93,15 @@ _MANUAL_SCAFFOLDS: tuple[tuple[str, str], ...] = (
         "functions: []\n",
     ),
     (
-        "mod_operations.yaml",
-        "# Operations callable from [[mod_set]] inside a .scene file.\n"
+        "run_operations.yaml",
+        "# Operations callable from [[run]] inside a .scene file.\n"
         "# These write persistent state (Character traits, History, mod\n"
         "# attributes) and must be hand-maintained: adding an entry here\n"
         "# exposes the helper to non-dev writers, and the mod commits to\n"
         "# keeping its signature stable across releases.\n"
         "#\n"
         "# Each entry's ``name`` is matched against the call target used in\n"
-        "# [[mod_set]] — either the bare function name (``mymod_set_stage``)\n"
+        "# [[run]] — either the bare function name (``mymod_set_stage``)\n"
         "# or the final attribute of a dotted method chain\n"
         "# (``JeanGrey.give_trait(\"x\")`` matches ``give_trait``).\n"
         "#\n"
@@ -166,7 +172,7 @@ def _write_meta(
         "generated_at": generated_at.date().isoformat(),
         "tool_version": "1.0.0",
         "base_game_root": context.relative(context.base_game_root),
-        "mod_root": context.relative(context.mod_root),
+        "project_root": context.relative(context.project_root),
         "include_tnh": context.include_tnh,
         "stats": stats,
         "warnings": warnings,
@@ -199,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
 
     context = ScanContext(
         base_game_root = base_game,
-        mod_root = mod,
+        project_root = mod,
         repo_root = repo_root,
         include_tnh = args.include_tnh,
     )
