@@ -329,6 +329,25 @@ class Allowlists:
             function_aliases = function_aliases,
         )
 
+    # --- UI helpers ---------------------------------------------------------
+
+    _SPECIAL_CHARACTERS: frozenset[str] = frozenset({"Player", "Narrator"})
+
+    def featured_characters(self) -> list[str]:
+        """Return characters with visual data (faces or moods) plus Player/Narrator."""
+        return [
+            c for c in self.characters
+            if c in self._SPECIAL_CHARACTERS
+            or self.char_faces.get(c)
+            or self.char_moods.get(c)
+        ]
+
+    def ui_characters(self, *, featured_only: bool = False) -> list[str]:
+        """Return the character list for UI dropdowns."""
+        if featured_only:
+            return self.featured_characters()
+        return list(self.characters)
+
     # --- Per-character slot membership helpers ----------------------------
 
     def is_mood(self, character: str, value: str) -> bool:

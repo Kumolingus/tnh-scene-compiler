@@ -381,6 +381,10 @@ output: game/{project_prefix}/scenes/
 # Include the base TNH allowlists shipped with the compiler.
 include_base_allowlists: true
 
+# Only show featured characters (with visual data) in editor dropdowns.
+# Set to false to include all NPCs.
+featured_characters_only: true
+
 # Optional: paths for the allowlist-refresh tool.
 # refresh:
 #   base_game: ../TheNullHypothesis/

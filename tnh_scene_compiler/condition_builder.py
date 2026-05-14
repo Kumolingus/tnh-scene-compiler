@@ -168,6 +168,8 @@ class ConditionBuilderDialog(tk.Toplevel):
         master: tk.Widget,
         allow: Allowlists,
         insert_cb: Callable[[str], None],
+        *,
+        characters: list[str] | None = None,
     ) -> None:
         super().__init__(master)
         self.title("Condition Builder")
@@ -176,7 +178,9 @@ class ConditionBuilderDialog(tk.Toplevel):
 
         self._insert = insert_cb
         self._allow = allow
-        self._characters = sorted(allow.characters) if allow.characters else []
+        self._characters = sorted(characters) if characters else (
+            sorted(allow.characters) if allow.characters else []
+        )
         self._vars: dict[str, tk.StringVar] = {}
         self._mood_combo_widget: ttk.Combobox | None = None
         self._current_kind: str | None = None

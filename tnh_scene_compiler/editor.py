@@ -438,6 +438,8 @@ class _DirectiveDialog(tk.Toplevel):
         allow: Allowlists,
         insert_cb,
         scenes_source: Path | None = None,
+        *,
+        featured_only: bool = False,
     ) -> None:
         super().__init__(master)
         self.title(f"Insert — [[{directive}]]")
@@ -448,6 +450,7 @@ class _DirectiveDialog(tk.Toplevel):
         self._allow = allow
         self._directive = directive
         self._scenes_source = scenes_source
+        self._ui_chars = sorted(allow.ui_characters(featured_only=featured_only))
 
         body = ttk.Frame(self, padding=12)
         body.pack(fill=tk.BOTH, expand=True)
@@ -565,8 +568,7 @@ class _DirectiveDialog(tk.Toplevel):
         self._vars["char"].trace_add("write", _on_char_change)
 
     def _build_hide(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = sorted(allow.characters)
-        self._add_combo(parent, 0, "Character", "char", chars)
+        self._add_combo(parent, 0, "Character", "char", self._ui_chars)
 
     def _build_approval(self, parent: ttk.Frame, allow: Allowlists) -> None:
         chars = sorted(allow.characters)
@@ -625,15 +627,14 @@ class _DirectiveDialog(tk.Toplevel):
         return ids
 
     def _build_phone_open(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = [""] + sorted(allow.characters)
+        chars = [""] + self._ui_chars
         self._add_combo(parent, 0, "Character", "char", chars)
 
     def _build_phone_close(self, parent: ttk.Frame, allow: Allowlists) -> None:
         pass
 
     def _build_give_trait(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = sorted(allow.characters)
-        self._add_combo(parent, 0, "Character", "char", chars)
+        self._add_combo(parent, 0, "Character", "char", self._ui_chars)
         traits = sorted(allow.traits) if allow.traits else []
         if traits:
             self._add_combo(parent, 1, "Trait", "trait", traits)
@@ -641,8 +642,7 @@ class _DirectiveDialog(tk.Toplevel):
             self._add_entry(parent, 1, "Trait", "trait")
 
     def _build_remove_trait(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = sorted(allow.characters)
-        self._add_combo(parent, 0, "Character", "char", chars)
+        self._add_combo(parent, 0, "Character", "char", self._ui_chars)
         traits = sorted(allow.traits) if allow.traits else []
         if traits:
             self._add_combo(parent, 1, "Trait", "trait", traits)
@@ -650,8 +650,7 @@ class _DirectiveDialog(tk.Toplevel):
             self._add_entry(parent, 1, "Trait", "trait")
 
     def _build_record(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = sorted(allow.characters)
-        self._add_combo(parent, 0, "Character", "char", chars)
+        self._add_combo(parent, 0, "Character", "char", self._ui_chars)
         events = sorted(allow.history_events) if allow.history_events else []
         if events:
             self._add_combo(parent, 1, "Event", "event", events)
@@ -659,8 +658,7 @@ class _DirectiveDialog(tk.Toplevel):
             self._add_entry(parent, 1, "Event", "event")
 
     def _build_set_personality(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        chars = sorted(allow.characters)
-        self._add_combo(parent, 0, "Character", "char", chars)
+        self._add_combo(parent, 0, "Character", "char", self._ui_chars)
         personalities = sorted(allow.personalities) if allow.personalities else []
         if personalities:
             self._add_combo(parent, 1, "Trait", "trait", personalities)
@@ -805,12 +803,15 @@ class _PaletteSidebar(ttk.Frame):
         allow: Allowlists,
         insert_cb,
         scenes_source: Path | None = None,
+        *,
+        featured_only: bool = False,
     ) -> None:
         super().__init__(master, width=340)
         self.pack_propagate(False)
         self._insert = insert_cb
         self._allow = allow
         self._scenes_source = scenes_source
+        self._featured_only = featured_only
         self._all_items: list[tuple[ttk.Frame, str, str]] = []
 
         self._search_var = tk.StringVar()
@@ -1170,14 +1171,10 @@ class _PaletteSidebar(ttk.Frame):
                 ("run function", None),
             ],
             "Scene flow": [
+                ("pause", None),
                 ("mark label", None),
                 ("goto label", None),
                 ("call scene", None),
-            ],
-            "Effects": [
-                ("pause", None),
-                ("sfx", None),
-                ("fx", None),
             ],
         }
         self._build_categorized_tab("Direct.", cats, on_click="directive")
@@ -1186,6 +1183,7 @@ class _PaletteSidebar(ttk.Frame):
         key = self._DIRECTIVE_KEY_MAP.get(display, display)
         _DirectiveDialog(
             self, key, self._allow, self._insert, self._scenes_source,
+            featured_only=self._featured_only,
         )
 
     # -- FX / SFX -----------------------------------------------------------
@@ -1244,7 +1242,10 @@ class _PaletteSidebar(ttk.Frame):
         builder_btn.pack(fill=tk.X, pady=1)
 
     def _open_condition_builder(self) -> None:
-        ConditionBuilderDialog(self, self._allow, self._insert)
+        chars = self._allow.ui_characters(featured_only=self._featured_only)
+        ConditionBuilderDialog(
+            self, self._allow, self._insert, characters=chars,
+        )
 
 
     # -- Interpolation ------------------------------------------------------
@@ -1522,9 +1523,14 @@ class EditorScreen(ttk.Frame):
         self._editor.bind("<<Modified>>", self._on_text_modified)
 
         # Right: palette
+        featured = (
+            self._ctx.cfg.featured_characters_only
+            if self._ctx.cfg else False
+        )
         self._palette = _PaletteSidebar(
             paned, self._ctx.allowlists, self._insert_at_cursor,
             scenes_source=self._ctx.scenes_source,
+            featured_only=featured,
         )
         paned.add(self._palette, weight=0)
 
@@ -1586,9 +1592,15 @@ class EditorScreen(ttk.Frame):
         self._file_path = path
 
     def _show_new_scene_dialog(self) -> None:
+        featured = (
+            self._ctx.cfg.featured_characters_only
+            if self._ctx.cfg else False
+        )
+        chars = self._ctx.allowlists.ui_characters(featured_only=featured)
         NewSceneDialog(
             self, self._ctx.allowlists, self._ctx.project_prefix,
             on_create=self._apply_new_scene_text,
+            characters=chars,
         )
 
     def _apply_new_scene_text(self, text: str) -> None:

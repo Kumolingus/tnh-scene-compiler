@@ -186,6 +186,8 @@ class NewSceneDialog(tk.Toplevel):
         allow: Allowlists,
         project_prefix: str,
         on_create: Callable[[str], None],
+        *,
+        characters: list[str] | None = None,
     ) -> None:
         super().__init__(master)
         self.title("New Scene")
@@ -195,7 +197,9 @@ class NewSceneDialog(tk.Toplevel):
         self._allow = allow
         self._prefix = project_prefix
         self._on_create = on_create
-        self._characters = sorted(allow.characters) if allow.characters else []
+        self._characters = sorted(characters) if characters else (
+            sorted(allow.characters) if allow.characters else []
+        )
         self._locations = sorted(allow.locations.keys()) if allow.locations else []
 
         body = ttk.Frame(self, padding=12)

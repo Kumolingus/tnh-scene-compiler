@@ -48,6 +48,7 @@ class Config:
     project_allowlists: Path
     output: Path
     include_base_allowlists: bool
+    featured_characters_only: bool
     refresh: RefreshConfig | None
     config_dir: Path
 
@@ -121,6 +122,10 @@ def load_config(path: Path) -> Config:
     if not isinstance(include_base, bool):
         include_base = True
 
+    featured_only = raw.get("featured_characters_only", True)
+    if not isinstance(featured_only, bool):
+        featured_only = True
+
     refresh_raw = raw.get("refresh")
     refresh: RefreshConfig | None = None
     if isinstance(refresh_raw, dict):
@@ -135,6 +140,7 @@ def load_config(path: Path) -> Config:
         project_allowlists=project_allowlists,
         output=output,
         include_base_allowlists=include_base,
+        featured_characters_only=featured_only,
         refresh=refresh,
         config_dir=config_dir,
     )
