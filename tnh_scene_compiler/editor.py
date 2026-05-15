@@ -16,6 +16,7 @@ from .errors import CompileError
 from .new_scene_dialog import NewSceneDialog
 from . import output as out
 from .parser import parse
+from .thumbnails import get_store as _get_thumb_store
 from .validator import validate
 
 
@@ -215,6 +216,8 @@ class _CharacterInsertDialog(tk.Toplevel):
         char: str,
         allow: Allowlists,
         insert_cb,
+        *,
+        show_thumbnails: bool = False,
     ) -> None:
         super().__init__(master)
         self.title(f"Insert — {char}")
@@ -223,6 +226,8 @@ class _CharacterInsertDialog(tk.Toplevel):
 
         self._char = char
         self._insert = insert_cb
+        self._thumb_store = _get_thumb_store() if show_thumbnails else None
+        self._thumb_image: tk.PhotoImage | None = None
 
         body = ttk.Frame(self, padding=12)
         body.pack(fill=tk.BOTH, expand=True)
@@ -314,10 +319,17 @@ class _CharacterInsertDialog(tk.Toplevel):
         )
         self._look_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
 
+        # Thumbnail preview (column 2, spanning the visual attribute rows)
+        self._thumb_label = ttk.Label(body)
+        self._thumb_label.grid(
+            row=2, column=2, rowspan=6, sticky=tk.N, padx=(12, 0),
+        )
+
         # Preview
         row += 1
+        colspan = 3 if self._thumb_store else 2
         ttk.Separator(body, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=2, sticky=tk.EW, pady=8,
+            row=row, column=0, columnspan=colspan, sticky=tk.EW, pady=8,
         )
         row += 1
         ttk.Label(body, text="Preview:").grid(
@@ -371,6 +383,21 @@ class _CharacterInsertDialog(tk.Toplevel):
 
     def _update_preview(self, *_args: Any) -> None:
         self._preview_var.set(self._build_line())
+        self._update_thumbnail()
+
+    def _update_thumbnail(self) -> None:
+        if not self._thumb_store:
+            return
+        img = None
+        face = self._face_var.get()
+        if face:
+            img = self._thumb_store.get_face(self._char, face)
+        if img is None:
+            arms = self._arms_var.get()
+            if arms:
+                img = self._thumb_store.get_arms(self._char, arms)
+        self._thumb_image = img
+        self._thumb_label.configure(image=img or "")
 
     def _build_line(self) -> str:
         upper = self._char.upper()
@@ -440,6 +467,7 @@ class _DirectiveDialog(tk.Toplevel):
         scenes_source: Path | None = None,
         *,
         featured_only: bool = False,
+        show_thumbnails: bool = False,
     ) -> None:
         super().__init__(master)
         self.title(f"Insert — [[{directive}]]")
@@ -450,6 +478,7 @@ class _DirectiveDialog(tk.Toplevel):
         self._allow = allow
         self._directive = directive
         self._scenes_source = scenes_source
+        self._show_thumbnails = show_thumbnails
         self._ui_chars = sorted(allow.ui_characters(featured_only=featured_only))
 
         body = ttk.Frame(self, padding=12)
@@ -545,6 +574,14 @@ class _DirectiveDialog(tk.Toplevel):
         row = self._add_combo(parent, row, "Arms", "arms", [""])
         row = self._add_combo(parent, row, "Outfit", "outfit", [""])
         row = self._add_combo(parent, row, "Look", "look", [""] + sorted(allow.looks))
+
+        # Thumbnail preview
+        self._thumb_store = _get_thumb_store() if self._show_thumbnails else None
+        self._thumb_image: tk.PhotoImage | None = None
+        self._thumb_label = ttk.Label(parent)
+        self._thumb_label.grid(
+            row=0, column=2, rowspan=row, sticky=tk.N, padx=(12, 0),
+        )
 
         def _on_char_change(*_a: Any) -> None:
             c = self._vars["char"].get()
@@ -692,6 +729,32 @@ class _DirectiveDialog(tk.Toplevel):
 
     def _update_preview(self, *_args: Any) -> None:
         self._preview_var.set(self._build_line())
+        self._update_show_thumbnail()
+
+    def _update_show_thumbnail(self) -> None:
+        if not hasattr(self, "_thumb_label"):
+            return
+        store = self._thumb_store
+        if not store:
+            return
+        img = None
+        char = self._vars.get("char")
+        if not char:
+            return
+        c = char.get()
+        if not c:
+            self._thumb_image = None
+            self._thumb_label.configure(image="")
+            return
+        face_var = self._vars.get("face")
+        if face_var and face_var.get():
+            img = store.get_face(c, face_var.get())
+        if img is None:
+            arms_var = self._vars.get("arms")
+            if arms_var and arms_var.get():
+                img = store.get_arms(c, arms_var.get())
+        self._thumb_image = img
+        self._thumb_label.configure(image=img or "")
 
     def _build_line(self) -> str:
         d = self._directive
@@ -804,6 +867,7 @@ class _PaletteSidebar(ttk.Frame):
         scenes_source: Path | None = None,
         *,
         featured_only: bool = False,
+        show_thumbnails: bool = False,
     ) -> None:
         super().__init__(master, width=380)
         self.pack_propagate(False)
@@ -811,6 +875,8 @@ class _PaletteSidebar(ttk.Frame):
         self._allow = allow
         self._scenes_source = scenes_source
         self._featured_only = featured_only
+        self._show_thumbnails = show_thumbnails
+        self._visual_thumb_refs: list[tk.PhotoImage] = []
         self._all_items: list[tuple[ttk.Frame, str, str]] = []
 
         self._search_var = tk.StringVar()
@@ -1049,7 +1115,10 @@ class _PaletteSidebar(ttk.Frame):
             finally:
                 menu.grab_release()
             return
-        _CharacterInsertDialog(self, char, self._allow, self._insert)
+        _CharacterInsertDialog(
+            self, char, self._allow, self._insert,
+            show_thumbnails=self._show_thumbnails,
+        )
 
     # -- Locations ----------------------------------------------------------
 
@@ -1183,6 +1252,7 @@ class _PaletteSidebar(ttk.Frame):
         _DirectiveDialog(
             self, key, self._allow, self._insert, self._scenes_source,
             featured_only=self._featured_only,
+            show_thumbnails=self._show_thumbnails,
         )
 
     # -- FX / SFX -----------------------------------------------------------
@@ -1314,7 +1384,33 @@ class _PaletteSidebar(ttk.Frame):
 
         self._visual_cat_combo.bind("<<ComboboxSelected>>", _on_vis_cat)
 
-        self._visual_inner_parent = tab
+        # Horizontal split: buttons left, preview right
+        _PREVIEW_WIDTH = 200
+        split = ttk.Frame(tab)
+        split.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
+        split.columnconfigure(0, weight=1)
+        split.columnconfigure(1, weight=0)
+        split.rowconfigure(0, weight=1)
+
+        self._visual_inner_parent = ttk.Frame(split)
+        self._visual_inner_parent.grid(row=0, column=0, sticky="nsew")
+
+        preview_panel = tk.Frame(split, width=_PREVIEW_WIDTH, bg="#252526", padx=4)
+        preview_panel.grid(row=0, column=1, sticky="ns", padx=(4, 0))
+        preview_panel.grid_propagate(False)
+        self._visual_preview_width = _PREVIEW_WIDTH
+        self._visual_preview_label = tk.Label(
+            preview_panel, bg="#252526", anchor=tk.CENTER,
+        )
+        self._visual_preview_label.pack(expand=True, padx=4, pady=(8, 2))
+        self._visual_preview_name = tk.Label(
+            preview_panel, bg="#252526", fg="#CCCCCC",
+            font=("Segoe UI", 9), anchor=tk.CENTER,
+        )
+        self._visual_preview_name.pack(padx=4, pady=(0, 8))
+        self._visual_preview_image: tk.PhotoImage | None = None
+        self._visual_preview_clear_id: str | None = None
+
         self._visual_frame: ttk.Frame | None = None
         self._refresh_visual_categories()
         self._refresh_visuals()
@@ -1327,6 +1423,8 @@ class _PaletteSidebar(ttk.Frame):
             "Poses": allow.char_poses.get(char, set()),
             "Outfits": allow.char_outfits.get(char, set()),
             "Arms": allow.char_arms.get(char, set()),
+            "Left Arm": allow.char_left_arm.get(char, set()),
+            "Right Arm": allow.char_right_arm.get(char, set()),
             "Looks": allow.looks,
             "Stages": allow.stages,
         }
@@ -1350,6 +1448,9 @@ class _PaletteSidebar(ttk.Frame):
     def _refresh_visuals(self) -> None:
         if self._visual_frame is not None:
             self._visual_frame.destroy()
+        self._visual_thumb_refs.clear()
+        self._visual_preview_image = None
+        self._visual_preview_label.configure(image="")
 
         char = self._visual_char_var.get()
         category = self._visual_cat_var.get()
@@ -1369,19 +1470,82 @@ class _PaletteSidebar(ttk.Frame):
         cats = self._get_visual_categories(char)
         values = cats.get(category, set())
 
+        thumb_store = _get_thumb_store() if self._show_thumbnails else None
+
         for v in sorted(values):
             slot = category.lower().rstrip("s")
             if category == "Moods":
                 attr = f"mood={v}"
             elif category == "Stages":
                 attr = f"stage={v}"
+            elif category == "Left Arm":
+                attr = f"left_arm={v}"
+            elif category == "Right Arm":
+                attr = f"right_arm={v}"
             else:
                 attr = f"{slot}={v}"
             insert_text = f"[[show {char} {attr}]]\n"
-            ttk.Button(
+
+            btn = ttk.Button(
                 inner, text=v,
                 command=lambda t=insert_text: self._insert(t),
-            ).pack(fill=tk.X, pady=1)
+            )
+            btn.pack(fill=tk.X, pady=1)
+
+            if thumb_store:
+                img = self._resolve_visual_thumb(
+                    thumb_store, char, category, v,
+                )
+                if img:
+                    self._visual_thumb_refs.append(img)
+                    btn.bind(
+                        "<Enter>",
+                        lambda _e, i=img, n=v: self._show_visual_preview(i, n),
+                    )
+                    btn.bind(
+                        "<Leave>",
+                        lambda _e: self._clear_visual_preview(),
+                    )
+
+    def _resolve_visual_thumb(
+        self, store: Any, char: str, category: str, name: str,
+    ) -> tk.PhotoImage | None:
+        if category == "Faces":
+            return store.get_face(char, name)
+        if category == "Arms":
+            return store.get_arms(char, name)
+        if category == "Left Arm":
+            return store.get_left_arm(char, name)
+        if category == "Right Arm":
+            return store.get_right_arm(char, name)
+        return None
+
+    def _show_visual_preview(self, img: tk.PhotoImage, name: str) -> None:
+        if self._visual_preview_clear_id is not None:
+            self.after_cancel(self._visual_preview_clear_id)
+            self._visual_preview_clear_id = None
+        w = img.width()
+        factor = max(1, self._visual_preview_width // w) if w > 0 else 1
+        if factor > 1:
+            zoomed = img.zoom(factor, factor)
+        else:
+            zoomed = img
+        self._visual_preview_image = zoomed
+        self._visual_preview_label.configure(image=zoomed)
+        self._visual_preview_name.configure(text=name)
+
+    def _clear_visual_preview(self) -> None:
+        if self._visual_preview_clear_id is not None:
+            self.after_cancel(self._visual_preview_clear_id)
+        self._visual_preview_clear_id = self.after(
+            300, self._do_clear_visual_preview,
+        )
+
+    def _do_clear_visual_preview(self) -> None:
+        self._visual_preview_clear_id = None
+        self._visual_preview_image = None
+        self._visual_preview_label.configure(image="")
+        self._visual_preview_name.configure(text="")
 
     # -- Search filter ------------------------------------------------------
 
@@ -1522,14 +1686,14 @@ class EditorScreen(ttk.Frame):
         self._editor.bind("<<Modified>>", self._on_text_modified)
 
         # Right: palette
-        featured = getattr(
-            getattr(self._app, "settings", None),
-            "featured_characters_only", False,
-        )
+        _settings = getattr(self._app, "settings", None)
+        featured = getattr(_settings, "featured_characters_only", False)
+        show_thumbs = getattr(_settings, "show_thumbnails", False)
         self._palette = _PaletteSidebar(
             paned, self._ctx.allowlists, self._insert_at_cursor,
             scenes_source=self._ctx.scenes_source,
             featured_only=featured,
+            show_thumbnails=show_thumbs,
         )
         paned.add(self._palette, weight=0)
 

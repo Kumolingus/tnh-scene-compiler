@@ -79,6 +79,21 @@ python -m tnh_scene_compiler.gui
 
 CLI: `python -m tnh_scene_compiler compile --verbose`
 
+### Import visual thumbnails
+
+The editor can display character face and arm thumbnails alongside the
+text labels. To generate them from a
+[TNH-VisualReference](https://github.com/Kumolingus/TNH-VisualReference)
+checkout:
+
+```bash
+pip install Pillow
+python scripts/import_thumbnails.py path/to/TNH-VisualReference
+```
+
+This creates a `thumbnails/` directory with resized PNGs and a mapping
+file. The thumbnails are bundled into the release `.exe` automatically.
+
 ## License
 
 MIT

@@ -36,6 +36,7 @@ class AppSettings:
     """User preferences for the tool."""
 
     featured_characters_only: bool = True
+    show_thumbnails: bool = True
 
     def save(self) -> None:
         """Persist current settings to disk."""
