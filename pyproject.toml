@@ -24,6 +24,9 @@ build = [
     "pyinstaller>=6.0",
     "tkinterdnd2>=0.3",
 ]
+thumbnails = [
+    "Pillow>=10.0",
+]
 
 [project.scripts]
 tnh-scene-compiler = "tnh_scene_compiler.__main__:main"

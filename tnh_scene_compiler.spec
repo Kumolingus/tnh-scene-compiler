@@ -21,6 +21,7 @@ a = Analysis(
     datas=[
         ("allowlists_base", "allowlists_base"),
         ("templates", "templates"),
+        ("thumbnails", "thumbnails"),
     ],
     hiddenimports=["yaml"],
     hookspath=[],

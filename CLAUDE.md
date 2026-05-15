@@ -29,6 +29,16 @@ Fountain-TNH scene compiler: converts `.scene` files to Ren'Py `.rpy` scripts fo
 - 398 tests in `tests/`
 - Run: `python -m pytest tests/ -q`
 
+## Thumbnails
+
+- **Import**: `python scripts/import_thumbnails.py <path-to-TNH-VisualReference>` reads face/arm PNGs, resizes via Pillow, outputs to `thumbnails/` with `_mapping.yaml`.
+- **Runtime**: `tnh_scene_compiler/thumbnails.py` — `ThumbnailStore` singleton, lazy-cached `tk.PhotoImage` objects. No Pillow at runtime.
+- **GUI**: previews in `_CharacterInsertDialog` (column 2), `_DirectiveDialog._build_show` (column 2), `_PaletteSidebar._refresh_visuals` (compound buttons for Faces/Arms).
+- **Settings**: `show_thumbnails: bool` in `AppSettings` (default `True`).
+- **Bundle**: `thumbnails/` included in PyInstaller `datas` in `.spec`.
+- **Mapping keys**: face names match allowlist names; arm keys are prefixed with `both_`/`left_`/`right_`.
+- **Fuzzy matching**: the import script handles typos in source filenames (e.g. `appaled` → `appalled`).
+
 ## Build
 
 - PyInstaller: `pyinstaller tnh_scene_compiler.spec`

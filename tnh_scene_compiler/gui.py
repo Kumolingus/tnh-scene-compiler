@@ -371,6 +371,24 @@ class _SettingsDialog(tk.Toplevel):
             foreground="#808080", font=("Segoe UI", 8),
         ).pack(anchor=tk.W, pady=(0, 12))
 
+        # -- Show thumbnails -------------------------------------------------
+        self._thumbnails_var = tk.BooleanVar(
+            value=self._settings.show_thumbnails,
+        )
+        ttk.Checkbutton(
+            body,
+            text="Show visual thumbnails",
+            variable=self._thumbnails_var,
+        ).pack(anchor=tk.W, pady=2)
+        ttk.Label(
+            body,
+            text=(
+                "Display face and arm pose thumbnails in the editor\n"
+                "palette and insertion dialogs (requires imported thumbnails)."
+            ),
+            foreground="#808080", font=("Segoe UI", 8),
+        ).pack(anchor=tk.W, pady=(0, 12))
+
         # -- Buttons ---------------------------------------------------------
         btn_frame = ttk.Frame(body)
         btn_frame.pack(fill=tk.X)
@@ -393,6 +411,7 @@ class _SettingsDialog(tk.Toplevel):
 
     def _save(self) -> None:
         self._settings.featured_characters_only = self._featured_var.get()
+        self._settings.show_thumbnails = self._thumbnails_var.get()
         self._settings.save()
         self.destroy()
 
