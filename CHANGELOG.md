@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Visual thumbnails** for character faces and arms in the editor GUI:
+  - Face and arm pose thumbnails displayed in `_CharacterInsertDialog`, `[[show]]` directive dialog, and Visuals palette tab.
+  - Import script (`scripts/import_thumbnails.py`) generates thumbnails from a TNH-VisualReference checkout via Pillow.
+  - `_mapping.yaml` provides explicit allowlist-name-to-image mapping with fuzzy matching for source filename typos.
+  - `show_thumbnails` setting in application preferences (default: on).
+  - Thumbnails bundled in PyInstaller builds.
 - Fountain-TNH scene compiler (`tnh_scene_compiler`) — converts `.scene` files to Ren'Py `.rpy` scripts.
 - Allowlist refresh tool (`tnh_refresh_allowlists`) — scans a TNH base game build to generate YAML allowlists.
 - Cheatsheet generator (`tnh_generate_cheatsheet`) — produces a writer-facing markdown reference from allowlists.
