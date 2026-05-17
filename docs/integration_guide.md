@@ -100,13 +100,13 @@ configured in your project (typically `YourMod/game/my_mod/scenes/`).
 
 ## How scenes get triggered
 
-| Scene Type                | How it runs                                 |
-| ------------------------- | ------------------------------------------- |
-| `cinematic` with trigger  | TNH fires it when trigger + conditions met. |
-| `cinematic` with `manual` | Your mod calls `renpy.call("scene_id")`.    |
-| `phone`                   | Mod phone dispatch calls the label.         |
-| `texting`                 | Same as phone — called by mod code.         |
-| `hub_option`              | Called from a menu/hub screen in your mod.  |
+| Scene Type                              | How it runs                                                        |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| `cinematic` with trigger (sleep, wake…) | TNH fires it automatically when trigger + conditions met.          |
+| `cinematic` with `Trigger: manual`      | Your mod calls `$ renpy.call("my_mod_scene_id")`.                  |
+| `phone`                                 | Your mod's phone dispatch calls the label directly.                |
+| `texting`                               | Same as phone — called directly by mod code.                       |
+| `hub_option`                            | Called from a menu or hub screen in your mod.                      |
 
 ## Recompiling
 

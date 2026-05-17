@@ -98,7 +98,7 @@ Location: JEANGREY'S ROOM
 | `Scene Type`  | Yes      | enum             | `cinematic`/`phone`/`texting`/`hub_option` [^st] |
 | `Trigger`     | [^tr]    | enum             | Event trigger. [^trv]                            |
 | `Description` | No       | free-form string | One-line summary for tooling (not at runtime).   |
-| `Conditions`  | No       | expression       | Condition expr; `,`-joined = `and`. [^cond]      |
+| `Conditions`  | No       | expression       | Condition expression; commas = `and`. [^cond]    |
 | `Priority`    | No       | int              | Event priority. Default: 50.                     |
 | `Repeatable`  | No       | bool             | Can fire more than once. Default: `false`.       |
 | `Tags`        | No       | comma-sep list   | Extra flags on event entry. Mod-prefixed.        |
@@ -994,26 +994,26 @@ controls whether the base layer is included at all.
 
 ### 12.1 Allowlist files
 
-| #  | File(s)                             | Validates                       | Layer       |
-| -- | ----------------------------------- | ------------------------------- | ----------- |
-| 1  | `characters.yaml`                   | Speakers, show/hide, approval   | auto/manual |
-| 2  | `moods/_shared.yaml`, `moods/<C>.y` | `mood` slot values              | auto        |
-| 3  | `faces/<Char>.yaml`                 | `face` slot values              | auto        |
-| 4  | `arms/<Char>.yaml`                  | `arms`/`left_arm`/`right_arm`   | auto        |
-| 5  | `outfits/<Char>.yaml`               | `outfit` slot values            | auto        |
-| 6  | `poses/<Char>.yaml`                 | `pose` slot values              | auto        |
-| 7  | `looks.yaml`                        | `look` slot values (global)     | auto        |
-| 8  | `stages.yaml`                       | `stage` slot values (global)    | auto        |
-| 9  | `locations.yaml` + `*_overrides`    | Slugline → location ID          | auto+manual |
-| 10 | `sfx.yaml`                          | `[[sfx]]` names                 | auto        |
-| 11 | `interpolation.yaml` + `*_custom`   | `[...]` interpolation paths     | auto+manual |
-| 12 | `run_operations.yaml`               | `[[run]]` operations            | manual      |
-| 13 | `fx.yaml`                           | `[[fx]]` functions              | manual      |
-| 14 | `condition_functions.yaml`          | `[[if]]`/`[[elif]]` functions   | manual      |
-| 15 | `traits.yaml`                       | `[[give_trait]]`/`[[remove_t]]` | auto        |
-| 16 | `history_events.yaml`               | `[[record]]` event names        | auto        |
-| 17 | `personalities.yaml`                | `[[set_personality]]` traits    | auto        |
-| 18 | `_meta.yaml`                        | Metadata only (not validated)   | auto        |
+| #  | File(s)                                    | Validates                            | Layer       |
+| -- | ------------------------------------------ | ------------------------------------ | ----------- |
+| 1  | `characters.yaml`                          | Speakers, show/hide, approval        | auto/manual |
+| 2  | `moods/_shared.yaml`, `moods/<Char>.yaml`  | `mood` slot values                   | auto        |
+| 3  | `faces/<Char>.yaml`                        | `face` slot values                   | auto        |
+| 4  | `arms/<Char>.yaml`                         | `arms`/`left_arm`/`right_arm`        | auto        |
+| 5  | `outfits/<Char>.yaml`                      | `outfit` slot values                 | auto        |
+| 6  | `poses/<Char>.yaml`                        | `pose` slot values                   | auto        |
+| 7  | `looks.yaml`                               | `look` slot values (global)          | auto        |
+| 8  | `stages.yaml`                              | `stage` slot values (global)         | auto        |
+| 9  | `locations.yaml` + `*_overrides`           | Slugline → location ID               | auto+manual |
+| 10 | `sfx.yaml`                                 | `[[sfx]]` names                      | auto        |
+| 11 | `interpolation.yaml` + `*_custom`          | `[...]` interpolation paths          | auto+manual |
+| 12 | `run_operations.yaml`                      | `[[run]]` operations                 | manual      |
+| 13 | `fx.yaml`                                  | `[[fx]]` functions                   | manual      |
+| 14 | `condition_functions.yaml`                 | `[[if]]`/`[[elif]]` functions        | manual      |
+| 15 | `traits.yaml`                              | `[[give_trait]]`/`[[remove_trait]]`  | auto        |
+| 16 | `history_events.yaml`                      | `[[record]]` event names             | auto        |
+| 17 | `personalities.yaml`                       | `[[set_personality]]` traits         | auto        |
+| 18 | `_meta.yaml`                               | Metadata only (not validated)        | auto        |
 
 ### 12.2 Regenerating allowlists
 
@@ -1389,15 +1389,15 @@ include_base_allowlists: true
 #   mod_root: .
 ```
 
-| Key                       | Required | Default                 | Description                              |
-| ------------------------- | -------- | ----------------------- | ---------------------------------------- |
-| `mod_prefix`              | Yes      | ----------------------- | Unique prefix (`[a-z][a-z0-9_]*`). [^mp] |
-| `scenes_source`           | No       | `scenes_source/`        | Root dir for `.scene` files.             |
-| `mod_allowlists`          | No       | `scenes_source/_al../`  | Dir for mod-specific allowlist YAMLs.    |
-| `output`                  | No       | `game/{prefix}/scenes/` | Output dir for compiled `.rpy` files.    |
-| `include_base_allowlists` | No       | `true`                  | Layer base TNH allowlists under mod's.   |
-| `refresh.base_game`       | No       | `../TheNullHypoth../`   | TNH base game path (for refresh tool).   |
-| `refresh.mod_root`        | No       | `.`                     | Mod root path (for refresh tool).        |
+| Key                       | Required | Default                        | Description                                             |
+| ------------------------- | -------- | ------------------------------ | ------------------------------------------------------- |
+| `mod_prefix`              | Yes      | ------------------------------ | Unique prefix (`[a-z][a-z0-9_]*`). [^mp]                |
+| `scenes_source`           | No       | `scenes_source/`               | Root directory for `.scene` files.                      |
+| `mod_allowlists`          | No       | `scenes_source/_allowlists/`   | Directory for mod-specific allowlist YAMLs.             |
+| `output`                  | No       | `game/{prefix}/scenes/`        | Output directory for compiled `.rpy` files.             |
+| `include_base_allowlists` | No       | `true`                         | Merge base TNH allowlists beneath the mod layer.        |
+| `refresh.base_game`       | No       | `../TheNullHypothesis/`        | Path to the TNH base game (for the refresh tool).       |
+| `refresh.mod_root`        | No       | `.`                            | Path to the mod root (for the refresh tool).            |
 
 [^mp]: Used in label names, runtime module names, and metadata dict
 names.
