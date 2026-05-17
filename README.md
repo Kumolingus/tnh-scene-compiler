@@ -57,14 +57,14 @@ That's it. No Ren'Py syntax to learn. The compiler handles the rest.
 
 ## Documentation
 
-| Document | What's inside |
-|---|---|
-| [Quick start](docs/quick_start.md) | Write and compile your first scene in 5 minutes |
-| [Scene cheatsheet](docs/scene_cheatsheet.md) | One-page reference — copy-paste examples for every feature |
-| [Writer guide](docs/writer_guide.md) | Complete guide for scene writers |
-| [Integration guide](docs/integration_guide.md) | Drop compiled scenes into your mod |
-| [Project setup](docs/project_setup.md) | Setting up and managing a project |
-| [Format specification](docs/format_spec.md) | Technical spec for developers |
+| Document                                       | What's inside                                              |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| [Quick start](docs/quick_start.md)             | Write and compile your first scene in 5 minutes            |
+| [Scene cheatsheet](docs/scene_cheatsheet.md)   | One-page reference — copy-paste examples for every feature |
+| [Writer guide](docs/writer_guide.md)           | Complete guide for scene writers                           |
+| [Integration guide](docs/integration_guide.md) | Drop compiled scenes into your mod                         |
+| [Project setup](docs/project_setup.md)         | Setting up and managing a project                          |
+| [Format specification](docs/format_spec.md)    | Technical spec for developers                              |
 
 The integrated editor also includes a **Condition Builder** — open it
 from the Struct. palette tab to browse every available condition type

@@ -88,13 +88,13 @@ Scene Type: cinematic
 Trigger: manual
 ```
 
-| Key | What it means |
-|---|---|
-| `Title` | A human-readable name for this scene |
-| `Scene Id` | A unique identifier — the developer provides this |
-| `Character` | The owning character (PascalCase) |
+| Key          | What it means                                        |
+| ------------ | ---------------------------------------------------- |
+| `Title`      | A human-readable name for this scene                 |
+| `Scene Id`   | A unique identifier — the developer provides this    |
+| `Character`  | The owning character (PascalCase)                    |
 | `Scene Type` | How the scene is presented (see "Scene types" below) |
-| `Trigger` | When the scene fires (the developer provides this) |
+| `Trigger`    | When the scene fires (the developer provides this)   |
 
 The developer gives you the exact values for `Scene Id`, `Character`,
 `Scene Type`, and `Trigger` when they assign you the scene. You do not
@@ -257,16 +257,16 @@ You're a terrible liar, [player.petname].
 
 ### All available attributes
 
-| Attribute | Purpose |
-|---|---|
-| `mood` | Overall emotional feel (happy, sad, nervous, vulnerable...) |
-| `face` | Facial expression (smile, worried1, crying, smirk...) |
-| `arms` | Both-arms pose (crossed, hips, shrug...) |
-| `left_arm` / `right_arm` | Per-arm pose (named-only, no positional slot) |
-| `look` | Where they look (at_player, away, down, up...) |
-| `outfit` | Clothing (only when it changes mid-scene) |
-| `stage` | Position on stage (left, middle, right) |
-| `pose` | Full-body pose preset |
+| Attribute                | Purpose                                                     |
+| ------------------------ | ----------------------------------------------------------- |
+| `mood`                   | Overall emotional feel (happy, sad, nervous, vulnerable...) |
+| `face`                   | Facial expression (smile, worried1, crying, smirk...)       |
+| `arms`                   | Both-arms pose (crossed, hips, shrug...)                    |
+| `left_arm` / `right_arm` | Per-arm pose (named-only, no positional slot)               |
+| `look`                   | Where they look (at_player, away, down, up...)              |
+| `outfit`                 | Clothing (only when it changes mid-scene)                   |
+| `stage`                  | Position on stage (left, middle, right)                     |
+| `pose`                   | Full-body pose preset                                       |
 
 Exact valid values per character are in the cheatsheet.
 
@@ -394,18 +394,18 @@ Both the shortcut and the original function-call syntax work.
 
 ### What you can and cannot use in conditions
 
-| Construct | Allowed? |
-|---|---|
-| Comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=` | Yes |
-| Logic: `and`, `or`, `not` | Yes |
-| Literals: integers, floats, strings, `True`, `False`, `None` | Yes |
-| Attribute access: `JeanGrey.love`, `player.petname` | Yes |
-| Condition shortcuts: `.has()`, `.mood`, `.did()`, `.nearby`, etc. | Yes |
-| Registered function calls: `check_approval(...)`, etc. | Yes |
-| `in` / `not in`: `"fire" in JeanGrey.traits` | Yes |
-| Parentheses for grouping | Yes |
-| Arithmetic (`+`, `-`, `*`, `/`) | No |
-| f-strings, lambdas, comprehensions, slicing | No |
+| Construct                                                         | Allowed? |
+| ----------------------------------------------------------------- | -------- |
+| Comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=`                     | Yes      |
+| Logic: `and`, `or`, `not`                                         | Yes      |
+| Literals: integers, floats, strings, `True`, `False`, `None`      | Yes      |
+| Attribute access: `JeanGrey.love`, `player.petname`               | Yes      |
+| Condition shortcuts: `.has()`, `.mood`, `.did()`, `.nearby`, etc. | Yes      |
+| Registered function calls: `check_approval(...)`, etc.            | Yes      |
+| `in` / `not in`: `"fire" in JeanGrey.traits`                      | Yes      |
+| Parentheses for grouping                                          | Yes      |
+| Arithmetic (`+`, `-`, `*`, `/`)                                   | No       |
+| f-strings, lambdas, comprehensions, slicing                       | No       |
 
 
 ---
@@ -654,12 +654,12 @@ You knock on [jeangrey.petname]'s door.
 
 The `Scene Type` header key controls how the scene is presented.
 
-| Scene Type | What it is for | Notes |
-|---|---|---|
-| `cinematic` | Full-screen story scene with visuals, pauses, SFX | Requires a `Trigger` key |
-| `phone` | Phone conversation, mostly text messages | Add `Openness` and `Stage` keys |
-| `texting` | Pure text exchange, no visuals at all | All dialogue lines forced to `(text)` |
-| `hub_option` | Short scene triggered from a hub menu option | No `Trigger` key |
+| Scene Type   | What it is for                                    | Notes                                 |
+| ------------ | ------------------------------------------------- | ------------------------------------- |
+| `cinematic`  | Full-screen story scene with visuals, pauses, SFX | Requires a `Trigger` key              |
+| `phone`      | Phone conversation, mostly text messages          | Add `Openness` and `Stage` keys       |
+| `texting`    | Pure text exchange, no visuals at all             | All dialogue lines forced to `(text)` |
+| `hub_option` | Short scene triggered from a hub menu option      | No `Trigger` key                      |
 
 The developer tells you which type to use. Most scenes are
 `cinematic`.

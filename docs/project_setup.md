@@ -53,12 +53,12 @@ python -m tnh_scene_compiler init --mod-prefix my_mod
 
 This creates:
 
-| File | Purpose |
-|---|---|
-| `tnh_scene_compiler.yaml` | Project config — edit paths to match your layout |
-| `runtime_stub.rpy` | Runtime module for scene state injection |
-| `metadata_init.rpy` | Empty metadata dict populated at boot by compiled scenes |
-| `testing_eval.rpy` | Condition wrapper for the testing hub |
+| File                      | Purpose                                                  |
+| ------------------------- | -------------------------------------------------------- |
+| `tnh_scene_compiler.yaml` | Project config — edit paths to match your layout         |
+| `runtime_stub.rpy`        | Runtime module for scene state injection                 |
+| `metadata_init.rpy`       | Empty metadata dict populated at boot by compiled scenes |
+| `testing_eval.rpy`        | Condition wrapper for the testing hub                    |
 
 ### 2. Edit the config
 
@@ -139,19 +139,19 @@ location overrides win on collision).
 
 ### What goes in the mod layer
 
-| File | When to add it |
-|---|---|
-| `characters.yaml` | Your mod adds a new character (e.g. an OC) |
-| `moods/<Char>.yaml` | Your mod adds custom moods for a character |
-| `faces/<Char>.yaml` | Your mod adds custom face expressions |
-| `traits.yaml` | Your mod introduces custom traits (for `[[give_trait]]` / `[[if Character.has(...)]]`) |
-| `personalities.yaml` | Your mod introduces custom personality axes (for `[[set_personality]]`) |
-| `history_events.yaml` | Your mod introduces custom events (for `[[record]]` / `[[if Character.did(...)]]`) |
-| `condition_functions.yaml` | Your mod defines `[[if]]`-callable helpers |
-| `run_operations.yaml` | Your mod defines `[[run]]`-callable helpers |
-| `fx.yaml` | Your mod adds `[[fx]]`-callable visual effects |
-| `interpolation_custom.yaml` | Your mod adds custom `[path]` interpolation targets |
-| `locations_overrides.yaml` | Your mod adds short-form sluglines for locations |
+| File                        | When to add it                                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------- |
+| `characters.yaml`           | Your mod adds a new character (e.g. an OC)                                             |
+| `moods/<Char>.yaml`         | Your mod adds custom moods for a character                                             |
+| `faces/<Char>.yaml`         | Your mod adds custom face expressions                                                  |
+| `traits.yaml`               | Your mod introduces custom traits (for `[[give_trait]]` / `[[if Character.has(...)]]`) |
+| `personalities.yaml`        | Your mod introduces custom personality axes (for `[[set_personality]]`)                |
+| `history_events.yaml`       | Your mod introduces custom events (for `[[record]]` / `[[if Character.did(...)]]`)     |
+| `condition_functions.yaml`  | Your mod defines `[[if]]`-callable helpers                                             |
+| `run_operations.yaml`       | Your mod defines `[[run]]`-callable helpers                                            |
+| `fx.yaml`                   | Your mod adds `[[fx]]`-callable visual effects                                         |
+| `interpolation_custom.yaml` | Your mod adds custom `[path]` interpolation targets                                    |
+| `locations_overrides.yaml`  | Your mod adds short-form sluglines for locations                                       |
 
 Every file you add in your project's `_allowlists/` directory is
 **merged with the base game layer** at compile time. You only need to
