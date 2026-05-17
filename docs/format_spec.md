@@ -891,7 +891,7 @@ key. The `include_base_allowlists` config option (default `true`) controls wheth
 | 10 | `sfx.yaml`                                 | `[[sfx]]` names                      | auto        |
 | 11 | `interpolation.yaml` + `*_custom`          | `[...]` interpolation paths          | auto+manual |
 | 12 | `run_operations.yaml`                      | `[[run]]` operations                 | manual      |
-| 13 | `fx.yaml`                                  | `[[fx]]` functions                   | manual      |
+| 13 | `fx.yaml`                                  | `[[fx]]` functions + signatures      | auto        |
 | 14 | `condition_functions.yaml`                 | `[[if]]`/`[[elif]]` functions        | manual      |
 | 15 | `traits.yaml`                              | `[[give_trait]]`/`[[remove_trait]]`  | auto        |
 | 16 | `history_events.yaml`                      | `[[record]]` event names             | auto        |
@@ -901,9 +901,9 @@ key. The `include_base_allowlists` config option (default `true`) controls wheth
 ### 12.2 Regenerating allowlists
 
 Use **Refresh allowlists** in the app's project settings to regenerate the auto-generated allowlist
-files from the TNH base game and the mod source. Manual allowlists (`fx.yaml`, `run_operations.yaml`,
+files from the TNH base game and the project source. Manual allowlists (`run_operations.yaml`,
 `condition_functions.yaml`, `locations_overrides.yaml`, `interpolation_custom.yaml`) are not overwritten
--- the developer maintains them by hand.
+— the developer maintains them by hand. `fx.yaml` is auto-generated with signatures and `call_mode` metadata.
 
 Writers can read allowlists for reference but should not edit them. If a new mood/face/location is needed, the developer adds it to the mod
 and refreshes the allowlists.
