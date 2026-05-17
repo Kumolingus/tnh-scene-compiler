@@ -43,28 +43,6 @@ your project. The app shows the result with file, line number, and a description
 
 To check your files without writing output, use the **Validate** button in the editor toolbar.
 
-<details>
-<summary>For developers running from source</summary>
-
-```
-python -m tnh_scene_compiler compile
-```
-
-This compiles every `.scene` file found under `scenes_source/`. To compile specific files:
-
-```
-python -m tnh_scene_compiler compile path/to/scene.scene
-```
-
-Validate-only (no output written):
-
-```
-python -m tnh_scene_compiler validate
-```
-
-</details>
-
-
 ---
 
 ## The header

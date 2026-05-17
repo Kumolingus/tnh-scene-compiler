@@ -902,8 +902,7 @@ key. The `include_base_allowlists` config option (default `true`) controls wheth
 Use **Refresh allowlists** in the app's project settings to regenerate the auto-generated allowlist
 files from the TNH base game and the mod source. Manual allowlists (`fx.yaml`, `run_operations.yaml`,
 `condition_functions.yaml`, `locations_overrides.yaml`, `interpolation_custom.yaml`) are not overwritten
--- the developer maintains them by hand. For developers running from source:
-`python -m tnh_refresh_allowlists`.
+-- the developer maintains them by hand.
 
 Writers can read allowlists for reference but should not edit them. If a new mood/face/location is needed, the developer adds it to the mod
 and refreshes the allowlists.
@@ -1009,14 +1008,9 @@ Phone, texting, and hub_option scenes do not appear in `_events.rpy`.
 
 ## 14. Compilation pipeline overview
 
-Open the app and use **Quick compile** or **Open project** to compile scenes. For developers running
-from source:
-
-```
-python -m tnh_scene_compiler compile [--config path] [--verbose] [files...]
-```
-
-Without explicit file arguments, it discovers all `.scene` files under the configured `scenes_source` directory (excluding `_allowlists/`).
+Open the app and use **Quick compile** or **Open project** to compile scenes. Without explicit file
+selection, the compiler discovers all `.scene` files under the configured `scenes_source` directory
+(excluding `_allowlists/`).
 
 ### 14.1 Pipeline stages
 
@@ -1047,16 +1041,12 @@ On success:
 ### 14.3 Validate-only mode
 
 Use the **Validate** button in the editor to parse and validate without writing output. Same error
-reporting as compile. For developers running from source or CI integration:
-
-```
-python -m tnh_scene_compiler validate [--config path] [--verbose] [files...]
-```
+reporting as compile.
 
 ### 14.4 Config resolution
 
-The compiler looks for `tnh_scene_compiler.yaml` by walking up from the current directory (or the first file's parent). The `--config` flag
-overrides auto-discovery.
+The compiler looks for `tnh_scene_compiler.yaml` by walking up from the working directory (or the first
+file's parent). The app resolves this automatically when you open a project.
 
 ---
 
@@ -1240,7 +1230,7 @@ names.
 
 ## Appendix B: Runtime stubs
 
-Running `tnh_scene_compiler init --mod-prefix my_mod` generates:
+Clicking **Create project** in the app (with prefix `my_mod`) generates:
 
 1. `tnh_scene_compiler.yaml` -- project configuration (Appendix A).
 2. `runtime_stub.rpy` -- creates the `{mod_prefix}_runtime` Python module in `sys.modules`.
@@ -1318,12 +1308,7 @@ include_base_allowlists: true
 
 ### Compile
 
-Open the app and click **Compile** (or **Quick compile** with the file selected). For developers
-running from source:
-
-```
-python -m tnh_scene_compiler compile --verbose
-```
+Open the app and click **Compile** (or **Quick compile** with the file selected).
 
 ### Output
 

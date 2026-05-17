@@ -2,62 +2,16 @@
 
 How to integrate `tnh-scene-compiler` into your TNH mod project.
 
-## Quick start (app)
-
-Most users work directly with the standalone app (`TNHSceneCompiler.exe`). Click **Create project** in
-the welcome screen to set up a new project — the app generates the config file and runtime stubs for
-you. An extracted TNH build (`.rpy` source files, not `.rpyc`) is required for allowlist refresh.
-
-## For developers running from source
-
-### Prerequisites
-
-- Python 3.10+
-- PyYAML (`pip install pyyaml`)
-- An extracted TNH build (`.rpy` source files, not `.rpyc`)
-
-### Option A: Git submodule (recommended)
-
-Add the tool to your mod repo:
-
-```bash
-git submodule add https://github.com/Ethyl39/tnh-scene-compiler.git Tools/tnh-scene-compiler
-```
-
-Make sure `PYTHONPATH` includes the submodule root before invoking:
-
-```powershell
-# PowerShell
-$env:PYTHONPATH = "Tools/tnh-scene-compiler"
-python -m tnh_scene_compiler compile --verbose
-```
-
-```bash
-# Bash
-export PYTHONPATH="Tools/tnh-scene-compiler"
-python3 -m tnh_scene_compiler compile --verbose
-```
-
-To update the tool later:
-
-```bash
-git submodule update --remote Tools/tnh-scene-compiler
-```
-
-### Option B: Standalone clone
-
-Clone the tool anywhere and point `PYTHONPATH` at it. No install step needed beyond PyYAML.
-
 ## Initial setup
 
-### 1. Bootstrap config and runtime stubs
+### 1. Create a project
 
-Click **Create project** in the app to generate the config and runtime stubs interactively. If you are
-running from source, use the CLI from your mod repo root:
+Click **Create project** on the welcome screen. Enter your mod prefix
+(e.g. `my_mod`) and pick a folder. The app generates the config file
+and runtime stubs for you.
 
-```bash
-python -m tnh_scene_compiler init --mod-prefix my_mod
-```
+An extracted TNH build (`.rpy` source files, not `.rpyc`) is required
+for allowlist refresh of the base game.
 
 This creates:
 
@@ -168,7 +122,7 @@ Create `scenes_source/_allowlists/characters.yaml`:
 
 ```yaml
 source: MyMod
-generated_at: '2026-05-13'
+generated_at: "2026-05-13"
 values:
   - name: MyOC
     source_file: MyMod/game/my_mod/characters.rpy
@@ -240,18 +194,6 @@ refresh:
 
 This scans the base game `.rpy` files and regenerates the YAML allowlists.
 
-<details>
-<summary>For developers running from source</summary>
-
-```bash
-python -m tnh_refresh_allowlists \
-  --base-game ../TheNullHypothesis \
-  --out scenes_source/_allowlists \
-  --verbose
-```
-
-</details>
-
 ## Compilation workflow
 
 ### Using the app
@@ -262,30 +204,6 @@ python -m tnh_refresh_allowlists \
 - **Validate only**: click the **Validate** button in the editor toolbar — parses and validates
   without writing output.
 
-<details>
-<summary>For developers running from source</summary>
-
-### Full project compilation
-
-```bash
-python -m tnh_scene_compiler compile --verbose
-```
-
-### Specific files only
-
-```bash
-python -m tnh_scene_compiler compile scenes_source/JeanGrey/my_scene.scene
-```
-
-### Validation without output
-
-```bash
-python -m tnh_scene_compiler validate --verbose
-```
-
-Useful for CI or pre-commit checks.
-
-</details>
 
 ## Generating a cheatsheet for writers
 
@@ -295,61 +213,17 @@ while authoring scenes. A pre-generated cheatsheet is included in the docs folde
 To regenerate it after allowlist changes, use the app's project settings (the **Generate cheatsheet**
 button).
 
-<details>
-<summary>For developers running from source</summary>
-
-```bash
-python -m tnh_generate_cheatsheet \
-  --allowlists scenes_source/_allowlists \
-  --out Docs/Authoring_Cheatsheet.md
-```
-
-</details>
-
-## Integrating with a build script
-
-Example PowerShell wrapper (`Tools/Compile-Scenes.ps1`):
-
-```powershell
-param(
-    [switch]$Verbose
-)
-
-$toolRoot = Join-Path $PSScriptRoot "tnh-scene-compiler"
-$env:PYTHONPATH = $toolRoot
-
-$args = @("compile")
-if ($Verbose) { $args += "--verbose" }
-
-python -m tnh_scene_compiler @args
-exit $LASTEXITCODE
-```
-
-## CI integration
-
-Example GitHub Actions step:
-
-```yaml
-- name: Validate scenes
-  run: |
-    pip install pyyaml
-    export PYTHONPATH=Tools/tnh-scene-compiler
-    python -m tnh_scene_compiler validate
-```
-
-Exit code 0 = all scenes valid, 1 = errors found.
-
 ## Directory layout summary
 
 After setup, your mod repo looks like:
 
 ```
 my-tnh-mod/
-├── tnh_scene_compiler.yaml        ← config
+├── tnh_scene_compiler.yaml        <- config
 ├── scenes_source/
-│   ├── _allowlists/               ← mod-specific extensions
-│   │   ├── characters.yaml        ← only if adding characters
-│   │   ├── run_operations.yaml    ← your [[run]] helpers
+│   ├── _allowlists/               <- mod-specific extensions
+│   │   ├── characters.yaml        <- only if adding characters
+│   │   ├── run_operations.yaml    <- your [[run]] helpers
 │   │   └── condition_functions.yaml
 │   ├── JeanGrey/
 │   │   └── my_mod_dialogue_jeangrey_greeting.scene
@@ -361,28 +235,27 @@ my-tnh-mod/
 │           ├── my_mod_runtime.rpy
 │           ├── my_mod_metadata.rpy
 │           ├── my_mod_testing_eval.rpy
-│           └── scenes/            ← compiled output
+│           └── scenes/            <- compiled output
 │               ├── JeanGrey/
 │               ├── Rogue/
 │               └── _events.rpy
-├── Tools/
-│   └── tnh-scene-compiler/        ← git submodule
 └── Docs/
-    └── Authoring_Cheatsheet.md    ← generated
+    └── Authoring_Cheatsheet.md    <- generated
 ```
 
 ## Troubleshooting
 
-**"No tnh_scene_compiler.yaml found"** — the compiler could not locate the config file. Either `cd` to your mod repo root or pass
-`--config path/to/tnh_scene_compiler.yaml`.
+**"No tnh_scene_compiler.yaml found"** — the app could not locate the
+config file. Use **Open project** and navigate to the folder containing
+your `tnh_scene_compiler.yaml`.
 
-**"No allowlists directories found"** — neither the base allowlists (shipped with the tool) nor your mod allowlists directory exist. Check
-that `include_base_allowlists: true` is set and that the tool's `allowlists_base/` directory is present.
+**"No allowlists directories found"** — neither the base allowlists
+(shipped with the tool) nor your mod allowlists directory exist. Check
+that `include_base_allowlists: true` is set in your config.
 
-**Unknown character/mood/face errors** — the value is not in any allowlist. Either add it to your mod's allowlist extension or check the
-cheatsheet for valid values.
-
-**Import errors when running** — make sure `PYTHONPATH` includes the tool's root directory (where `tnh_scene_compiler/` lives).
+**Unknown character/mood/face errors** — the value is not in any
+allowlist. Either add it to your mod's allowlist extension or check
+the cheatsheet for valid values.
 
 ## Thumbnails
 
@@ -404,41 +277,5 @@ TNHSceneCompiler-v1.2.0/
 └── docs/
 ```
 
-The editor detects the `thumbnails/` directory at startup and enables visual previews automatically. Without it, the editor still works —
-you just won't see face/arm previews.
-
-### Regenerating thumbnails from source
-
-If you have access to the visual reference assets, you can regenerate thumbnails locally:
-
-```bash
-python scripts/import_thumbnails.py
-```
-
-By default the script reads from the `external/TNH-VisualReference` submodule. Pass an explicit path to override:
-
-```bash
-python scripts/import_thumbnails.py path/to/TNH-VisualReference
-```
-
-The import script also generates FX effect thumbnails from `effects/_fx_mapping.yaml`, so visual effect previews stay in sync with the
-allowlists.
-
-## Building a release
-
-The release build script automates the full packaging pipeline:
-
-```bash
-python scripts/build_release.py
-```
-
-This performs the following steps:
-
-1. Cleans `dist/` and `build/` directories
-2. Generates thumbnails if the `thumbnails/` directory is missing or stale
-3. Runs PyInstaller to produce the standalone executable
-4. Packages `thumbnails.zip` as a separate archive
-5. Copies `docs/` into the release folder
-
-Output goes to `dist/TNHSceneCompiler-<version>/`, where `<version>` is read from the project metadata. The resulting folder is
-self-contained and ready to distribute.
+The editor detects the `thumbnails/` directory at startup and enables visual previews
+automatically. Without it, the editor still works -- you just won't see face/arm previews.
