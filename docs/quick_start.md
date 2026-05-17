@@ -122,6 +122,8 @@ Your `.rpy` file is ready.
 
 ## What's next?
 
+- See the [Integration guide](integration_guide.md) to drop compiled
+  scenes into your mod.
 - See the [Scene cheatsheet](scene_cheatsheet.md) for a copy-paste
   reference of every feature.
 - Read the [Writer guide](writer_guide.md) for the complete guide.
