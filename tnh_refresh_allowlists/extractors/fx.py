@@ -47,10 +47,16 @@ def _build_signature(name: str, raw_params: str, return_type: str | None) -> str
 
 
 def _scan_labels(path: Path, text: str, context: ScanContext) -> list[AllowlistEntry]:
-    """Extract all label definitions from a file (effects.rpy, animations.rpy)."""
+    """Extract all label definitions from a file (effects.rpy, animations.rpy).
+
+    Skips ``cinematic_`` prefixed labels — those are auto-derived at
+    compile time from the base effect name + scene type.
+    """
     entries: list[AllowlistEntry] = []
     for match in _LABEL_DEF_RE.finditer(text):
         name = match.group("name")
+        if name.startswith("cinematic_"):
+            continue
         raw_params = match.group("params") or ""
         line = text[: match.start()].count("\n") + 1
         sig = _build_signature(name, raw_params, "None")
@@ -58,7 +64,7 @@ def _scan_labels(path: Path, text: str, context: ScanContext) -> list[AllowlistE
             name=name,
             source_file=context.relative(path),
             source_line=line,
-            metadata=(("signature", sig),),
+            metadata=(("signature", sig), ("call_mode", "label")),
         ))
     return entries
 

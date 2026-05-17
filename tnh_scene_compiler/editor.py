@@ -517,6 +517,24 @@ def _parse_single_param(param: str) -> tuple[str, str, str]:
     return (name, type_hint, default)
 
 
+_FX_LABEL_STRIP_RE = re.compile(r"^[A-Z][A-Za-z]+_animations_")
+
+
+def _fx_button_label(fx_name: str) -> str:
+    """Shorten long character FX names for button display.
+
+    ``LauraKinney_animations_unsheathes_claws`` → ``Laura: unsheathes_claws``
+    ``KurtWagner_animations_teleports_in`` → ``Kurt: teleports_in``
+    """
+    m = _FX_LABEL_STRIP_RE.match(fx_name)
+    if m:
+        char_part = fx_name[:m.end()].split("_")[0]
+        short_char = char_part.replace("Kinney", "").replace("Wagner", "").replace("Xavier", "").replace("Grey", "")
+        remainder = fx_name[m.end():]
+        return f"{short_char}: {remainder}"
+    return fx_name
+
+
 class _SfxParamDialog(tk.Toplevel):
     """Popup form for inserting an [[sfx]] directive with optional duration."""
 
@@ -1577,34 +1595,122 @@ class _PaletteSidebar(ttk.Frame):
     # -- FX / SFX -----------------------------------------------------------
 
     def _build_fx_sfx(self, allow: Allowlists) -> None:
-        char_names_lower = {c.lower() for c in allow.characters}
+        tab = self._register_tab("FX/SFX")
 
-        char_fx: list[tuple[str, str | None]] = []
-        cinematic_fx: list[tuple[str, str | None]] = []
-        generic_fx: list[tuple[str, str | None]] = []
+        char_names_lower = {c.lower() for c in allow.characters}
+        self._fx_categories: dict[str, list[str]] = {}
         for name in sorted(allow.fx):
             if name.startswith("cinematic_"):
-                cinematic_fx.append((name, None))
+                self._fx_categories.setdefault("Cinematic", []).append(name)
             else:
                 prefix = name.split("_")[0].lower() if "_" in name else ""
                 if prefix in char_names_lower:
-                    char_fx.append((name, None))
+                    self._fx_categories.setdefault("Character FX", []).append(name)
                 else:
-                    generic_fx.append((name, None))
+                    self._fx_categories.setdefault("Effects", []).append(name)
+        if allow.sfx:
+            self._fx_categories["Sounds (SFX)"] = sorted(allow.sfx)
 
-        sfx_items: list[tuple[str, str | None]] = [(n, None) for n in sorted(allow.sfx)]
+        if not self._fx_categories:
+            ttk.Label(tab, text="No effects.", foreground="gray").pack(padx=4, pady=4)
+            return
 
-        cats: dict[str, list[tuple[str, str | None]]] = {}
-        if generic_fx:
-            cats["Effects"] = generic_fx
-        if cinematic_fx:
-            cats["Cinematic"] = cinematic_fx
-        if char_fx:
-            cats["Character FX"] = char_fx
-        if sfx_items:
-            cats["Sounds (SFX)"] = sfx_items
+        cat_names = list(self._fx_categories.keys())
+        ttk.Label(tab, text="Category:").pack(anchor=tk.W, padx=4, pady=(2, 0))
+        self._fx_cat_var = tk.StringVar(value=cat_names[0])
+        fx_cat_combo = ttk.Combobox(
+            tab, textvariable=self._fx_cat_var,
+            values=cat_names, state="readonly",
+        )
+        fx_cat_combo.pack(fill=tk.X, padx=4, pady=2)
 
-        self._build_categorized_tab("FX/SFX", cats, on_click="fx_effect")
+        _PREVIEW_WIDTH = 200
+        split = ttk.Frame(tab)
+        split.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
+        split.columnconfigure(0, weight=1)
+        split.columnconfigure(1, weight=0)
+        split.rowconfigure(0, weight=1)
+
+        self._fx_list_parent = ttk.Frame(split)
+        self._fx_list_parent.grid(row=0, column=0, sticky="nsew")
+
+        preview_panel = tk.Frame(split, width=_PREVIEW_WIDTH, bg="#252526", padx=4)
+        preview_panel.grid(row=0, column=1, sticky="ns", padx=(4, 0))
+        preview_panel.grid_propagate(False)
+        self._fx_preview_width = _PREVIEW_WIDTH
+        self._fx_preview_label = tk.Label(preview_panel, bg="#252526", anchor=tk.CENTER)
+        self._fx_preview_label.pack(expand=True, padx=4, pady=(8, 2))
+        self._fx_preview_name_label = tk.Label(
+            preview_panel, bg="#252526", fg="#CCCCCC",
+            font=("Segoe UI", 8), anchor=tk.CENTER,
+            wraplength=_PREVIEW_WIDTH - 8,
+        )
+        self._fx_preview_name_label.pack(padx=4, pady=(0, 8))
+        self._fx_preview_image: tk.PhotoImage | None = None
+        self._fx_thumb_refs: list[tk.PhotoImage] = []
+
+        self._fx_list_frame: ttk.Frame | None = None
+
+        def _on_cat(*_a: Any) -> None:
+            self._refresh_fx_list()
+            self.focus_set()
+
+        fx_cat_combo.bind("<<ComboboxSelected>>", _on_cat)
+        self._refresh_fx_list()
+
+    def _refresh_fx_list(self) -> None:
+        if self._fx_list_frame is not None:
+            self._fx_list_frame.destroy()
+        self._fx_thumb_refs.clear()
+
+        container = ttk.Frame(self._fx_list_parent)
+        container.pack(fill=tk.BOTH, expand=True)
+        self._fx_list_frame = container
+
+        cat = self._fx_cat_var.get()
+        items = self._fx_categories.get(cat, [])
+        inner = self._make_scrollable(container)
+
+        thumb_store = _get_thumb_store() if self._show_thumbnails else None
+        is_sfx = cat == "Sounds (SFX)"
+
+        for name in items:
+            display = _fx_button_label(name) if not is_sfx else name
+            btn = ttk.Button(
+                inner, text=display,
+                command=lambda n=name: self._on_fx_effect_click(n),
+            )
+            btn.pack(fill=tk.X, pady=1)
+            self._all_items.append((btn, name.lower(), "FX/SFX"))
+
+            if thumb_store and not is_sfx:
+                img = thumb_store.get_fx(name)
+                if img:
+                    self._fx_thumb_refs.append(img)
+                    btn.bind(
+                        "<Enter>",
+                        lambda _e, i=img, n=name: self._show_fx_preview(i, n),
+                    )
+                    btn.bind(
+                        "<Leave>",
+                        lambda _e: self._clear_fx_preview(),
+                    )
+
+    def _show_fx_preview(self, img: tk.PhotoImage, name: str) -> None:
+        w = img.width()
+        factor = max(1, self._fx_preview_width // w) if w > 0 else 1
+        if factor > 1:
+            zoomed = img.zoom(factor, factor)
+        else:
+            zoomed = img
+        self._fx_preview_image = zoomed
+        self._fx_preview_label.configure(image=zoomed)
+        self._fx_preview_name_label.configure(text=name)
+
+    def _clear_fx_preview(self) -> None:
+        self._fx_preview_image = None
+        self._fx_preview_label.configure(image="")
+        self._fx_preview_name_label.configure(text="")
 
     def _on_fx_effect_click(self, display: str) -> None:
         if display in self._allow.sfx:
@@ -1657,12 +1763,17 @@ class _PaletteSidebar(ttk.Frame):
     def _build_interpolation(self, allow: Allowlists) -> None:
         if not allow.interpolation:
             return
+
+        featured = set(allow.ui_characters(featured_only=True)) if self._featured_only else None
+
         cats: dict[str, list[tuple[str, str | None]]] = {}
         for path in sorted(allow.interpolation):
             if "." in path:
                 prefix = path.split(".")[0]
             else:
                 prefix = "Global"
+            if featured and prefix not in featured and prefix != "Global":
+                continue
             cats.setdefault(prefix, []).append((path, f"[{path}]"))
 
         ordered: dict[str, list[tuple[str, str | None]]] = {}
@@ -1740,7 +1851,8 @@ class _PaletteSidebar(ttk.Frame):
         self._visual_preview_label.pack(expand=True, padx=4, pady=(8, 2))
         self._visual_preview_name = tk.Label(
             preview_panel, bg="#252526", fg="#CCCCCC",
-            font=("Segoe UI", 9), anchor=tk.CENTER,
+            font=("Segoe UI", 8), anchor=tk.CENTER,
+            wraplength=_PREVIEW_WIDTH - 8,
         )
         self._visual_preview_name.pack(padx=4, pady=(0, 8))
         self._visual_preview_image: tk.PhotoImage | None = None
@@ -1974,6 +2086,9 @@ class EditorScreen(ttk.Frame):
         )
         self._title_label.pack(side=tk.LEFT, padx=8)
 
+        ttk.Button(frm, text="Settings", command=self._open_settings).pack(
+            side=tk.RIGHT, padx=(4, 0),
+        )
         ttk.Button(frm, text="Validate", style="Validate.TButton", command=self._validate).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
@@ -2271,6 +2386,10 @@ class EditorScreen(ttk.Frame):
         self._mod_var.set("Modified" if self._modified else "")
 
     # -- Navigation ---------------------------------------------------------
+
+    def _open_settings(self) -> None:
+        from .gui import _SettingsDialog
+        _SettingsDialog(self, self._app)
 
     def _go_back(self) -> None:
         if self._modified:

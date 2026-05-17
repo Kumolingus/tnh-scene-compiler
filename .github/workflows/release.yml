@@ -42,14 +42,25 @@ jobs:
         run: python -c "from tnh_scene_compiler import __version__; print(f'value={__version__}')" >> $GITHUB_OUTPUT
         shell: bash
 
+      - name: Generate thumbnails
+        run: |
+          pip install Pillow
+          git submodule update --init external/TNH-VisualReference
+          python scripts/import_thumbnails.py
+
       - name: Build executable
         run: pyinstaller tnh_scene_compiler.spec
+
+      - name: Package thumbnails
+        run: python -c "import shutil; shutil.make_archive('dist/thumbnails', 'zip', '.', 'thumbnails')"
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build-${{ matrix.os }}
-          path: dist/TNHSceneCompiler-${{ steps.version.outputs.value }}${{ matrix.suffix }}
+          path: |
+            dist/TNHSceneCompiler-${{ steps.version.outputs.value }}${{ matrix.suffix }}
+            dist/thumbnails.zip
 
   release:
     needs: build

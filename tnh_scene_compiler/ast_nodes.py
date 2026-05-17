@@ -210,8 +210,6 @@ class FxCall:
     purpose-specific: ``fx.yaml`` lists engine effects,
     ``run_operations.yaml`` lists state mutations.
 
-    Attributes match :class:`Run` — ``call_text`` is the verbatim
-    source to splice into ``$ …``, ``target_name`` is the allowlist key.
     """
 
     call_text: str
