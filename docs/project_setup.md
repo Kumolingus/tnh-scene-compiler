@@ -205,13 +205,11 @@ This scans the base game `.rpy` files and regenerates the YAML allowlists.
   without writing output.
 
 
-## Generating a cheatsheet for writers
+## Cheatsheet for writers
 
-The cheatsheet lists every valid character, mood, face, location, etc. — a reference writers keep open
-while authoring scenes. A pre-generated cheatsheet is included in the docs folder of each release.
-
-To regenerate it after allowlist changes, use the app's project settings (the **Generate cheatsheet**
-button).
+The editor's palette already shows all available characters, moods, faces, arms, FX, and locations with thumbnail
+previews. For an offline reference, a cheatsheet is included in the docs folder (`docs/scene_cheatsheet.md`) with
+copy-paste examples for every directive.
 
 ## Directory layout summary
 
