@@ -237,8 +237,6 @@ my-tnh-mod/
 │               ├── JeanGrey/
 │               ├── Rogue/
 │               └── _events.rpy
-└── Docs/
-    └── Authoring_Cheatsheet.md    <- generated
 ```
 
 ## Troubleshooting
