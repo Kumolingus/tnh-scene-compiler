@@ -49,13 +49,13 @@ integrating the compiler into a TNH mod project.
 
 ## 2. File conventions
 
-| Property        | Value                                                                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Extension       | `.scene`                                                                                                                 |
-| Encoding        | UTF-8, LF line endings, no BOM                                                                                           |
-| Granularity     | One scene per file                                                                                                       |
-| Source location | `scenes_source/<Character>/<scene_name>.scene` (relative to the project root where `tnh_scene_compiler.yaml` lives)      |
-| Compiled output | `game/{mod_prefix}/scenes/<Character>/<scene_name>.rpy` (configurable via the `output` key in `tnh_scene_compiler.yaml`) |
+| Property        | Value                                                                      |
+| --------------- | -------------------------------------------------------------------------- |
+| Extension       | `.scene`                                                                   |
+| Encoding        | UTF-8, LF line endings, no BOM                                             |
+| Granularity     | One scene per file                                                         |
+| Source location | `scenes_source/<Character>/<scene_name>.scene` (relative to project root)  |
+| Compiled output | `game/{mod_prefix}/scenes/<Character>/<scene_name>.rpy` (see `output` key) |
 
 The **Scene Id** is derived from the title page, not the file path.
 The source directory tree under `scenes_source/` is organisational --
@@ -90,22 +90,30 @@ Location: JEANGREY'S ROOM
 
 ### 3.1 Field reference
 
-| Key           | Required                                     | Type                   | Meaning                                                                                                                                                                          |
-| ------------- | -------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Title`       | Yes                                          | string                 | Human-readable scene name. Not used at runtime.                                                                                                                                  |
-| `Scene Id`    | Yes                                          | snake_case identifier  | Becomes the Ren'Py label name and the `all_Events` key. Must be prefixed with `{mod_prefix}`. Unique across all scenes in the project.                                           |
-| `Character`   | Yes                                          | PascalCase             | Main character the scene belongs to. Used for output folder grouping and event registration. Must match a name in `characters.yaml`.                                             |
-| `Scene Type`  | Yes                                          | enum                   | One of `cinematic`, `phone`, `texting`, `hub_option`. Drives the compilation target (see section 13).                                                                            |
-| `Trigger`     | Required for `cinematic`; optional otherwise | enum                   | `manual`, `sleeping`, `waking`, `traveling`, `getting_ready_for_bed`, or a custom mod-prefixed flag. When omitted for `phone`, `texting`, or `hub_option`, defaults to `manual`. |
-| `Description` | No                                           | free-form string       | One-line scene summary for developer tooling. Not rendered at runtime.                                                                                                           |
-| `Conditions`  | No                                           | expression             | Ren'Py condition expression. Multiple clauses joined by `,` are compiled as `and`. Evaluated by TNH's `ConditionClass`.                                                          |
-| `Priority`    | No                                           | int                    | Event priority in TNH's scheduler. Default: 50.                                                                                                                                  |
-| `Repeatable`  | No                                           | bool                   | Whether the event can fire more than once. Default: `false`.                                                                                                                     |
-| `Tags`        | No                                           | comma-separated list   | Extra flag strings added to the event entry. Should be mod-prefixed.                                                                                                             |
-| `Location`    | No                                           | location slugline text | If set, implies a `set_the_scene()` call at scene start. Validated against the locations allowlist.                                                                              |
-| `Openness`    | Required for `phone` scenes                  | string                 | The openness tier the scene belongs to (used by the mod's phone dispatch).                                                                                                       |
-| `Stage`       | Optional for `phone` scenes                  | string                 | The pregnancy/progression stage key (used by the mod's phone dispatch).                                                                                                          |
-| `Format`      | No                                           | int                    | Overrides the project's default format version. Default: `1`.                                                                                                                    |
+| Key           | Required | Type             | Meaning                                          |
+| ------------- | -------- | ---------------- | ------------------------------------------------ |
+| `Title`       | Yes      | string           | Human-readable name (not used at runtime).       |
+| `Scene Id`    | Yes      | snake_case id    | Ren'Py label + `all_Events` key. [^id]           |
+| `Character`   | Yes      | PascalCase       | Owning character. Must match `characters.yaml`   |
+| `Scene Type`  | Yes      | enum             | `cinematic`/`phone`/`texting`/`hub_option` [^st] |
+| `Trigger`     | [^tr]    | enum             | Event trigger. [^trv]                            |
+| `Description` | No       | free-form string | One-line summary for tooling (not at runtime).   |
+| `Conditions`  | No       | expression       | Condition expr; `,`-joined = `and`. [^cond]      |
+| `Priority`    | No       | int              | Event priority. Default: 50.                     |
+| `Repeatable`  | No       | bool             | Can fire more than once. Default: `false`.       |
+| `Tags`        | No       | comma-sep list   | Extra flags on event entry. Mod-prefixed.        |
+| `Location`    | No       | slugline text    | Implies `set_the_scene()`. Validated.            |
+| `Openness`    | phone    | string           | Openness tier (for phone dispatch).              |
+| `Stage`       | phone?   | string           | Progression stage key (for phone dispatch).      |
+| `Format`      | No       | int              | Override format version. Default: `1`.           |
+
+[^id]: Must start with `{mod_prefix}`. Unique across all project scenes.
+[^st]: Drives compilation target (see section 13).
+[^tr]: Required for `cinematic`; optional otherwise.
+[^trv]: `manual`, `sleeping`, `waking`, `traveling`,
+`getting_ready_for_bed`, or custom mod-prefixed flag. Defaults to
+`manual` when omitted for non-cinematic types.
+[^cond]: Evaluated by TNH's `ConditionClass`.
 
 Any key not listed above is a compile error.
 
@@ -291,7 +299,9 @@ JEANGREY (face=smirk, arms=hips)
 positional:
 
 ```
-JEANGREY (happy, face=worried1, look=at_player)    -> mood=happy (positional), face=worried1 (named), look=at_player (named)
+JEANGREY (happy, face=worried1, look=at_player)
+  -> mood=happy (positional), face=worried1 (named),
+     look=at_player (named)
 ```
 
 ### 6.3 Skipping a positional slot
@@ -486,27 +496,27 @@ effects:
     - '"right"'
 ```
 
-| Field           | Required | Meaning                                                                                                                       |
-| --------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `name`          | Yes      | Effect function/label name as written in `[[fx]]`.                                                                            |
-| `signature`     | Yes      | Full Python signature string (used by the GUI and cheatsheet).                                                                |
-| `call_mode`     | No       | `"label"` if the effect is a Ren'Py label; absent for plain Python functions. Drives whether the codegen emits `call` or `$`. |
-| `param_choices` | No       | Dict mapping parameter names to lists of valid string values. Used by the GUI for autocompletion.                             |
-| `source_file`   | No       | Provenance (for allowlist refresh tooling).                                                                                   |
-| `source_line`   | No       | Provenance (for allowlist refresh tooling).                                                                                   |
+| Field           | Required | Meaning                                              |
+| --------------- | -------- | ---------------------------------------------------- |
+| `name`          | Yes      | Function/label name as written in `[[fx]]`.          |
+| `signature`     | Yes      | Full Python signature (for GUI and cheatsheet).      |
+| `call_mode`     | No       | `"label"` = Ren'Py label → `call`; absent → `$`.     |
+| `param_choices` | No       | Param name → valid values list (GUI autocompletion). |
+| `source_file`   | No       | Provenance (for allowlist refresh).                  |
+| `source_line`   | No       | Provenance (for allowlist refresh).                  |
 
 #### Directive disambiguation
 
-| Directive                          | Use for                                                           | Validated against                         |
-| ---------------------------------- | ----------------------------------------------------------------- | ----------------------------------------- |
-| `[[sfx name]]`                     | A `.ogg` sound file                                               | `sfx.yaml`                                |
-| `[[fx name(...)]]`                 | A Python effect function (phone buzz visual, knock overlay, etc.) | `fx.yaml`                                 |
-| `[[run call]]`                     | Persistent state mutation (generic fallback)                      | `run_operations.yaml`                     |
-| `[[approval Char axis +/-N]]`      | Move TNH's love/trust                                             | hardcoded enums + `characters.yaml`       |
-| `[[give_trait Char trait]]`        | Grant a character trait                                           | `characters.yaml` + `traits.yaml`         |
-| `[[remove_trait Char trait]]`      | Revoke a character trait                                          | `characters.yaml` + `traits.yaml`         |
-| `[[record Char event]]`            | Record a history event                                            | `characters.yaml` + `history_events.yaml` |
-| `[[set_personality Char trait N]]` | Set a personality score                                           | `characters.yaml` + `personalities.yaml`  |
+| Directive                          | Use for                   | Validated against             |
+| ---------------------------------- | ------------------------- | ----------------------------- |
+| `[[sfx name]]`                     | A `.ogg` sound file       | `sfx.yaml`                    |
+| `[[fx name(...)]]`                 | Visual effect function    | `fx.yaml`                     |
+| `[[run call]]`                     | Persistent state mutation | `run_operations.yaml`         |
+| `[[approval Char axis +/-N]]`      | Move love/trust           | enums + `characters.yaml`     |
+| `[[give_trait Char trait]]`        | Grant a trait             | `characters` + `traits.yaml`  |
+| `[[remove_trait Char trait]]`      | Revoke a trait            | `characters` + `traits.yaml`  |
+| `[[record Char event]]`            | Record history event      | `characters` + `history.yaml` |
+| `[[set_personality Char trait N]]` | Set personality score     | `characters` + `person.yaml`  |
 
 Rule of thumb: if the target is a sound file, use `[[sfx]]`. If it is
 a Python function that draws or animates something for a beat and
@@ -795,22 +805,22 @@ Extending it requires a format version bump.
 
 ### 9.1 Allowed constructs
 
-| Construct           | Example                                                  | Notes                                                                                                             |
-| ------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Boolean operators   | `a and b`, `a or b`, `not a`                             | Short-circuit semantics.                                                                                          |
-| Comparisons         | `x == y`, `x != y`, `x < y`, `x <= y`, `x > y`, `x >= y` |                                                                                                                   |
-| Chained comparisons | `0 < x < 100`                                            | Same semantics as Python.                                                                                         |
-| Membership          | `"x" in collection`, `x not in collection`               |                                                                                                                   |
-| Integer literals    | `0`, `42`, `-17`                                         |                                                                                                                   |
-| Float literals      | `0.5`, `-1.25`                                           |                                                                                                                   |
-| String literals     | `"text"`, `'text'`                                       | Double or single quotes.                                                                                          |
-| Boolean literals    | `True`, `False`                                          | Capitalised.                                                                                                      |
-| Null literal        | `None`                                                   |                                                                                                                   |
-| Parentheses         | `(a or b) and c`                                         | For grouping only.                                                                                                |
-| Attribute access    | `JeanGrey.love`, `player.petname`                        | Root must resolve (see 9.2).                                                                                      |
-| Nested attribute    | `JeanGrey.wardrobe.current`                              | Each hop is a plain attribute, no subscript.                                                                      |
-| Bare identifier     | `asked_nicely`                                           | Resolved as a scene-local state key.                                                                              |
-| Function call       | `my_mod_check(JeanGrey, "love")`                         | Only if the function name is in `condition_functions.yaml`. All arguments must themselves be allowed expressions. |
+| Construct           | Example                           | Notes                                  |
+| ------------------- | --------------------------------- | -------------------------------------- |
+| Boolean operators   | `a and b`, `a or b`, `not a`      | Short-circuit semantics.               |
+| Comparisons         | `x == y`, `x != y`, `x >= y`      | -------------------------------------- |
+| Chained comparisons | `0 < x < 100`                     | Same semantics as Python.              |
+| Membership          | `"x" in collection`               | -------------------------------------- |
+| Integer literals    | `0`, `42`, `-17`                  | -------------------------------------- |
+| Float literals      | `0.5`, `-1.25`                    | -------------------------------------- |
+| String literals     | `"text"`, `'text'`                | Double or single quotes.               |
+| Boolean literals    | `True`, `False`                   | Capitalised.                           |
+| Null literal        | `None`                            | -------------------------------------- |
+| Parentheses         | `(a or b) and c`                  | For grouping only.                     |
+| Attribute access    | `JeanGrey.love`, `player.petname` | Root must resolve (see 9.2).           |
+| Nested attribute    | `JeanGrey.wardrobe.current`       | Plain attribute per hop, no subscript. |
+| Bare identifier     | `asked_nicely`                    | Resolved as scene-local state key.     |
+| Function call       | `my_mod_check(JeanGrey, "love")`  | Must be in `condition_functions.yaml`. |
 
 ### 9.2 Allowed identifier roots
 
@@ -829,19 +839,19 @@ suggestion.
 
 ### 9.3 Forbidden constructs
 
-| Construct                     | Example                   | Error message                                                                         |
-| ----------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
-| Arithmetic                    | `a + 1`, `x * 2`, `x - y` | Arithmetic is not allowed in `[[if]]`. Precompute in a helper or split the condition. |
-| Subscript/indexing            | `x[0]`, `d["key"]`        | Indexing is not allowed. Use an attribute access or register a helper function.       |
-| Slicing                       | `x[1:3]`                  | Indexing is not allowed.                                                              |
-| f-strings                     | `f"{x}"`                  | f-strings are not allowed.                                                            |
-| Lambdas                       | `lambda x: x`             | Lambdas are not allowed.                                                              |
-| Comprehensions                | `[x for x in y]`          | Comprehensions are not allowed.                                                       |
-| Ternary                       | `a if b else c`           | Ternary expressions are not allowed. Use `[[if]]` / `[[else]]` in the scene body.     |
-| Walrus                        | `(x := 1)`                | Walrus assignment is not allowed.                                                     |
-| Bitwise                       | `a & b`, `a \| b`, `~a`   | Bitwise operators are not allowed.                                                    |
-| Unary minus on identifier     | `-JeanGrey.love`          | Unary minus is allowed only on numeric literals.                                      |
-| Non-allowlisted function call | `eval("...")`             | Function 'eval' is not allowlisted for conditions.                                    |
+| Construct                 | Example          | Error message                            |
+| ------------------------- | ---------------- | ---------------------------------------- |
+| Arithmetic                | `a + 1`, `x * 2` | Not allowed. Use a helper or split.      |
+| Subscript/indexing        | `x[0]`, `d["k"]` | Not allowed. Use attribute or helper.    |
+| Slicing                   | `x[1:3]`         | Not allowed.                             |
+| f-strings                 | `f"{x}"`         | Not allowed.                             |
+| Lambdas                   | `lambda x: x`    | Not allowed.                             |
+| Comprehensions            | `[x for x in y]` | Not allowed.                             |
+| Ternary                   | `a if b else c`  | Not allowed. Use `[[if]]`/`[[else]]`.    |
+| Walrus                    | `(x := 1)`       | Not allowed.                             |
+| Bitwise                   | `a & b`, `~a`    | Not allowed.                             |
+| Unary minus on identifier | `-JeanGrey.love` | Only allowed on numeric literals.        |
+| Non-allowlisted fn call   | `eval("...")`    | Function not allowlisted for conditions. |
 
 ### 9.4 Rationale
 
@@ -984,26 +994,26 @@ controls whether the base layer is included at all.
 
 ### 12.1 Allowlist files
 
-| #   | File(s)                                            | Validates                                                                               | Layer                    |
-| --- | -------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------ |
-| 1   | `characters.yaml`                                  | SPEAKER tokens, `[[show]]`/`[[hide]]` names, expression roots, `[[approval]]` character | auto-generated or manual |
-| 2   | `moods/_shared.yaml`, `moods/<Char>.yaml`          | Parenthetical `mood` slot values                                                        | auto-generated           |
-| 3   | `faces/<Char>.yaml`                                | Parenthetical `face` slot values                                                        | auto-generated           |
-| 4   | `arms/<Char>.yaml`                                 | Parenthetical `arms`, `left_arm`, `right_arm` slot values                               | auto-generated           |
-| 5   | `outfits/<Char>.yaml`                              | Parenthetical `outfit` slot values                                                      | auto-generated           |
-| 6   | `poses/<Char>.yaml`                                | Parenthetical `pose` slot values                                                        | auto-generated           |
-| 7   | `looks.yaml`                                       | Parenthetical `look` slot values (global, same for all characters)                      | auto-generated           |
-| 8   | `stages.yaml`                                      | Parenthetical `stage` slot values (global)                                              | auto-generated           |
-| 9   | `locations.yaml` + `locations_overrides.yaml`      | Slugline text -> location ID mapping                                                    | auto + manual overrides  |
-| 10  | `sfx.yaml`                                         | Names valid in `[[sfx]]`                                                                | auto-generated           |
-| 11  | `interpolation.yaml` + `interpolation_custom.yaml` | Paths valid inside `[...]` interpolation                                                | auto + manual custom     |
-| 12  | `run_operations.yaml`                              | Operations callable from `[[run]]`                                                      | manual                   |
-| 13  | `fx.yaml`                                          | Functions callable from `[[fx]]`                                                        | manual                   |
-| 14  | `condition_functions.yaml`                         | Functions callable from `[[if]]`/`[[elif]]`/option conditions                           | manual                   |
-| 15  | `traits.yaml`                                      | Trait names valid in `[[give_trait]]` / `[[remove_trait]]`                              | auto-generated           |
-| 16  | `history_events.yaml`                              | Event names valid in `[[record]]`                                                       | auto-generated           |
-| 17  | `personalities.yaml`                               | Personality trait names valid in `[[set_personality]]`                                  | auto-generated           |
-| 18  | `_meta.yaml`                                       | Generation metadata (tool version, stats) -- not used for validation                    | auto-generated           |
+| #  | File(s)                             | Validates                       | Layer       |
+| -- | ----------------------------------- | ------------------------------- | ----------- |
+| 1  | `characters.yaml`                   | Speakers, show/hide, approval   | auto/manual |
+| 2  | `moods/_shared.yaml`, `moods/<C>.y` | `mood` slot values              | auto        |
+| 3  | `faces/<Char>.yaml`                 | `face` slot values              | auto        |
+| 4  | `arms/<Char>.yaml`                  | `arms`/`left_arm`/`right_arm`   | auto        |
+| 5  | `outfits/<Char>.yaml`               | `outfit` slot values            | auto        |
+| 6  | `poses/<Char>.yaml`                 | `pose` slot values              | auto        |
+| 7  | `looks.yaml`                        | `look` slot values (global)     | auto        |
+| 8  | `stages.yaml`                       | `stage` slot values (global)    | auto        |
+| 9  | `locations.yaml` + `*_overrides`    | Slugline → location ID          | auto+manual |
+| 10 | `sfx.yaml`                          | `[[sfx]]` names                 | auto        |
+| 11 | `interpolation.yaml` + `*_custom`   | `[...]` interpolation paths     | auto+manual |
+| 12 | `run_operations.yaml`               | `[[run]]` operations            | manual      |
+| 13 | `fx.yaml`                           | `[[fx]]` functions              | manual      |
+| 14 | `condition_functions.yaml`          | `[[if]]`/`[[elif]]` functions   | manual      |
+| 15 | `traits.yaml`                       | `[[give_trait]]`/`[[remove_t]]` | auto        |
+| 16 | `history_events.yaml`               | `[[record]]` event names        | auto        |
+| 17 | `personalities.yaml`                | `[[set_personality]]` traits    | auto        |
+| 18 | `_meta.yaml`                        | Metadata only (not validated)   | auto        |
 
 ### 12.2 Regenerating allowlists
 
@@ -1060,12 +1070,23 @@ to writers.
 
 ## 13. Scene types and compilation targets
 
-| Scene Type   | Compiles to                                                     | Event registration                           | Trigger required          | Key behaviours                                                                                                                                        |
-| ------------ | --------------------------------------------------------------- | -------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cinematic`  | `label <scene_id>:` + `all_Events[<scene_id>]` in `_events.rpy` | Yes, with Trigger/Conditions from title page | **Yes**                   | Body wrapped with `$ ongoing_Event = True` / `$ ongoing_Event = False`. End-of-scene `set_the_scene(show_Characters = False, silent = True)` cleanup. |
-| `phone`      | `label <scene_id>:`                                             | No event entry                               | No (defaults to `manual`) | Called by mod phone dispatch code. Title page requires `Openness` key.                                                                                |
-| `texting`    | `label <scene_id>:`                                             | No event entry                               | No (defaults to `manual`) | Every dialogue line forced to `text` medium; non-text directives work normally.                                                                       |
-| `hub_option` | `label <scene_id>:`                                             | No event entry                               | No (defaults to `manual`) | Called by a hub `.rpy` file. Minimal wrapping.                                                                                                        |
+| Scene Type   | Compiles to           | Event reg | Trigger     |
+| ------------ | --------------------- | --------- | ----------- |
+| `cinematic`  | label + `_events.rpy` | Yes       | **Yes**     |
+| `phone`      | `label <scene_id>:`   | No        | No (manual) |
+| `texting`    | `label <scene_id>:`   | No        | No (manual) |
+| `hub_option` | `label <scene_id>:`   | No        | No (manual) |
+
+**Key behaviours per type:**
+
+- **`cinematic`**: Body wrapped with `$ ongoing_Event = True` /
+  `False`. End-of-scene cleanup via
+  `set_the_scene(show_Characters = False, silent = True)`. Event
+  registered with Trigger/Conditions from title page.
+- **`phone`**: Called by mod phone dispatch. Requires `Openness` key.
+- **`texting`**: All dialogue forced to `text` medium; other
+  directives work normally.
+- **`hub_option`**: Called by a hub `.rpy` file. Minimal wrapping.
 
 ### 13.1 Cinematic scene structure
 
@@ -1271,25 +1292,25 @@ Required properties:
 
 ### 16.1 Error catalogue
 
-| Class                          | Example trigger                     | Error message pattern                                    |
-| ------------------------------ | ----------------------------------- | -------------------------------------------------------- |
-| Missing title-page field       | No `Scene Id`                       | Title page is missing required field 'Scene Id'.         |
-| Unknown character              | `ZORRO (happy)`                     | 'ZORRO' is not a known character.                        |
-| Unknown slot value             | `JEANGREY (worried1)` as mood       | Cross-lookup suggestion (section 6.6).                   |
-| Unknown slot key               | `JEANGREY (???=x)`                  | Unknown attribute '???'. Valid: mood, face, arms, ...    |
-| Named after positional         | `(face=a, happy)`                   | Positional values must come before named ones.           |
-| Slot filled twice              | `(happy, mood=sad)`                 | Slot 'mood' is already set to 'happy'.                   |
-| Unknown slugline               | `INT. THE MOON`                     | Location 'THE MOON' is not registered. Did you mean ...? |
-| Unknown SFX                    | `[[sfx nope]]`                      | SFX 'nope' is not registered. Did you mean ...?          |
-| Unknown FX                     | `[[fx nope()]]`                     | FX 'nope' is not registered. Did you mean ...?           |
-| FX keyword arg                 | `[[fx phone_buzz(intensity=0.25)]]` | Keyword arguments are not allowed in `[[fx]]` calls.     |
-| Unknown interpolation          | `[player.foo]`                      | 'player.foo' is not a known interpolation path.          |
-| Unresolved goto                | `[[goto nowhere]]`                  | Label 'nowhere' is not defined in this scene.            |
-| Duplicate label                | Two `[[label x]]`                   | Label 'x' is defined twice (line N and M).               |
-| Arbitrary expression in set    | `[[set x = foo(1)]]`                | Function calls are not allowed in `[[set]]`.             |
-| Mutually exclusive medium      | `(text, face=smirk)`                | Medium 'text' cannot be combined with visual attributes. |
-| Forbidden expression construct | `[[if x + 1 > 0]]`                  | Arithmetic is not allowed in `[[if]]` expressions.       |
-| Non-allowlisted function       | `[[if eval("...")]]`                | Function 'eval' is not allowlisted for conditions.       |
+| Class                    | Example              | Error pattern                       |
+| ------------------------ | -------------------- | ----------------------------------- |
+| Missing title-page field | No `Scene Id`        | Missing required field 'Scene Id'.  |
+| Unknown character        | `ZORRO (happy)`      | Not a known character.              |
+| Unknown slot value       | `(worried1)` as mood | Cross-lookup suggestion (§6.6).     |
+| Unknown slot key         | `(???=x)`            | Unknown attribute. Valid: mood, ... |
+| Named after positional   | `(face=a, happy)`    | Positional must come before named.  |
+| Slot filled twice        | `(happy, mood=sad)`  | Slot 'mood' already set to 'happy'. |
+| Unknown slugline         | `INT. THE MOON`      | Not registered. Did you mean ...?   |
+| Unknown SFX              | `[[sfx nope]]`       | Not registered. Did you mean ...?   |
+| Unknown FX               | `[[fx nope()]]`      | Not registered. Did you mean ...?   |
+| FX keyword arg           | `[[fx f(k=0.25)]]`   | Keywords not allowed in `[[fx]]`.   |
+| Unknown interpolation    | `[player.foo]`       | Not a known interpolation path.     |
+| Unresolved goto          | `[[goto nowhere]]`   | Label not defined in this scene.    |
+| Duplicate label          | Two `[[label x]]`    | Defined twice (line N and M).       |
+| Arbitrary expr in set    | `[[set x = foo(1)]]` | Function calls not allowed in set.  |
+| Exclusive medium         | `(text, face=smirk)` | Cannot combine text with visuals.   |
+| Forbidden expression     | `[[if x + 1 > 0]]`   | Arithmetic not allowed in `[[if]]`. |
+| Non-allowlisted fn       | `[[if eval("...")]]` | Not allowlisted for conditions.     |
 
 ---
 
@@ -1368,15 +1389,18 @@ include_base_allowlists: true
 #   mod_root: .
 ```
 
-| Key                       | Required | Default                      | Description                                                                                                                |
-| ------------------------- | -------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `mod_prefix`              | Yes      | --                           | The mod's unique prefix. Must match `[a-z][a-z0-9_]*`. Used in label names, runtime module names, and metadata dict names. |
-| `scenes_source`           | No       | `scenes_source/`             | Root directory for `.scene` files.                                                                                         |
-| `mod_allowlists`          | No       | `scenes_source/_allowlists/` | Directory for mod-specific allowlist YAML files.                                                                           |
-| `output`                  | No       | `game/{mod_prefix}/scenes/`  | Output directory for compiled `.rpy` files.                                                                                |
-| `include_base_allowlists` | No       | `true`                       | Whether to layer the base TNH allowlists (shipped with the tool) under the mod allowlists.                                 |
-| `refresh.base_game`       | No       | `../TheNullHypothesis/`      | Path to the extracted TNH base game (used by `tnh_refresh_allowlists`).                                                    |
-| `refresh.mod_root`        | No       | `.`                          | Path to the mod root (used by `tnh_refresh_allowlists`).                                                                   |
+| Key                       | Required | Default                 | Description                              |
+| ------------------------- | -------- | ----------------------- | ---------------------------------------- |
+| `mod_prefix`              | Yes      | ----------------------- | Unique prefix (`[a-z][a-z0-9_]*`). [^mp] |
+| `scenes_source`           | No       | `scenes_source/`        | Root dir for `.scene` files.             |
+| `mod_allowlists`          | No       | `scenes_source/_al../`  | Dir for mod-specific allowlist YAMLs.    |
+| `output`                  | No       | `game/{prefix}/scenes/` | Output dir for compiled `.rpy` files.    |
+| `include_base_allowlists` | No       | `true`                  | Layer base TNH allowlists under mod's.   |
+| `refresh.base_game`       | No       | `../TheNullHypoth../`   | TNH base game path (for refresh tool).   |
+| `refresh.mod_root`        | No       | `.`                     | Mod root path (for refresh tool).        |
+
+[^mp]: Used in label names, runtime module names, and metadata dict
+names.
 
 ---
 

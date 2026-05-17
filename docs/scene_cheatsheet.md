@@ -198,7 +198,8 @@ Combine with `and`, `or`, `not`:
 [[fx smack()]]
 ```
 
-> In cinematic scenes, the compiler automatically uses the cinematic layer variant. Write `[[fx bamf()]]` — the compiler handles the rest.
+> In cinematic scenes, the compiler auto-selects the cinematic
+> variant. Write `[[fx bamf()]]` — the compiler handles the rest.
 
 ### Sound effects
 
