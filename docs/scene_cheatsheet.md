@@ -224,8 +224,7 @@ An optional duration (in seconds) can follow the sound name: `[[sfx name]]` or `
 [[approval JeanGrey trust -medium_stat]]
 ```
 
-Tiers: `tiny_stat` (+2), `small_stat` (+5), `medium_stat` (+10),
-`large_stat` (+20), `massive_stat` (+40). Sign is mandatory.
+Tiers: `tiny_stat` (+2), `small_stat` (+5), `medium_stat` (+10), `large_stat` (+20), `massive_stat` (+40). Sign is mandatory.
 
 ### Show / Hide characters
 

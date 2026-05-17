@@ -38,8 +38,7 @@ git submodule update --remote Tools/tnh-scene-compiler
 
 ## Option B: Standalone clone
 
-Clone the tool anywhere and point `PYTHONPATH` at it. No install step
-needed beyond PyYAML.
+Clone the tool anywhere and point `PYTHONPATH` at it. No install step needed beyond PyYAML.
 
 ## Initial setup
 
@@ -82,8 +81,7 @@ include_base_allowlists: true
 
 ### 3. Move the runtime stubs
 
-Move the three `.rpy` stubs into your mod's `game/` directory so Ren'Py
-loads them at boot:
+Move the three `.rpy` stubs into your mod's `game/` directory so Ren'Py loads them at boot:
 
 ```
 MyMod/game/my_mod/my_mod_runtime.rpy      ← runtime_stub.rpy
@@ -91,8 +89,7 @@ MyMod/game/my_mod/my_mod_metadata.rpy     ← metadata_init.rpy
 MyMod/game/my_mod/my_mod_testing_eval.rpy ← testing_eval.rpy
 ```
 
-Rename them to match your mod prefix. These files are generated once
-and committed to your repo — the compiler does not regenerate them.
+Rename them to match your mod prefix. These files are generated once and committed to your repo — the compiler does not regenerate them.
 
 ### 4. Create your scenes directory
 
@@ -109,33 +106,33 @@ scenes_source/
 
 ### How allowlists work
 
-The compiler validates every identifier in your `.scene` files (character
-names, moods, faces, locations, SFX, interpolation paths, etc.) against
-YAML allowlists. Unknown values produce a compile error with a "did you
-mean?" suggestion.
+The compiler validates every identifier in your `.scene` files (character names, moods, faces, locations, SFX, interpolation paths, etc.)
+against YAML allowlists. Unknown values produce a compile error with a "did you mean?" suggestion.
 
 ### Two-layer architecture
 
-1. **Base layer** — vanilla TNH data, ships in `allowlists_base/` inside
-   the tool. Covers all 31 base-game characters, locations, moods, faces,
-   arms, poses, outfits, SFX, looks, stages, and interpolation paths.
+1. **Base layer** — vanilla TNH data, ships in `allowlists_base/`
+   inside the tool. Covers all 31 base-game characters, locations,
+   moods, faces, arms, poses, outfits, SFX, looks, stages, and
+   interpolation paths.
 
-2. **Mod layer** — your mod's additions, under `mod_allowlists` (configured
-   in `tnh_scene_compiler.yaml`). Only provide files for what your mod
-   adds. Missing files are fine — the base layer covers vanilla TNH.
+2. **Mod layer** — your mod's additions, under `mod_allowlists`
+   (configured in `tnh_scene_compiler.yaml`). Only provide files for
+   what your mod adds. Missing files are fine — the base layer covers
+   vanilla TNH.
 
-Layers merge automatically: mod entries extend the base (sets are unioned,
-location overrides win on collision).
+Layers merge automatically: mod entries extend the base (sets are unioned, location overrides win on collision).
 
 **Notes on base allowlists:**
 
-- Arm allowlists only include standing poses (arms that are valid when the
-  character is in a standing position). Other pose-specific arm variants
-  are excluded because the compiler targets standing dialogue scenes.
-- The FX extractor auto-discovers visual effects by scanning for functions
-  with known effect signatures in the base game source. You do not need to
-  manually enumerate effects — the refresh process picks them up
-  automatically.
+- Arm allowlists only include standing poses (arms that are valid
+  when the character is in a standing position). Other pose-specific
+  arm variants are excluded because the compiler targets standing
+  dialogue scenes.
+- The FX extractor auto-discovers visual effects by scanning for
+  functions with known effect signatures in the base game source. You
+  do not need to manually enumerate effects — the refresh process
+  picks them up automatically.
 
 ### What goes in the mod layer
 
@@ -153,9 +150,8 @@ location overrides win on collision).
 | `interpolation_custom.yaml` | Your mod adds custom `[path]` interpolation targets                                    |
 | `locations_overrides.yaml`  | Your mod adds short-form sluglines for locations                                       |
 
-Every file you add in your project's `_allowlists/` directory is
-**merged with the base game layer** at compile time. You only need to
-list your additions — the base game values are included automatically.
+Every file you add in your project's `_allowlists/` directory is **merged with the base game layer** at compile time. You only need to list
+your additions — the base game values are included automatically.
 
 ### Example: adding a custom character
 
@@ -185,13 +181,11 @@ operations:
       Valid values: "accept", "refuse".
 ```
 
-Writers can now use `[[run my_mod_record_choice("accept")]]` in their
-scenes.
+Writers can now use `[[run my_mod_record_choice("accept")]]` in their scenes.
 
 ### Example: adding custom traits
 
-If your mod introduces traits that don't exist in the base game, create
-`scenes_source/_allowlists/traits.yaml`:
+If your mod introduces traits that don't exist in the base game, create `scenes_source/_allowlists/traits.yaml`:
 
 ```yaml
 source: MyMod
@@ -222,13 +216,11 @@ values:
   - name: told_partner
 ```
 
-These values are merged with the base game allowlists. They appear
-in the editor dropdowns and are accepted by the validator.
+These values are merged with the base game allowlists. They appear in the editor dropdowns and are accepted by the validator.
 
 ### Refreshing allowlists from the base game
 
-If TNH updates and you need fresh vanilla allowlists, configure the
-`refresh` section in your config:
+If TNH updates and you need fresh vanilla allowlists, configure the `refresh` section in your config:
 
 ```yaml
 refresh:
@@ -255,9 +247,8 @@ This scans the base game `.rpy` files and regenerates the YAML allowlists.
 python -m tnh_scene_compiler compile --verbose
 ```
 
-Compiles every `.scene` under `scenes_source/` and writes `.rpy` files to
-your configured output directory. Also generates `_events.rpy` with the
-consolidated event registry.
+Compiles every `.scene` under `scenes_source/` and writes `.rpy` files to your configured output directory. Also generates `_events.rpy`
+with the consolidated event registry.
 
 ### Specific files only
 
@@ -271,18 +262,15 @@ python -m tnh_scene_compiler compile scenes_source/JeanGrey/my_scene.scene
 python -m tnh_scene_compiler validate --verbose
 ```
 
-Parses and validates every scene but writes nothing. Useful for CI or
-pre-commit checks.
+Parses and validates every scene but writes nothing. Useful for CI or pre-commit checks.
 
 ### Drag-and-drop (Windows)
 
-Drop `.scene` files onto `Tools/tnh-scene-compiler/scripts/compile.bat`.
-The console window shows colored output and pauses at the end.
+Drop `.scene` files onto `Tools/tnh-scene-compiler/scripts/compile.bat`. The console window shows colored output and pauses at the end.
 
 ## Generating a cheatsheet for writers
 
-The cheatsheet lists every valid character, mood, face, location, etc. —
-a reference writers keep open while authoring scenes.
+The cheatsheet lists every valid character, mood, face, location, etc. — a reference writers keep open while authoring scenes.
 
 ```bash
 python -m tnh_generate_cheatsheet \
@@ -361,32 +349,25 @@ my-tnh-mod/
 
 ## Troubleshooting
 
-**"No tnh_scene_compiler.yaml found"** — the compiler could not locate
-the config file. Either `cd` to your mod repo root or pass
+**"No tnh_scene_compiler.yaml found"** — the compiler could not locate the config file. Either `cd` to your mod repo root or pass
 `--config path/to/tnh_scene_compiler.yaml`.
 
-**"No allowlists directories found"** — neither the base allowlists
-(shipped with the tool) nor your mod allowlists directory exist. Check
-that `include_base_allowlists: true` is set and that the tool's
-`allowlists_base/` directory is present.
+**"No allowlists directories found"** — neither the base allowlists (shipped with the tool) nor your mod allowlists directory exist. Check
+that `include_base_allowlists: true` is set and that the tool's `allowlists_base/` directory is present.
 
-**Unknown character/mood/face errors** — the value is not in any
-allowlist. Either add it to your mod's allowlist extension or check the
+**Unknown character/mood/face errors** — the value is not in any allowlist. Either add it to your mod's allowlist extension or check the
 cheatsheet for valid values.
 
-**Import errors when running** — make sure `PYTHONPATH` includes the
-tool's root directory (where `tnh_scene_compiler/` lives).
+**Import errors when running** — make sure `PYTHONPATH` includes the tool's root directory (where `tnh_scene_compiler/` lives).
 
 ## Thumbnails
 
-Thumbnails provide visual previews of character faces and arms in the GUI
-editor. They are **not** bundled inside the executable — they ship as a
-separate `thumbnails.zip` archive alongside the release.
+Thumbnails provide visual previews of character faces and arms in the GUI editor. They are **not** bundled inside the executable — they
+ship as a separate `thumbnails.zip` archive alongside the release.
 
 ### Installing thumbnails
 
-Extract `thumbnails.zip` so that the `thumbnails/` folder sits next to the
-executable:
+Extract `thumbnails.zip` so that the `thumbnails/` folder sits next to the executable:
 
 ```
 TNHSceneCompiler-v1.2.0/
@@ -399,29 +380,25 @@ TNHSceneCompiler-v1.2.0/
 └── docs/
 ```
 
-The editor detects the `thumbnails/` directory at startup and enables
-visual previews automatically. Without it, the editor still works — you
-just won't see face/arm previews.
+The editor detects the `thumbnails/` directory at startup and enables visual previews automatically. Without it, the editor still works —
+you just won't see face/arm previews.
 
 ### Regenerating thumbnails from source
 
-If you have access to the visual reference assets, you can regenerate
-thumbnails locally:
+If you have access to the visual reference assets, you can regenerate thumbnails locally:
 
 ```bash
 python scripts/import_thumbnails.py
 ```
 
-By default the script reads from the `external/TNH-VisualReference`
-submodule. Pass an explicit path to override:
+By default the script reads from the `external/TNH-VisualReference` submodule. Pass an explicit path to override:
 
 ```bash
 python scripts/import_thumbnails.py path/to/TNH-VisualReference
 ```
 
-The import script also generates FX effect thumbnails from
-`effects/_fx_mapping.yaml`, so visual effect previews stay in sync with
-the allowlists.
+The import script also generates FX effect thumbnails from `effects/_fx_mapping.yaml`, so visual effect previews stay in sync with the
+allowlists.
 
 ## Building a release
 
@@ -439,6 +416,5 @@ This performs the following steps:
 4. Packages `thumbnails.zip` as a separate archive
 5. Copies `docs/` into the release folder
 
-Output goes to `dist/TNHSceneCompiler-<version>/`, where `<version>` is
-read from the project metadata. The resulting folder is self-contained and
-ready to distribute.
+Output goes to `dist/TNHSceneCompiler-<version>/`, where `<version>` is read from the project metadata. The resulting folder is
+self-contained and ready to distribute.
