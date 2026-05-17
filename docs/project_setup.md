@@ -75,7 +75,7 @@ against YAML allowlists. Unknown values produce a compile error with a "did you 
 ### Two-layer architecture
 
 1. **Base layer** — vanilla TNH data, ships in `allowlists_base/`
-   inside the tool. Covers all 31 base-game characters, locations,
+   inside the tool. Covers all base-game characters (including NPCs), locations,
    moods, faces, arms, poses, outfits, SFX, looks, stages, and
    interpolation paths.
 
@@ -101,17 +101,17 @@ Layers merge automatically: mod entries extend the base (sets are unioned, locat
 
 | File                        | When to add it                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------------- |
-| `characters.yaml`           | Your mod adds a new character (e.g. an OC)                                             |
-| `moods/<Char>.yaml`         | Your mod adds custom moods for a character                                             |
-| `faces/<Char>.yaml`         | Your mod adds custom face expressions                                                  |
-| `traits.yaml`               | Your mod introduces custom traits (for `[[give_trait]]` / `[[if Character.has(...)]]`) |
-| `personalities.yaml`        | Your mod introduces custom personality axes (for `[[set_personality]]`)                |
-| `history_events.yaml`       | Your mod introduces custom events (for `[[record]]` / `[[if Character.did(...)]]`)     |
-| `condition_functions.yaml`  | Your mod defines `[[if]]`-callable helpers                                             |
-| `run_operations.yaml`       | Your mod defines `[[run]]`-callable helpers                                            |
-| `fx.yaml`                   | Your mod adds `[[fx]]`-callable visual effects                                         |
-| `interpolation_custom.yaml` | Your mod adds custom `[path]` interpolation targets                                    |
-| `locations_overrides.yaml`  | Your mod adds short-form sluglines for locations                                       |
+| `characters.yaml`           | Your project adds custom characters (e.g. an OC)                                      |
+| `moods/<Char>.yaml`         | Your project adds custom moods for a character                                         |
+| `faces/<Char>.yaml`         | Your project adds custom face expressions                                              |
+| `traits.yaml`               | Your project adds custom traits (for `[[give_trait]]` / `[[if Character.has(...)]]`)   |
+| `personalities.yaml`        | Your project adds custom personality axes (for `[[set_personality]]`)                  |
+| `history_events.yaml`       | Your project adds custom events (for `[[record]]` / `[[if Character.did(...)]]`)       |
+| `condition_functions.yaml`  | Your project defines custom `[[if]]`-callable helper functions                         |
+| `run_operations.yaml`       | Your project defines custom `[[run]]`-callable helper functions                        |
+| `fx.yaml`                   | Your project adds custom `[[fx]]` visual effects                                       |
+| `interpolation_custom.yaml` | Your project adds custom `[path]` interpolation targets                                |
+| `locations_overrides.yaml`  | Your project needs custom short-form sluglines for locations                            |
 
 Every file you add in your project's `_allowlists/` directory is **merged with the base game layer** at compile time. You only need to list
 your additions — the base game values are included automatically.
@@ -129,7 +129,7 @@ values:
     source_line: 42
 ```
 
-The compiler merges this with the 31 vanilla characters from the base layer.
+The compiler merges this with the base-game characters from the base layer.
 
 ### Example: adding a run operation
 
