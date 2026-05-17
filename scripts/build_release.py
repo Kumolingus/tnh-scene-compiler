@@ -68,11 +68,15 @@ def main() -> int:
     if exe_src.is_file():
         shutil.move(str(exe_src), str(release_dir / exe_name))
 
-    # --- Copy docs ---
+    # --- Copy docs (exclude dev-only files) ---
+    _DEV_ONLY_DOCS = {"dev_guide.md"}
     docs_src = REPO_ROOT / "docs"
     if docs_src.is_dir():
         docs_dst = release_dir / "docs"
-        shutil.copytree(str(docs_src), str(docs_dst))
+        shutil.copytree(
+            str(docs_src), str(docs_dst),
+            ignore=shutil.ignore_patterns(*_DEV_ONLY_DOCS),
+        )
         print(f"Copied docs/ ({len(list(docs_dst.iterdir()))} files)")
 
     # --- Package thumbnails ---

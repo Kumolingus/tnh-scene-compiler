@@ -2,17 +2,14 @@
 
 ## 1. Get the app
 
-Download `TNHSceneCompiler.exe` from the
-[Releases](https://github.com/Kumolingus/tnh-scene-compiler/releases) page.
-Double-click to launch. No installation needed.
+Download `TNHSceneCompiler.exe` from the release page / discord forum. Double-click to launch. No installation needed.
 
-For character thumbnails in the palette, also download `thumbnails.zip` from
-the same release and extract it next to the exe.
+For character thumbnails in the palette, also download `thumbnails.zip` from the same release and extract it as a thumbnails folder
+next to the exe.
 
 ## 2. Create a new scene
 
-Click **New scene** on the welcome screen. The editor opens with a
-template:
+Click **New scene** on the welcome screen. The editor opens with a template:
 
 ```
 Title:
@@ -40,8 +37,7 @@ Below the title block, add a blank line and a location:
 INT. JEANGREY'S ROOM
 ```
 
-You can also use the **Locs** tab in the palette on the right to insert
-a location with one click.
+You can also use the **Locs** tab in the palette on the right to insert a location with one click.
 
 ## 4. Write dialogue
 
@@ -52,8 +48,7 @@ JEANGREY
 Hey there! How are you?
 ```
 
-Want an expression? Use the **Chars** tab in the palette — click a
-character, pick a mood, and hit Insert:
+Want an expression? Use the **Chars** tab in the palette — click a character, pick a mood, and hit Insert:
 
 ```
 JEANGREY (happy)
@@ -99,18 +94,15 @@ Use the **Struct.** tab to insert an if/endif block quickly.
 
 ## 8. Save
 
-Press **Ctrl+S** or click **Save**. Pick a filename like
-`my_project_hello_jean.scene`.
+Press **Ctrl+S** or click **Save**. Pick a filename like `my_project_hello_jean.scene`.
 
 ## 9. Validate
 
-Click **Validate** in the editor toolbar to check for errors.
-Errors show up in the panel below with clickable line numbers.
+Click **Validate** in the editor toolbar to check for errors. Errors show up in the panel below with clickable line numbers.
 
 ## 10. Compile
 
-Go back to the welcome screen, click **Quick compile**, add your
-`.scene` file, choose an output folder, and click **Compile**.
+Go back to the welcome screen, click **Quick compile**, add your `.scene` file, choose an output folder, and click **Compile**.
 
 Your `.rpy` file is ready.
 
@@ -122,6 +114,6 @@ Your `.rpy` file is ready.
 
 ## What's next?
 
-- See the [Scene cheatsheet](scene_cheatsheet.md) for a copy-paste
-  reference of every feature.
+- See the [Integration guide](integration_guide.md) to drop compiled scenes into your mod.
+- See the [Scene cheatsheet](scene_cheatsheet.md) for a copy-paste reference of every feature.
 - Read the [Writer guide](writer_guide.md) for the complete guide.
