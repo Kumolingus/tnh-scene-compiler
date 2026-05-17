@@ -3,9 +3,8 @@
 This guide teaches you how to write scenes for The Null Hypothesis using the Fountain-TNH format. It starts with the basics and works up to
 advanced patterns. No programming experience required.
 
-For the exact list of valid values (characters, moods, locations, SFX, etc.), generate a cheatsheet by running
-`scripts/generate-cheatsheet.bat` (Windows) or `python -m tnh_generate_cheatsheet` (any platform). Keep that cheatsheet open alongside this
-guide.
+For the exact list of valid values (characters, moods, locations, SFX, etc.), see the Cheatsheet included
+in the docs folder, or generate one from the app's project settings. Keep that cheatsheet open alongside this guide.
 
 
 ---
@@ -39,10 +38,13 @@ The character folder name must match exactly (PascalCase).
 
 ### How to compile
 
-**Drag and drop (Windows):** Drop one or more `.scene` files onto `scripts/compile.bat`. It compiles them and shows the result. Double-click
-the script with no files to compile everything in `scenes_source/`.
+Open the app and use **Quick compile** (for one or more files) or **Open project** to compile all scenes in
+your project. The app shows the result with file, line number, and a description for every error it finds.
 
-**Command line (any platform):**
+To check your files without writing output, use the **Validate** button in the editor toolbar.
+
+<details>
+<summary>For developers running from source</summary>
 
 ```
 python -m tnh_scene_compiler compile
@@ -54,13 +56,13 @@ This compiles every `.scene` file found under `scenes_source/`. To compile speci
 python -m tnh_scene_compiler compile path/to/scene.scene
 ```
 
-To check your files without writing output:
+Validate-only (no output written):
 
 ```
 python -m tnh_scene_compiler validate
 ```
 
-The compiler tells you the file, line number, and a description for every error it finds.
+</details>
 
 
 ---

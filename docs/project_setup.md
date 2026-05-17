@@ -2,13 +2,21 @@
 
 How to integrate `tnh-scene-compiler` into your TNH mod project.
 
-## Prerequisites
+## Quick start (app)
+
+Most users work directly with the standalone app (`TNHSceneCompiler.exe`). Click **Create project** in
+the welcome screen to set up a new project — the app generates the config file and runtime stubs for
+you. An extracted TNH build (`.rpy` source files, not `.rpyc`) is required for allowlist refresh.
+
+## For developers running from source
+
+### Prerequisites
 
 - Python 3.10+
 - PyYAML (`pip install pyyaml`)
 - An extracted TNH build (`.rpy` source files, not `.rpyc`)
 
-## Option A: Git submodule (recommended)
+### Option A: Git submodule (recommended)
 
 Add the tool to your mod repo:
 
@@ -36,7 +44,7 @@ To update the tool later:
 git submodule update --remote Tools/tnh-scene-compiler
 ```
 
-## Option B: Standalone clone
+### Option B: Standalone clone
 
 Clone the tool anywhere and point `PYTHONPATH` at it. No install step needed beyond PyYAML.
 
@@ -44,7 +52,8 @@ Clone the tool anywhere and point `PYTHONPATH` at it. No install step needed bey
 
 ### 1. Bootstrap config and runtime stubs
 
-From your mod repo root:
+Click **Create project** in the app to generate the config and runtime stubs interactively. If you are
+running from source, use the CLI from your mod repo root:
 
 ```bash
 python -m tnh_scene_compiler init --mod-prefix my_mod
@@ -220,7 +229,8 @@ These values are merged with the base game allowlists. They appear in the editor
 
 ### Refreshing allowlists from the base game
 
-If TNH updates and you need fresh vanilla allowlists, configure the `refresh` section in your config:
+If TNH updates and you need fresh vanilla allowlists, use **Refresh allowlists** in the app's project
+settings. The app reads the `refresh` section of your config:
 
 ```yaml
 refresh:
@@ -228,7 +238,10 @@ refresh:
   mod_root: MyMod/
 ```
 
-Then run:
+This scans the base game `.rpy` files and regenerates the YAML allowlists.
+
+<details>
+<summary>For developers running from source</summary>
 
 ```bash
 python -m tnh_refresh_allowlists \
@@ -237,18 +250,26 @@ python -m tnh_refresh_allowlists \
   --verbose
 ```
 
-This scans the base game `.rpy` files and regenerates the YAML allowlists.
+</details>
 
 ## Compilation workflow
+
+### Using the app
+
+- **Full project**: open the app, click **Open project**, then **Compile**. All `.scene` files under
+  `scenes_source/` are compiled and `.rpy` output is written to your configured output directory.
+- **Specific files**: use **Quick compile** and add the files you want to compile.
+- **Validate only**: click the **Validate** button in the editor toolbar — parses and validates
+  without writing output.
+
+<details>
+<summary>For developers running from source</summary>
 
 ### Full project compilation
 
 ```bash
 python -m tnh_scene_compiler compile --verbose
 ```
-
-Compiles every `.scene` under `scenes_source/` and writes `.rpy` files to your configured output directory. Also generates `_events.rpy`
-with the consolidated event registry.
 
 ### Specific files only
 
@@ -262,15 +283,20 @@ python -m tnh_scene_compiler compile scenes_source/JeanGrey/my_scene.scene
 python -m tnh_scene_compiler validate --verbose
 ```
 
-Parses and validates every scene but writes nothing. Useful for CI or pre-commit checks.
+Useful for CI or pre-commit checks.
 
-### Drag-and-drop (Windows)
-
-Drop `.scene` files onto `Tools/tnh-scene-compiler/scripts/compile.bat`. The console window shows colored output and pauses at the end.
+</details>
 
 ## Generating a cheatsheet for writers
 
-The cheatsheet lists every valid character, mood, face, location, etc. — a reference writers keep open while authoring scenes.
+The cheatsheet lists every valid character, mood, face, location, etc. — a reference writers keep open
+while authoring scenes. A pre-generated cheatsheet is included in the docs folder of each release.
+
+To regenerate it after allowlist changes, use the app's project settings (the **Generate cheatsheet**
+button).
+
+<details>
+<summary>For developers running from source</summary>
 
 ```bash
 python -m tnh_generate_cheatsheet \
@@ -278,9 +304,7 @@ python -m tnh_generate_cheatsheet \
   --out Docs/Authoring_Cheatsheet.md
 ```
 
-Or on Windows: `Tools/tnh-scene-compiler/scripts/generate-cheatsheet.bat`.
-
-Regenerate the cheatsheet whenever allowlists change.
+</details>
 
 ## Integrating with a build script
 

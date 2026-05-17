@@ -899,10 +899,11 @@ key. The `include_base_allowlists` config option (default `true`) controls wheth
 
 ### 12.2 Regenerating allowlists
 
-The companion tool `tnh_refresh_allowlists` (invoked via `scripts/refresh-allowlists.bat` or `python -m tnh_refresh_allowlists`) scans the
-TNH base game and the mod source to regenerate the auto-generated allowlist files. Manual allowlists (`fx.yaml`, `run_operations.yaml`,
-`condition_functions.yaml`, `locations_overrides.yaml`, `interpolation_custom.yaml`) are not overwritten -- the developer maintains them by
-hand.
+Use **Refresh allowlists** in the app's project settings to regenerate the auto-generated allowlist
+files from the TNH base game and the mod source. Manual allowlists (`fx.yaml`, `run_operations.yaml`,
+`condition_functions.yaml`, `locations_overrides.yaml`, `interpolation_custom.yaml`) are not overwritten
+-- the developer maintains them by hand. For developers running from source:
+`python -m tnh_refresh_allowlists`.
 
 Writers can read allowlists for reference but should not edit them. If a new mood/face/location is needed, the developer adds it to the mod
 and refreshes the allowlists.
@@ -1008,7 +1009,8 @@ Phone, texting, and hub_option scenes do not appear in `_events.rpy`.
 
 ## 14. Compilation pipeline overview
 
-The compiler is invoked via `scripts/compile.bat`, `scripts/compile.sh`, or directly:
+Open the app and use **Quick compile** or **Open project** to compile scenes. For developers running
+from source:
 
 ```
 python -m tnh_scene_compiler compile [--config path] [--verbose] [files...]
@@ -1044,11 +1046,12 @@ On success:
 
 ### 14.3 Validate-only mode
 
+Use the **Validate** button in the editor to parse and validate without writing output. Same error
+reporting as compile. For developers running from source or CI integration:
+
 ```
 python -m tnh_scene_compiler validate [--config path] [--verbose] [files...]
 ```
-
-Runs the lexer, parser, and validator without writing output. Same error reporting as `compile`. Useful for CI or editor integration.
 
 ### 14.4 Config resolution
 
@@ -1314,6 +1317,9 @@ include_base_allowlists: true
 ```
 
 ### Compile
+
+Open the app and click **Compile** (or **Quick compile** with the file selected). For developers
+running from source:
 
 ```
 python -m tnh_scene_compiler compile --verbose
