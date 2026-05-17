@@ -818,7 +818,7 @@ You knock on [jeangrey.petname]'s door.
 A scene never writes to base-game state directly; it may read any game state in `[[if]]` conditions. `[[set]]` targeting a Character
 attribute is a compile error -- use `[[run]]`.
 
-### 11.4 Testing-hub override channel
+### 11.4 Scene state injection
 
 Compiled scenes initialise their scene-local dict from a standalone Python module at entry:
 
@@ -826,11 +826,13 @@ Compiled scenes initialise their scene-local dict from a standalone Python modul
 $ _scene_state = dict(getattr({mod_prefix}_runtime, 'scene_state', None) or {})
 ```
 
-`{mod_prefix}_runtime` is a Python module created on the fly by the runtime stub (emitted by `tnh_scene_compiler init`). Module globals live
-outside the Ren'Py store, so the value survives the `invoke_in_new_context` boundary the testing hub uses to play preview scenes. In normal
-gameplay the override is `None`, so the dict comes out empty and behaviour matches a fresh scene entry.
+This lets your mod pass context into a scene before calling it — for example, setting which character is the target of a conversation, or
+which attitude branch to take. In normal gameplay the value is `None` and the dict comes out empty.
 
-#### Condition-function override channel
+`{mod_prefix}_runtime` is a Python module created by the runtime stub. Its globals live outside the Ren'Py store, so they survive across
+`renpy.invoke_in_new_context` boundaries (useful if you need to preview scenes in isolation).
+
+#### Condition-function wrapping
 
 Calls to allowlisted condition functions where every argument is a bare Character or `player` Name are wrapped by the codegen:
 
@@ -848,9 +850,10 @@ if my_mod_testing_eval_condition(
 ```
 
 The wrapper consults `{mod_prefix}_runtime.condition_overrides`. In normal gameplay the attribute is `None` and the wrapper short-circuits
-to `fn(*args)` -- the runtime cost is one `getattr` and one `is None` check.
+to `fn(*args)` — the runtime cost is one `getattr` and one `is None` check. This enables previewing specific scene branches by overriding
+condition results without meeting the actual game conditions.
 
-Calls with literal or attribute arguments fall through to the default rendering and are not exposed to the testing hub.
+Calls with literal or attribute arguments are compiled directly and not wrapped.
 
 ---
 
@@ -1048,13 +1051,15 @@ file's parent). The app resolves this automatically when you open a project.
 
 ---
 
-## 15. Testing infrastructure
+## 15. Scene metadata and preview infrastructure
+
+The compiler generates metadata and runtime stubs that enable scene discovery, dispatching, and previewing. Even if your mod doesn't build
+a dedicated preview tool, the metadata is useful for listing available scenes and their properties at runtime.
 
 ### 15.1 Per-scene metadata block
 
 Above each compiled `label`, the codegen emits an `init python:` block declaring one entry in the `{mod_prefix}_scene_metadata` dict. This
-block carries everything an in-game testing hub needs to enumerate, label, and pre-set a scene without reading the `.scene` source at
-runtime:
+block describes the scene's character, type, state variables, conditions, and called scenes:
 
 ```python
 init python:
@@ -1092,14 +1097,14 @@ resynchronise.
 ### 15.2 Condition wrapper
 
 The codegen emits a condition wrapper function (`{mod_prefix}_testing_eval_condition`) via the `testing_eval.rpy.tmpl` runtime stub.
-Eligible condition calls in compiled scenes are routed through this wrapper so a testing hub can substitute preview values without
-monkey-patching.
+Eligible condition calls are routed through this wrapper, which allows overriding condition results at runtime — useful for previewing
+specific dialogue branches without meeting the actual game conditions (see §11.4).
 
 ### 15.3 Runtime module
 
-The `runtime_stub.rpy.tmpl` template (emitted by `tnh_scene_compiler init`) creates a `{mod_prefix}_runtime` Python module registered in
-`sys.modules`. This module's globals (`scene_state`, `condition_overrides`) survive Ren'Py's rollback mechanism and the per-context store
-projection that `renpy.invoke_in_new_context` applies. In normal gameplay both attributes are `None`.
+The runtime stub creates a `{mod_prefix}_runtime` Python module registered in `sys.modules`. This module's globals (`scene_state`,
+`condition_overrides`) survive Ren'Py's rollback mechanism and `renpy.invoke_in_new_context` boundaries. In normal gameplay both
+attributes are `None`. See §11.4 for how your mod can use `scene_state` to pass context into a scene.
 
 ### 15.4 Metadata init
 

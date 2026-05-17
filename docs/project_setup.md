@@ -20,7 +20,7 @@ This creates:
 | `tnh_scene_compiler.yaml` | Project config — edit paths to match your layout         |
 | `runtime_stub.rpy`        | Runtime module for scene state injection                 |
 | `metadata_init.rpy`       | Empty metadata dict populated at boot by compiled scenes |
-| `testing_eval.rpy`        | Condition wrapper for the testing hub                    |
+| `testing_eval.rpy`        | Optional — enables overriding conditions for previewing  |
 
 ### 2. Edit the config
 

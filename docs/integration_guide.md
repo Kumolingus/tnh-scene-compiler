@@ -68,10 +68,10 @@ The scene author writes `[[if attitude == "friendly"]]` and it works. When you c
 > **Quick option:** the **Create project** button generates `.rpy`
 > files containing this code — you can copy them into your mod's
 > `game/` folder without touching your existing files. It also
-> generates a `testing_eval.rpy` — only relevant if you build a
-> testing hub that needs to preview scene branches with fake condition
-> values (e.g. testing a high-love dialogue path without actually
-> having high love). Safe to ignore otherwise.
+> generates a `testing_eval.rpy` — only needed if you want to
+> preview specific scene branches by overriding conditions (e.g.
+> testing a high-love dialogue path without actually having high
+> love). Safe to ignore otherwise.
 
 ### 3. Place the compiled scenes
 
