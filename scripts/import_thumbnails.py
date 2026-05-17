@@ -31,6 +31,7 @@ except ImportError:
 
 FACE_THUMB_WIDTH = 156
 ARMS_THUMB_WIDTH = 200
+FX_THUMB_WIDTH = 200
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ALLOWLISTS_DIR = REPO_ROOT / "allowlists_base"
@@ -233,6 +234,48 @@ def _process_arms(
     return mapping
 
 
+# -- FX processing -----------------------------------------------------------
+
+def _process_fx(
+    effects_dir: Path,
+    width: int,
+) -> dict[str, str]:
+    """Generate FX thumbnails using the explicit ``_fx_mapping.yaml``."""
+    if not effects_dir.is_dir():
+        return {}
+
+    mapping_path = effects_dir / "_fx_mapping.yaml"
+    mapping_data = _read_yaml(mapping_path)
+    if not mapping_data or not isinstance(mapping_data.get("effects"), dict):
+        print("FX: no _fx_mapping.yaml found, skipping")
+        return {}
+
+    fx_map: dict[str, str] = mapping_data["effects"]
+    result: dict[str, str] = {}
+    total = len(fx_map)
+    skipped = 0
+
+    for filename, fx_name in sorted(fx_map.items()):
+        src = effects_dir / filename
+        if not src.is_file():
+            skipped += 1
+            continue
+
+        rel = f"fx/{fx_name}.png"
+        dst = OUTPUT_DIR / rel
+        _resize_and_save(src, dst, width)
+        result[fx_name] = rel
+
+    matched = total - skipped
+    print(f"FX: {matched}/{total} matched", end="")
+    if skipped:
+        print(f" ({skipped} skipped)")
+    else:
+        print()
+
+    return result
+
+
 # -- Main --------------------------------------------------------------------
 
 def main() -> None:
@@ -282,7 +325,6 @@ def main() -> None:
     faces_mapping: dict[str, dict[str, str]] = {}
     arms_mapping: dict[str, dict[str, str]] = {}
     total_generated = 0
-    total_skipped = 0
 
     for char_dir in sorted(characters_dir.iterdir()):
         if not char_dir.is_dir():
@@ -306,6 +348,11 @@ def main() -> None:
 
         total_generated += len(face_map) + len(arm_map)
 
+    # FX thumbnails
+    effects_dir = ref_dir / "effects"
+    fx_mapping = _process_fx(effects_dir, FX_THUMB_WIDTH)
+    total_generated += len(fx_mapping)
+
     # Write mapping
     mapping_data = {
         "generated_at": datetime.date.today().isoformat(),
@@ -314,6 +361,7 @@ def main() -> None:
         "arms_width": arms_width,
         "faces": faces_mapping,
         "arms": arms_mapping,
+        "fx": fx_mapping,
     }
     mapping_path = OUTPUT_DIR / "_mapping.yaml"
     mapping_path.write_text(

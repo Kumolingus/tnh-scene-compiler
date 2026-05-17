@@ -201,6 +201,7 @@ class Allowlists:
     fx: set[str] = field(default_factory=set)
     fx_signatures: dict[str, str] = field(default_factory=dict)
     fx_param_choices: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+    fx_call_modes: dict[str, str] = field(default_factory=dict)
     condition_functions: set[str] = field(default_factory=set)
     character_methods: set[str] = field(default_factory=set)
     traits: set[str] = field(default_factory=set)
@@ -252,6 +253,7 @@ class Allowlists:
         fx: set[str] = set()
         fx_signatures: dict[str, str] = {}
         fx_param_choices: dict[str, dict[str, list[str]]] = {}
+        fx_call_modes: dict[str, str] = {}
         if fx_payload and isinstance(fx_payload.get("effects"), list):
             for item in fx_payload["effects"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
@@ -265,6 +267,9 @@ class Allowlists:
                             k: v for k, v in choices.items()
                             if isinstance(k, str) and isinstance(v, list)
                         }
+                    call_mode = item.get("call_mode")
+                    if isinstance(call_mode, str):
+                        fx_call_modes[item["name"]] = call_mode
 
         # Condition-functions allowlist (hand-maintained). Helpers
         # callable from [[if]] / [[elif]] / [[choice ... if]]. The
@@ -335,6 +340,7 @@ class Allowlists:
             fx = fx,
             fx_signatures = fx_signatures,
             fx_param_choices = fx_param_choices,
+            fx_call_modes = fx_call_modes,
             condition_functions = condition_functions,
             character_methods = character_methods,
             traits = traits,
@@ -506,6 +512,7 @@ class Allowlists:
             fx=self.fx | other.fx,
             fx_signatures={**self.fx_signatures, **other.fx_signatures},
             fx_param_choices={**self.fx_param_choices, **other.fx_param_choices},
+            fx_call_modes={**self.fx_call_modes, **other.fx_call_modes},
             condition_functions=self.condition_functions | other.condition_functions,
             character_methods=self.character_methods | other.character_methods,
             traits=self.traits | other.traits,

@@ -7,6 +7,7 @@ at runtime — uses native Tk 8.6+ PNG support.
 
 from __future__ import annotations
 
+import sys
 import tkinter as tk
 from pathlib import Path
 from typing import Any
@@ -23,27 +24,33 @@ class ThumbnailStore:
         self._dir = thumbnails_dir
         self._faces: dict[str, dict[str, str]] = mapping.get("faces", {})
         self._arms: dict[str, dict[str, str]] = mapping.get("arms", {})
+        self._fx: dict[str, str] = mapping.get("fx", {})
         self._cache: dict[str, tk.PhotoImage] = {}
 
     @classmethod
     def load(cls) -> ThumbnailStore | None:
-        """Load from ``get_data_root() / 'thumbnails'``.
+        """Load from ``get_data_root() / 'thumbnails'``, falling back to
+        a ``thumbnails/`` directory next to the executable.
 
         Returns ``None`` if the thumbnails directory or mapping file is
-        missing.
+        missing in both locations.
         """
-        thumbnails_dir = get_data_root() / "thumbnails"
-        mapping_path = thumbnails_dir / "_mapping.yaml"
-        if not mapping_path.is_file():
-            return None
-        try:
-            with mapping_path.open("r", encoding="utf-8") as fh:
-                data = yaml.safe_load(fh)
-        except (OSError, yaml.YAMLError):
-            return None
-        if not isinstance(data, dict):
-            return None
-        return cls(thumbnails_dir, data)
+        candidates = [get_data_root() / "thumbnails"]
+        if getattr(sys, "frozen", False):
+            candidates.append(Path(sys.executable).parent / "thumbnails")
+        for thumbnails_dir in candidates:
+            mapping_path = thumbnails_dir / "_mapping.yaml"
+            if not mapping_path.is_file():
+                continue
+            try:
+                with mapping_path.open("r", encoding="utf-8") as fh:
+                    data = yaml.safe_load(fh)
+            except (OSError, yaml.YAMLError):
+                continue
+            if not isinstance(data, dict):
+                continue
+            return cls(thumbnails_dir, data)
+        return None
 
     def _load_image(self, rel_path: str) -> tk.PhotoImage | None:
         """Return a cached ``PhotoImage`` for *rel_path*, or ``None``."""
@@ -94,6 +101,17 @@ class ThumbnailStore:
     def has_character(self, character: str) -> bool:
         """Return ``True`` if any thumbnails exist for *character*."""
         return bool(self._faces.get(character) or self._arms.get(character))
+
+    def get_fx(self, name: str) -> tk.PhotoImage | None:
+        """Return thumbnail for an FX effect, or ``None``."""
+        rel = self._fx.get(name)
+        if not rel:
+            return None
+        return self._load_image(rel)
+
+    def available_fx(self) -> set[str]:
+        """Return FX names that have a thumbnail."""
+        return set(self._fx.keys())
 
     def available_arms(self, character: str) -> set[str]:
         """Return arm preset names that have a thumbnail for *character*."""

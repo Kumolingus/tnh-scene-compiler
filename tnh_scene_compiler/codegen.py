@@ -957,6 +957,7 @@ def _emit_choice(
     *,
     force_text_medium: bool = False,
     clean_present_on_set_scene: bool = False,
+    use_cinematic_fx: bool = False,
 ) -> list[str]:
     """Emit a Ren'Py ``menu:`` for a ``[[choice]]`` block.
 
@@ -978,12 +979,24 @@ def _emit_choice(
             option.body, allow, scene_local, body_indent, ctx,
             force_text_medium = force_text_medium,
             clean_present_on_set_scene = clean_present_on_set_scene,
+            use_cinematic_fx = use_cinematic_fx,
         )
         if option_body:
             lines.extend(option_body)
         else:
             lines.append(f"{body_indent}pass")
     return lines
+
+
+_CINEMATIC_FX_OVERRIDES: dict[str, str] = {
+    "knock_on_door": "cinematic_knock",
+    "phone_buzz": "cinematic_phone_buzz",
+}
+
+
+def _cinematic_fx_name(base_name: str) -> str:
+    """Return the cinematic layer variant name for a base FX."""
+    return _CINEMATIC_FX_OVERRIDES.get(base_name, f"cinematic_{base_name}")
 
 
 def _emit_body(
@@ -995,6 +1008,7 @@ def _emit_body(
     *,
     force_text_medium: bool = False,
     clean_present_on_set_scene: bool = False,
+    use_cinematic_fx: bool = False,
 ) -> list[str]:
     """Emit every node in ``body`` at ``indent``; recurses into :class:`IfChain`.
 
@@ -1005,6 +1019,9 @@ def _emit_body(
     ``clean_present_on_set_scene`` is threaded the same way: cinematic
     scenes set it so every ``set_the_scene`` (slugline mid-scene) is
     preceded by a ``remove_Characters(location = ...)`` call.
+
+    ``use_cinematic_fx`` causes ``[[fx name()]]`` to emit the
+    ``cinematic_`` prefixed label variant when one exists.
     """
     lines: list[str] = []
     for node in body:
@@ -1049,6 +1066,7 @@ def _emit_body(
                 node, allow, scene_local, indent, ctx,
                 force_text_medium = force_text_medium,
                 clean_present_on_set_scene = clean_present_on_set_scene,
+                use_cinematic_fx = use_cinematic_fx,
             ))
         elif isinstance(node, Show):
             lines.extend(_emit_show(node, indent))
@@ -1065,6 +1083,7 @@ def _emit_body(
                 node, allow, scene_local, indent, ctx,
                 force_text_medium = force_text_medium,
                 clean_present_on_set_scene = clean_present_on_set_scene,
+                use_cinematic_fx = use_cinematic_fx,
             ))
         elif isinstance(node, Run):
             # The call text came straight from the writer's source and has
@@ -1072,7 +1091,16 @@ def _emit_body(
             # to splice into a ``$`` Python line verbatim.
             lines.append(f"{indent}$ {node.call_text}")
         elif isinstance(node, FxCall):
-            lines.append(f"{indent}$ {node.call_text}")
+            call_text = node.call_text
+            is_label = allow.fx_call_modes.get(node.target_name) == "label"
+            if use_cinematic_fx:
+                cinematic_name = _cinematic_fx_name(node.target_name)
+                call_text = cinematic_name + call_text[len(node.target_name):]
+                lines.append(f"{indent}call {call_text}")
+            elif is_label:
+                lines.append(f"{indent}call {call_text}")
+            else:
+                lines.append(f"{indent}$ {call_text}")
         elif isinstance(node, Approval):
             lines.append(_emit_approval(node, indent))
         elif isinstance(node, GiveTrait):
@@ -1097,6 +1125,7 @@ def _emit_if_chain(
     *,
     force_text_medium: bool = False,
     clean_present_on_set_scene: bool = False,
+    use_cinematic_fx: bool = False,
 ) -> list[str]:
     """Emit a nested ``if/elif/else`` block rooted at ``indent``."""
     lines: list[str] = []
@@ -1112,6 +1141,7 @@ def _emit_if_chain(
             branch.body, allow, scene_local, nested_indent, ctx,
             force_text_medium = force_text_medium,
             clean_present_on_set_scene = clean_present_on_set_scene,
+            use_cinematic_fx = use_cinematic_fx,
         )
         if branch_body:
             lines.extend(branch_body)
@@ -1287,7 +1317,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
         f"dict(getattr({ctx.project_prefix}_runtime, 'scene_state', None) or {{}})",
     )
 
-    is_cinematic = tp.scene_type == "cinematic"
+    is_cinematic = tp.scene_type in ("cinematic", "visual_test")
     first_slugline = next(
         (node for node in scene.body if isinstance(node, Slugline)),
         None,
@@ -1310,6 +1340,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
         scene.body, allow, scene_local, _INDENT, ctx,
         force_text_medium = force_text_medium,
         clean_present_on_set_scene = is_cinematic,
+        use_cinematic_fx = tp.scene_type == "cinematic",
     ))
 
     lines.append("")
