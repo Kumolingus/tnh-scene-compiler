@@ -1,171 +1,227 @@
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-05-17'
 values:
 - name: affectionate
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 738
+  faces: happy,pleased1,sexy1
 - name: aggressive
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 807
+  faces: angry2,angry3,appalled2
 - name: alert
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 782
+  faces: neutral,squint,suspicious1
 - name: amused
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 465
+  faces: amused,bemused,smirk1
 - name: angry
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 139
+  faces: angry1,angry2,appalled1
 - name: annoyed
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 114
+  faces: bored,disappointed,squint
 - name: anxious
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 279
+  faces: anxious,neutral,worried2,worried3
 - name: appalled
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 726
+  faces: appalled2,appalled3,appalled4
 - name: aroused
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 885
+  faces: aroused1,aroused2,aroused3,aroused4,aroused_kiss,aroused_oral,sexy1
 - name: assured
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 661
+  faces: neutral,pleased1,smirk1
 - name: bewildered
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 401
+  faces: confused2,confused3,confused4
 - name: bored
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 836
+  faces: bored,disappointed,squint
 - name: concerned
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 872
+  faces: neutral,sympathetic,worried1,worried2
 - name: confident
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 674
+  faces: pleased2,sly,smirk1,smirk2
 - name: confused
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 389
+  faces: bemused,confused1,confused2
 - name: content
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 51
+  faces: neutral,pleased1,smirk1
 - name: curious
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 317
+  faces: bemused,confused1,surprised1
 - name: defensive
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 795
+  faces: angry1,squint,suspicious1
 - name: delighted
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 80
+  faces: happy,pleased2,pleased3,pleased4
 - name: devastated
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 223
+  faces: disappointed,sad2,sad3,worried3,worried4
 - name: disgusted
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 715
+  faces: appalled1,appalled2,grimace
 - name: distrustful
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 447
+  faces: angry1,suspicious1,suspicious2
 - name: ecstatic
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 97
+  faces: happy,manic,pleased4
 - name: embarrassed
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 618
+  faces: anxious,neutral,worried1,worried2
 - name: exasperated
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 848
+  faces: angry1,bored,disappointed
 - name: flirty
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 528
+  faces: anxious,sexy1,smirk1,wink
 - name: furious
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 152
+  faces: angry3,angry4,appalled3,appalled4
 - name: happy
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 63
+  faces: happy,pleased1,pleased2
 - name: irritated
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 126
+  faces: angry1,disappointed,suspicious1
 - name: kissing
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 771
+  faces: kiss1,kiss2
 - name: loving
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 754
+  faces: happy,kiss1,pleased2,sexy1
 - name: lustful
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 577
+  faces: manic,sexy1,sexy2
 - name: melancholy
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 171
+  faces: bored,neutral,sympathetic
 - name: mischievous
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 491
+  faces: devious,sly,smirk2,wink
 - name: mortified
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 639
+  faces: grimace,neutral,worried3,worried4
 - name: neutral
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 39
+  faces: neutral,pleased1
 - name: orgasming
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 905
+  faces: ahegao,orgasm1,orgasm2,orgasm3
 - name: panicked
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 298
+  faces: appalled3,appalled4,worried3,worried4
 - name: playful
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 478
+  faces: devious,smirk1,smirk2,wink
 - name: puzzled
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 377
+  faces: bemused,confused1,squint
 - name: sad
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 187
+  faces: disappointed,neutral,sad1,worried1
 - name: seductive
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 552
+  faces: anxious,sexy1,sexy2,sly,smirk2
 - name: shocked
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 344
+  faces: appalled1,surprised2,surprised3
 - name: shy
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 596
+  faces: anxious,neutral,pleased1,worried1
 - name: skeptical
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 413
+  faces: bemused,squint,suspicious1
 - name: smug
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 688
+  faces: devious,sly,smirk1,smirk2
 - name: stunned
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 360
+  faces: appalled4,surprised3,surprised4
 - name: surprised
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 329
+  faces: confused2,surprised1,surprised2
 - name: suspicious
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 430
+  faces: squint,suspicious1,suspicious2
 - name: sympathetic
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 860
+  faces: neutral,sad1,sympathetic,worried1
 - name: teasing
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 509
+  faces: devious,sly,smirk2,wink
 - name: tired
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 820
+  faces: bored,neutral,sad1
 - name: uncomfortable
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 702
+  faces: grimace,neutral,squint,worried1
 - name: uneasy
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 243
+  faces: confused1,neutral,worried1
 - name: upset
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 205
+  faces: disappointed,sad1,sad2,worried2
 - name: worried
   source_file: TheNullHypothesis/game/core/base/moods.rpy
   source_line: 260
+  faces: anxious,neutral,worried1,worried2

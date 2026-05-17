@@ -126,10 +126,28 @@ def _load_per_char_arms(
     return arms, left, right
 
 
+def _extract_mood_faces(payload: dict[str, Any] | None) -> dict[str, list[str]]:
+    """Extract mood → face list mapping from a moods YAML payload."""
+    if not payload:
+        return {}
+    entries = payload.get("values")
+    if not isinstance(entries, list):
+        return {}
+    result: dict[str, list[str]] = {}
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        faces = item.get("faces")
+        if isinstance(name, str) and isinstance(faces, str) and faces:
+            result[name] = [f.strip() for f in faces.split(",") if f.strip()]
+    return result
+
+
 def _load_moods_with_shared(
     dir_path: Path,
-) -> tuple[set[str], dict[str, set[str]]]:
-    """Return ``(shared_moods, per_char_moods)``.
+) -> tuple[set[str], dict[str, set[str]], dict[str, list[str]]]:
+    """Return ``(shared_moods, per_char_moods, mood_faces)``.
 
     The parenthetical check against a mood uses ``shared_moods`` combined with
     ``per_char_moods[C]``.
@@ -138,12 +156,14 @@ def _load_moods_with_shared(
     """
     shared: set[str] = set()
     per_char: dict[str, set[str]] = {}
+    mood_faces: dict[str, list[str]] = {}
     shared_path = dir_path / "_shared.yaml"
     shared_payload = _read_yaml(shared_path)
     if shared_payload is not None:
         shared = set(_values_names(shared_payload))
+        mood_faces.update(_extract_mood_faces(shared_payload))
     if not dir_path.is_dir():
-        return shared, per_char
+        return shared, per_char, mood_faces
     for yaml_file in sorted(dir_path.glob("*.yaml")):
         if yaml_file.name.startswith("_"):
             continue
@@ -152,7 +172,8 @@ def _load_moods_with_shared(
         if payload is None:
             continue
         per_char[char] = set(_values_names(payload))
-    return shared, per_char
+        mood_faces.update(_extract_mood_faces(payload))
+    return shared, per_char, mood_faces
 
 
 @dataclass(slots=True)
@@ -188,6 +209,7 @@ class Allowlists:
     characters_upper: set[str] = field(default_factory=set)
     shared_moods: set[str] = field(default_factory=set)
     char_moods: dict[str, set[str]] = field(default_factory=dict)
+    mood_faces: dict[str, list[str]] = field(default_factory=dict)
     char_faces: dict[str, set[str]] = field(default_factory=dict)
     char_poses: dict[str, set[str]] = field(default_factory=dict)
     char_outfits: dict[str, set[str]] = field(default_factory=dict)
@@ -223,7 +245,7 @@ class Allowlists:
             _read_yaml(allowlists_dir / "interpolation_custom.yaml"),
         )
 
-        shared_moods, char_moods = _load_moods_with_shared(allowlists_dir / "moods")
+        shared_moods, char_moods, mood_faces = _load_moods_with_shared(allowlists_dir / "moods")
         char_faces = _load_per_char_simple(allowlists_dir / "faces")
         char_poses = _load_per_char_simple(allowlists_dir / "poses")
         char_outfits = _load_per_char_simple(allowlists_dir / "outfits")
@@ -327,6 +349,7 @@ class Allowlists:
             characters_upper = {name.upper() for name in characters},
             shared_moods = shared_moods,
             char_moods = char_moods,
+            mood_faces = mood_faces,
             char_faces = char_faces,
             char_poses = char_poses,
             char_outfits = char_outfits,
@@ -499,6 +522,7 @@ class Allowlists:
             characters_upper={n.upper() for n in merged_chars},
             shared_moods=self.shared_moods | other.shared_moods,
             char_moods=_merge_char_sets(self.char_moods, other.char_moods),
+            mood_faces={**self.mood_faces, **other.mood_faces},
             char_faces=_merge_char_sets(self.char_faces, other.char_faces),
             char_poses=_merge_char_sets(self.char_poses, other.char_poses),
             char_outfits=_merge_char_sets(self.char_outfits, other.char_outfits),

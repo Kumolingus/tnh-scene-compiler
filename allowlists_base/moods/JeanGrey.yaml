@@ -1,20 +1,25 @@
 character: JeanGrey
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-05-17'
 inherits_from_shared: _shared.yaml
 values:
 - name: aggressive
   source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
   source_line: 31
+  faces: angry2,angry3,appalled2
 - name: alert
   source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
   source_line: 6
+  faces: neutral,squint,suspicious1
 - name: defensive
   source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
   source_line: 19
+  faces: angry1,squint,suspicious1
 - name: focused
   source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
   source_line: 56
+  faces: neutral,squint,suspicious1
 - name: telepathic
   source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/moods.rpy
   source_line: 45
+  faces: neutral,squint

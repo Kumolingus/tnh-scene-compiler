@@ -1,107 +1,141 @@
 character: LauraKinney
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-05-17'
 inherits_from_shared: _shared.yaml
 values:
 - name: aggressive
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 420
+  faces: angry3,angry4,snarl
 - name: alert
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 392
+  faces: neutral,squint,suspicious1
 - name: angry
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 64
+  faces: angry1,angry2,snarl
 - name: anxious
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 164
+  faces: neutral,squint,suspicious1
 - name: confident
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 364
+  faces: pleased2,sly,smirk1,smirk2
 - name: content
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 17
+  faces: neutral,pleased1
 - name: defensive
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 406
+  faces: angry1,snarl,squint,suspicious1
 - name: delighted
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 40
+  faces: pleased1,pleased2,smirk2
 - name: devastated
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 127
+  faces: angry1,angry2,disappointed
 - name: ecstatic
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 52
+  faces: pleased1,pleased2,smirk2
 - name: embarrassed
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 323
+  faces: disappointed,neutral,squint
 - name: feral
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 433
+  faces: angry3,angry4,snarl
 - name: flirty
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 265
+  faces: neutral,sexy1,smirk1
 - name: furious
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 78
+  faces: angry3,angry4,snarl
 - name: guarded
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 446
+  faces: neutral,squint,suspicious1
 - name: happy
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 28
+  faces: neutral,pleased1,smirk1
 - name: lustful
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 290
+  faces: sexy1,sexy2,sly
 - name: melancholy
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 91
+  faces: bored,disappointed,neutral
 - name: mischievous
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 240
+  faces: sly,smirk1,smirk2
 - name: mortified
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 343
+  faces: angry1,disappointed,neutral
 - name: neutral
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 6
+  faces: neutral
 - name: panicked
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 176
+  faces: angry1,angry2,snarl
 - name: playful
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 227
+  faces: neutral,sly,smirk1
 - name: sad
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 103
+  faces: angry1,disappointed,neutral
 - name: seductive
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 278
+  faces: sexy1,sly,smirk1
 - name: shocked
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 202
+  faces: angry1,surprised1,surprised2
 - name: shy
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 303
+  faces: neutral,squint
 - name: smug
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 378
+  faces: devious,sly,smirk1,smirk2
 - name: stunned
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 214
+  faces: angry1,surprised1,surprised2
 - name: surprised
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 190
+  faces: confused1,squint,surprised1
 - name: teasing
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 252
+  faces: sly,smirk1,smirk2
 - name: uneasy
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 140
+  faces: neutral,squint,suspicious1
 - name: upset
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 115
+  faces: angry1,angry2,disappointed
 - name: worried
   source_file: TheNullHypothesis/game/characters/LauraKinney/definitions/moods.rpy
   source_line: 152
+  faces: neutral,squint,suspicious1

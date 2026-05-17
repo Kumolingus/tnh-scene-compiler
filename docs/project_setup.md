@@ -127,6 +127,16 @@ mean?" suggestion.
 Layers merge automatically: mod entries extend the base (sets are unioned,
 location overrides win on collision).
 
+**Notes on base allowlists:**
+
+- Arm allowlists only include standing poses (arms that are valid when the
+  character is in a standing position). Other pose-specific arm variants
+  are excluded because the compiler targets standing dialogue scenes.
+- The FX extractor auto-discovers visual effects by scanning for functions
+  with known effect signatures in the base game source. You do not need to
+  manually enumerate effects — the refresh process picks them up
+  automatically.
+
 ### What goes in the mod layer
 
 | File | When to add it |
@@ -366,3 +376,69 @@ cheatsheet for valid values.
 
 **Import errors when running** — make sure `PYTHONPATH` includes the
 tool's root directory (where `tnh_scene_compiler/` lives).
+
+## Thumbnails
+
+Thumbnails provide visual previews of character faces and arms in the GUI
+editor. They are **not** bundled inside the executable — they ship as a
+separate `thumbnails.zip` archive alongside the release.
+
+### Installing thumbnails
+
+Extract `thumbnails.zip` so that the `thumbnails/` folder sits next to the
+executable:
+
+```
+TNHSceneCompiler-v1.2.0/
+├── TNHSceneCompiler.exe
+├── thumbnails/          ← extract here
+│   ├── _mapping.yaml
+│   ├── JeanGrey/
+│   ├── Rogue/
+│   └── ...
+└── docs/
+```
+
+The editor detects the `thumbnails/` directory at startup and enables
+visual previews automatically. Without it, the editor still works — you
+just won't see face/arm previews.
+
+### Regenerating thumbnails from source
+
+If you have access to the visual reference assets, you can regenerate
+thumbnails locally:
+
+```bash
+python scripts/import_thumbnails.py
+```
+
+By default the script reads from the `external/TNH-VisualReference`
+submodule. Pass an explicit path to override:
+
+```bash
+python scripts/import_thumbnails.py path/to/TNH-VisualReference
+```
+
+The import script also generates FX effect thumbnails from
+`effects/_fx_mapping.yaml`, so visual effect previews stay in sync with
+the allowlists.
+
+## Building a release
+
+The release build script automates the full packaging pipeline:
+
+```bash
+python scripts/build_release.py
+```
+
+This performs the following steps:
+
+1. Cleans `dist/` and `build/` directories
+2. Generates thumbnails if the `thumbnails/` directory is missing or stale
+3. Runs PyInstaller to produce the standalone executable
+4. Packages `thumbnails.zip` as a separate archive
+5. Copies `docs/` into the release folder
+
+Output goes to `dist/TNHSceneCompiler-<version>/`, where `<version>` is
+read from the project metadata. The resulting folder is self-contained and
+ready to distribute.

@@ -535,6 +535,59 @@ def _fx_button_label(fx_name: str) -> str:
     return fx_name
 
 
+class _AboutDialog(tk.Toplevel):
+    """About dialog with version and credits."""
+
+    def __init__(self, master: tk.Widget) -> None:
+        super().__init__(master)
+        self.title("About")
+        self.resizable(False, False)
+        self.grab_set()
+
+        from . import __version__
+
+        body = ttk.Frame(self, padding=16)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            body, text="TNH Scene Compiler",
+            font=("Segoe UI", 14, "bold"),
+        ).pack(anchor=tk.W)
+
+        ttk.Label(
+            body, text=f"Version {__version__}",
+            foreground="#808080", font=("Segoe UI", 10),
+        ).pack(anchor=tk.W, pady=(0, 12))
+
+        ttk.Label(
+            body, text="Credits",
+            font=("Segoe UI", 11, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 4))
+
+        credits = [
+            ("KumoKara", "Tool development"),
+            ("Dom Avner", "Dialogue writing, reviews"),
+            ("Claude (Anthropic)", "AI-assisted development"),
+        ]
+        for name, role in credits:
+            line = ttk.Frame(body)
+            line.pack(fill=tk.X, pady=1)
+            ttk.Label(line, text=name, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT)
+            ttk.Label(line, text=f" — {role}", foreground="#808080",
+                       font=("Segoe UI", 9)).pack(side=tk.LEFT)
+
+        ttk.Button(
+            body, text="Close", command=self.destroy,
+        ).pack(anchor=tk.E, pady=(12, 0))
+
+        self.bind("<Escape>", lambda _e: self.destroy())
+
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+
 class _SfxParamDialog(tk.Toplevel):
     """Popup form for inserting an [[sfx]] directive with optional duration."""
 
@@ -1956,19 +2009,38 @@ class _PaletteSidebar(ttk.Frame):
             btn.pack(fill=tk.X, pady=1)
 
             if thumb_store:
-                img = self._resolve_visual_thumb(
-                    thumb_store, char, category, v,
-                )
-                if img:
-                    self._visual_thumb_refs.append(img)
-                    btn.bind(
-                        "<Enter>",
-                        lambda _e, i=img, n=v: self._show_visual_preview(i, n),
+                if category == "Moods":
+                    face_names = self._allow.mood_faces.get(v, [])
+                    face_imgs = []
+                    for fn in face_names:
+                        fi = thumb_store.get_face(char, fn)
+                        if fi:
+                            face_imgs.append((fi, fn))
+                    if face_imgs:
+                        for fi, _ in face_imgs:
+                            self._visual_thumb_refs.append(fi)
+                        btn.bind(
+                            "<Enter>",
+                            lambda _e, imgs=face_imgs, n=v: self._start_mood_cycle(imgs, n),
+                        )
+                        btn.bind(
+                            "<Leave>",
+                            lambda _e: self._stop_mood_cycle(),
+                        )
+                else:
+                    img = self._resolve_visual_thumb(
+                        thumb_store, char, category, v,
                     )
-                    btn.bind(
-                        "<Leave>",
-                        lambda _e: self._clear_visual_preview(),
-                    )
+                    if img:
+                        self._visual_thumb_refs.append(img)
+                        btn.bind(
+                            "<Enter>",
+                            lambda _e, i=img, n=v: self._show_visual_preview(i, n),
+                        )
+                        btn.bind(
+                            "<Leave>",
+                            lambda _e: self._clear_visual_preview(),
+                        )
 
     def _resolve_visual_thumb(
         self, store: Any, char: str, category: str, name: str,
@@ -1982,6 +2054,36 @@ class _PaletteSidebar(ttk.Frame):
         if category == "Right Arm":
             return store.get_right_arm(char, name)
         return None
+
+    def _start_mood_cycle(
+        self, faces: list[tuple[tk.PhotoImage, str]], mood_name: str,
+    ) -> None:
+        self._stop_mood_cycle()
+        if not faces:
+            return
+        self._mood_cycle_faces = faces
+        self._mood_cycle_index = 0
+        self._mood_cycle_mood = mood_name
+        self._mood_cycle_step()
+
+    def _mood_cycle_step(self) -> None:
+        faces = getattr(self, "_mood_cycle_faces", None)
+        if not faces:
+            return
+        idx = self._mood_cycle_index % len(faces)
+        img, face_name = faces[idx]
+        label = f"{self._mood_cycle_mood} ({face_name})"
+        self._show_visual_preview(img, label)
+        self._mood_cycle_index = idx + 1
+        self._mood_cycle_after_id = self.after(500, self._mood_cycle_step)
+
+    def _stop_mood_cycle(self) -> None:
+        after_id = getattr(self, "_mood_cycle_after_id", None)
+        if after_id is not None:
+            self.after_cancel(after_id)
+            self._mood_cycle_after_id = None
+        self._mood_cycle_faces = None
+        self._clear_visual_preview()
 
     def _show_visual_preview(self, img: tk.PhotoImage, name: str) -> None:
         if self._visual_preview_clear_id is not None:

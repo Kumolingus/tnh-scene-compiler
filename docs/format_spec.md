@@ -420,15 +420,80 @@ Compiles to `$ renpy.sound.play("<name>.ogg")`, optionally followed by
 [[fx bamf(0.5, 0.5, 1.0)]]
 ```
 
-Calls an engine-level visual/transient effect function (a Python
-function, not a `.ogg` sound file). Parentheses are required even when
-no arguments are passed. Positional arguments only -- keyword
-arguments are a compile error.
+Calls an engine-level visual/transient effect. Parentheses are
+required even when no arguments are passed. Positional arguments only
+-- keyword arguments are a compile error.
 
 Names are validated against `_allowlists/fx.yaml`. Unknown name is a
 compile error.
 
-Compiles to `$ <name>(args)`.
+#### Compilation output
+
+The emitted code depends on the effect's `call_mode` metadata in
+`fx.yaml`:
+
+- **`call_mode: label`** (effects defined as Ren'Py labels in
+  `effects.rpy`, `animations.rpy`, etc.): compiles to
+  `call <name>(args)`.
+- **No `call_mode`** (plain Python functions like `phone_buzz`,
+  `knock_on_door`): compiles to `$ <name>(args)`.
+
+#### Cinematic auto-prefixing
+
+In **cinematic** scenes (`Scene Type: cinematic`), the compiler
+automatically emits the `cinematic_` variant of the effect name.
+Writers always write the base name:
+
+```
+[[fx bamf()]]
+```
+
+The compiler emits `call cinematic_bamf()` in cinematic scenes and
+`call bamf()` in other scene types. For a handful of effects with
+non-standard cinematic names, a fixed override table maps the base
+name to the cinematic variant (e.g. `knock_on_door` ->
+`cinematic_knock`, `phone_buzz` -> `cinematic_phone_buzz`).
+
+The `cinematic_` variants do **not** appear in `fx.yaml` -- they are
+auto-derived at compile time. Writers never need to reference them
+directly.
+
+#### fx.yaml entry structure
+
+Each entry in `fx.yaml` uses the `effects` key (not `values`) and
+carries metadata beyond the name:
+
+```yaml
+effects:
+- name: bamf
+  source_file: game/displayables/effects.rpy
+  source_line: 132
+  signature: bamf(x = 0.5, y = 0.5, initial = 1.0, ...) -> None
+  call_mode: label
+- name: phone_buzz
+  source_file: game/core/mechanics/phone.rpy
+  source_line: 3
+  signature: "phone_buzz(x: float = 0.5, ...) -> None"
+- name: LauraKinney_animations_unsheathes_claws
+  source_file: game/characters/LauraKinney/animations.rpy
+  source_line: 1
+  signature: LauraKinney_animations_unsheathes_claws(..., hand = "both") -> None
+  call_mode: label
+  param_choices:
+    hand:
+    - '"both"'
+    - '"left"'
+    - '"right"'
+```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `name` | Yes | Effect function/label name as written in `[[fx]]`. |
+| `signature` | Yes | Full Python signature string (used by the GUI and cheatsheet). |
+| `call_mode` | No | `"label"` if the effect is a Ren'Py label; absent for plain Python functions. Drives whether the codegen emits `call` or `$`. |
+| `param_choices` | No | Dict mapping parameter names to lists of valid string values. Used by the GUI for autocompletion. |
+| `source_file` | No | Provenance (for allowlist refresh tooling). |
+| `source_line` | No | Provenance (for allowlist refresh tooling). |
 
 #### Directive disambiguation
 
@@ -953,6 +1018,43 @@ overwritten -- the developer maintains them by hand.
 Writers can read allowlists for reference but should not edit them. If
 a new mood/face/location is needed, the developer adds it to the mod
 and refreshes the allowlists.
+
+### 12.3 Allowlist file structure notes
+
+#### fx.yaml
+
+Uses an `effects` key (not `values`) at the top level. Each entry
+carries `signature`, optional `call_mode`, and optional
+`param_choices` metadata. See section 8.3 for the full entry
+structure and how `call_mode` drives codegen behaviour.
+
+#### arms/<Char>.yaml
+
+Arm allowlists only include **standing poses** -- non-standing poses
+(sex scene poses, special interaction poses) are excluded from the
+allowlist because the compiled scenes target standing character
+presentation. The file separates `arms` (both-arm presets),
+`left_arm`, and `right_arm` into distinct top-level keys.
+
+#### moods/<Char>.yaml
+
+Mood entries include a `faces` metadata field listing the face
+expressions associated with that mood in the base game:
+
+```yaml
+values:
+- name: aggressive
+  source_file: ...
+  faces: angry2,angry3,appalled2
+- name: alert
+  source_file: ...
+  faces: neutral,squint,suspicious1
+```
+
+This metadata is informational -- the compiler does not enforce that a
+`face` parenthetical matches its sibling `mood`'s face list, but the
+GUI and cheatsheet use it to suggest coherent face/mood combinations
+to writers.
 
 ---
 
