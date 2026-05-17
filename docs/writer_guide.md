@@ -586,7 +586,7 @@ The `Scene Type` header key controls how the scene is presented.
 | Scene Type   | What it is for                                    | Notes                                 |
 | ------------ | ------------------------------------------------- | ------------------------------------- |
 | `cinematic`  | Full-screen story scene with visuals, pauses, SFX | Requires a `Trigger` key              |
-| `phone`      | Phone conversation, mostly text messages          | Add `Openness` and `Stage` keys       |
+| `phone`      | Phone conversation, mostly text messages          | Called by mod phone dispatch           |
 | `texting`    | Pure text exchange, no visuals at all             | All dialogue lines forced to `(text)` |
 | `hub_option` | Short scene triggered from a hub menu option      | No `Trigger` key                      |
 

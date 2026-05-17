@@ -90,8 +90,6 @@ Location: JEANGREY'S ROOM
 | `Repeatable`  | No       | bool             | Can fire more than once. Default: `false`.       |
 | `Tags`        | No       | comma-sep list   | Extra flags on event entry. Mod-prefixed.        |
 | `Location`    | No       | slugline text    | Implies `set_the_scene()`. Validated.            |
-| `Openness`    | phone    | string           | Openness tier (for phone dispatch).              |
-| `Stage`       | phone?   | string           | Progression stage key (for phone dispatch).      |
 | `Format`      | No       | int              | Override format version. Default: `1`.           |
 
 [^id]: Must start with `{mod_prefix}`. Unique across all project scenes.
@@ -953,7 +951,7 @@ GUI and cheatsheet use it to suggest coherent face/mood combinations to writers.
 - **`cinematic`**: Body wrapped with `$ ongoing_Event = True` /
 `False`. End-of-scene cleanup via `set_the_scene(show_Characters = False, silent = True)`. Event registered with Trigger/Conditions from
 title page.
-- **`phone`**: Called by mod phone dispatch. Requires `Openness` key.
+- **`phone`**: Called by mod phone dispatch code.
 - **`texting`**: All dialogue forced to `text` medium; other
   directives work normally.
 - **`hub_option`**: Called by a hub `.rpy` file. Minimal wrapping.
@@ -1063,8 +1061,6 @@ init python:
     my_mod_scene_metadata['my_mod_dialogue_jeangrey_greeting'] = {
         "character": "JeanGrey",
         "scene_type": "cinematic",
-        "openness": "",
-        "stage_key": "",
         "description": "Late-night check-in after the training session.",
         "state_specs": [
             {"path": "checked_immediately", "kind": "bool",
