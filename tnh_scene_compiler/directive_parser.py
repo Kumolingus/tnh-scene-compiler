@@ -12,6 +12,7 @@ anchored ``line:col`` so the writer sees exactly where the problem is.
 from __future__ import annotations
 
 import re
+import shlex
 
 from .ast_nodes import (
     Approval,
@@ -323,7 +324,10 @@ def parse_show(raw: str, *, path: str, line: int, col: int) -> Show:
     no text. The validator performs per-slot allowlist checks downstream.
     """
     body = _strip_directive(raw)
-    parts = body.split()
+    try:
+        parts = shlex.split(body)
+    except ValueError:
+        parts = body.split()
     if not parts or parts[0] != "show":
         raise CompileError(
             path = path, line = line, col = col,

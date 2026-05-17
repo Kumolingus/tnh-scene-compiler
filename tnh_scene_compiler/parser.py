@@ -52,7 +52,7 @@ _TITLE_KEYS: frozenset[str] = frozenset({
 
 _REQUIRED_KEYS: frozenset[str] = frozenset({"Title", "Scene Id", "Character", "Scene Type"})
 
-_SCENE_TYPES: frozenset[str] = frozenset({"cinematic", "phone", "texting", "hub_option"})
+_SCENE_TYPES: frozenset[str] = frozenset({"cinematic", "phone", "texting", "hub_option", "visual_test"})
 
 # Triggers allowed by §11.3. ``custom`` mod-prefixed flags are also legal
 # but we cannot know the mod prefix at parse time — the validator is the
