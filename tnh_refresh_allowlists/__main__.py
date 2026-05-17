@@ -22,6 +22,7 @@ from .extractors import (
     characters,
     condition_functions,
     faces,
+    fx,
     history_events,
     interpolation,
     locations,
@@ -35,7 +36,7 @@ from .extractors import (
     traits,
 )
 from .models import ExtractionResult, ScanContext
-from .writer import write_flat, write_per_character
+from .writer import write_flat, write_flat_fx, write_per_character
 
 
 _Extractor = Callable[[ScanContext], ExtractionResult]
@@ -44,6 +45,7 @@ _FLAT_EXTRACTORS: tuple[_Extractor, ...] = (
     characters.extract,
     stages.extract,
     sfx.extract,
+    fx.extract,
     locations.extract,
     looks.extract,
     interpolation.extract,
@@ -259,7 +261,10 @@ def main(argv: list[str] | None = None) -> int:
         # ExtractionResult is always empty by contract).
         if not result.entries and result.category in ("condition_functions",):
             continue
-        write_flat(result, out, source_label = source_label, generated_at = generated_at)
+        if result.category == "fx":
+            write_flat_fx(result, out, source_label = source_label, generated_at = generated_at)
+        else:
+            write_flat(result, out, source_label = source_label, generated_at = generated_at)
         files_written += 1
     for result in per_character_results:
         paths = write_per_character(result, out, source_label = source_label, generated_at = generated_at)

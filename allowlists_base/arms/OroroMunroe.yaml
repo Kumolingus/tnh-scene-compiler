@@ -1,6 +1,6 @@
 character: OroroMunroe
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-05-17'
 arms:
 - name: bra
   source_file: TheNullHypothesis/game/characters/OroroMunroe/definitions/expressions.rpy

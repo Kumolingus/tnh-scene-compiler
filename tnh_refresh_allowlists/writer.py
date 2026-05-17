@@ -79,6 +79,31 @@ def write_flat(
     return out_path
 
 
+def write_flat_fx(
+    result: ExtractionResult,
+    out_dir: Path,
+    *,
+    source_label: str,
+    generated_at: datetime | None = None,
+) -> Path:
+    """Write the FX allowlist using ``effects`` as the top-level key.
+
+    The FX YAML schema uses ``effects`` instead of ``values`` for
+    historical reasons (the compiler's allowlists.py reads this key).
+    """
+    timestamp = _format_generated_at(generated_at)
+
+    payload = {
+        "source": source_label,
+        "generated_at": timestamp,
+        "effects": _serialize_entries(result.entries),
+    }
+
+    out_path = out_dir / f"{result.category}.yaml"
+    _dump_yaml(payload, out_path)
+    return out_path
+
+
 def write_per_character(
     result: ExtractionResult,
     out_dir: Path,

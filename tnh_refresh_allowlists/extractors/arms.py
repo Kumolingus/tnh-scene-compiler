@@ -20,6 +20,7 @@ Rules (spec §5.4):
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
@@ -57,8 +58,19 @@ def _find_block_end(text: str, open_brace_index: int) -> int | None:
     return None
 
 
+def _is_standing_pose_file(path: Path) -> bool:
+    """Return True if the file is in a standing pose directory."""
+    parts = path.parts
+    return "standing" in parts or "definitions" in parts
+
+
 def extract(context: ScanContext) -> ExtractionResult:
-    """Return an :class:`ExtractionResult` partitioned by character and slot."""
+    """Return an :class:`ExtractionResult` partitioned by character and slot.
+
+    Only extracts left_arm/right_arm values from standing pose files to
+    exclude non-standing (sex scene) poses that are not usable in normal
+    dialogue scenes.
+    """
     result = ExtractionResult(category = "arms")
 
     for path in iter_all_rpy(context):
@@ -67,36 +79,40 @@ def extract(context: ScanContext) -> ExtractionResult:
             continue
 
         cleaned = strip_noise(text)
-        for match in _POSE_START_RE.finditer(cleaned):
-            character = match.group("character")
-            open_brace = match.end() - 1
-            end = _find_block_end(cleaned, open_brace)
-            if end is None:
-                continue
 
-            block_body = cleaned[open_brace + 1 : end]
-            block_start_offset = open_brace + 1
+        # First pass: extract arm values from pose definitions.
+        # Only standing poses are relevant for writers.
+        if _is_standing_pose_file(path):
+            for match in _POSE_START_RE.finditer(cleaned):
+                character = match.group("character")
+                open_brace = match.end() - 1
+                end = _find_block_end(cleaned, open_brace)
+                if end is None:
+                    continue
 
-            seen: set[tuple[str, str]] = set()
-            for slot_match in _SLOT_RE.finditer(block_body):
-                slot = slot_match.group("slot")
-                body = slot_match.group("body")
-                for value_match in _STRING_RE.finditer(body):
-                    value = value_match.group("value")
-                    key = (slot, value)
-                    if key in seen:
-                        continue
-                    seen.add(key)
+                block_body = cleaned[open_brace + 1 : end]
+                block_start_offset = open_brace + 1
 
-                    absolute_offset = block_start_offset + slot_match.start() + value_match.start()
-                    line = cleaned[: absolute_offset].count("\n") + 1
-                    entry = AllowlistEntry(
-                        name = value,
-                        source_file = context.relative(path),
-                        source_line = line,
-                        subgroup = slot,
-                    )
-                    result.per_character.setdefault(character, []).append(entry)
+                seen: set[tuple[str, str]] = set()
+                for slot_match in _SLOT_RE.finditer(block_body):
+                    slot = slot_match.group("slot")
+                    body = slot_match.group("body")
+                    for value_match in _STRING_RE.finditer(body):
+                        value = value_match.group("value")
+                        key = (slot, value)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+
+                        absolute_offset = block_start_offset + slot_match.start() + value_match.start()
+                        line = cleaned[: absolute_offset].count("\n") + 1
+                        entry = AllowlistEntry(
+                            name = value,
+                            source_file = context.relative(path),
+                            source_line = line,
+                            subgroup = slot,
+                        )
+                        result.per_character.setdefault(character, []).append(entry)
 
         # Second pass: pick up every ``define <Character>_arms["preset"]``
         # top-level definition so standalone arm presets that no pose

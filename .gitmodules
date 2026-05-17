@@ -1,0 +1,3 @@
+[submodule "external/TNH-VisualReference"]
+	path = external/TNH-VisualReference
+	url = git@github.com:Kumolingus/TNH-VisualReference.git

@@ -1,153 +1,215 @@
-# Engine effects callable from [[fx function_name()]] in .scene files.
-# Extracted from TheNullHypothesis base game source.
 source: TNH base game
-generated_at: '2026-05-13'
+generated_at: '2026-05-17'
 effects:
-  # -- Mechanics ----------------------------------------------------------
-  - name: knock_on_door
-    source_file: game/core/mechanics/knocking.rpy
-    source_line: 229
-  - name: phone_buzz
-    source_file: game/core/mechanics/phone.rpy
-    source_line: 3
-
-  # -- Standard visual effects (labels) -----------------------------------
-  - name: bamf
-    source_file: game/displayables/effects.rpy
-    source_line: 132
-  - name: boom
-    source_file: game/displayables/effects.rpy
-    source_line: 144
-  - name: bone_crack
-    source_file: game/displayables/effects.rpy
-    source_line: 184
-  - name: bzilll
-    source_file: game/displayables/effects.rpy
-    source_line: 194
-  - name: clash
-    source_file: game/displayables/effects.rpy
-    source_line: 204
-  - name: clang
-    source_file: game/displayables/effects.rpy
-    source_line: 214
-  - name: click
-    source_file: game/displayables/effects.rpy
-    source_line: 231
-  - name: crack
-    source_file: game/displayables/effects.rpy
-    source_line: 241
-  - name: crash
-    source_file: game/displayables/effects.rpy
-    source_line: 247
-  - name: green_smack
-    source_file: game/displayables/effects.rpy
-    source_line: 345
-  - name: kaboom
-    source_file: game/displayables/effects.rpy
-    source_line: 257
-  - name: pow
-    source_file: game/displayables/effects.rpy
-    source_line: 297
-  - name: roar
-    source_file: game/displayables/effects.rpy
-    source_line: 303
-  - name: shirk
-    source_file: game/displayables/effects.rpy
-    source_line: 326
-  - name: smack
-    source_file: game/displayables/effects.rpy
-    source_line: 336
-  - name: snakt
-    source_file: game/displayables/effects.rpy
-    source_line: 351
-  - name: snikt
-    source_file: game/displayables/effects.rpy
-    source_line: 360
-  - name: zing
-    source_file: game/displayables/effects.rpy
-    source_line: 369
-  - name: zirk
-    source_file: game/displayables/effects.rpy
-    source_line: 386
-
-  # -- Cinematic layer variants -------------------------------------------
-  - name: cinematic_bamf
-    source_file: game/displayables/effects.rpy
-    source_line: 396
-  - name: cinematic_boom
-    source_file: game/displayables/effects.rpy
-    source_line: 436
-  - name: cinematic_bone_crack
-    source_file: game/displayables/effects.rpy
-    source_line: 492
-  - name: cinematic_bzilll
-    source_file: game/displayables/effects.rpy
-    source_line: 502
-  - name: cinematic_clash
-    source_file: game/displayables/effects.rpy
-    source_line: 512
-  - name: cinematic_clang
-    source_file: game/displayables/effects.rpy
-    source_line: 522
-  - name: cinematic_click
-    source_file: game/displayables/effects.rpy
-    source_line: 539
-  - name: cinematic_crack
-    source_file: game/displayables/effects.rpy
-    source_line: 549
-  - name: cinematic_crash
-    source_file: game/displayables/effects.rpy
-    source_line: 559
-  - name: cinematic_green_smack
-    source_file: game/displayables/effects.rpy
-    source_line: 678
-  - name: cinematic_kaboom
-    source_file: game/displayables/effects.rpy
-    source_line: 569
-  - name: cinematic_knock
-    source_file: game/displayables/effects.rpy
-    source_line: 609
-  - name: cinematic_phone_buzz
-    source_file: game/displayables/effects.rpy
-    source_line: 476
-  - name: cinematic_pow
-    source_file: game/displayables/effects.rpy
-    source_line: 626
-  - name: cinematic_roar
-    source_file: game/displayables/effects.rpy
-    source_line: 636
-  - name: cinematic_shirk
-    source_file: game/displayables/effects.rpy
-    source_line: 659
-  - name: cinematic_smack
-    source_file: game/displayables/effects.rpy
-    source_line: 669
-  - name: cinematic_snakt
-    source_file: game/displayables/effects.rpy
-    source_line: 684
-  - name: cinematic_snikt
-    source_file: game/displayables/effects.rpy
-    source_line: 693
-  - name: cinematic_zing
-    source_file: game/displayables/effects.rpy
-    source_line: 702
-  - name: cinematic_zirk
-    source_file: game/displayables/effects.rpy
-    source_line: 719
-
-  # -- Character animations -----------------------------------------------
-  - name: JeanGrey_animations_activate_power
-    source_file: game/characters/JeanGrey/animations.rpy
-    source_line: 13
-  - name: JeanGrey_animations_deactivate_power
-    source_file: game/characters/JeanGrey/animations.rpy
-    source_line: 23
-  - name: KurtWagner_animations_teleports_in
-    source_file: game/characters/KurtWagner/animations.rpy
-    source_line: 33
-  - name: LauraKinney_animations_sheathes_claws
-    source_file: game/characters/LauraKinney/animations.rpy
-    source_line: 34
-  - name: LauraKinney_animations_unsheathes_claws
-    source_file: game/characters/LauraKinney/animations.rpy
-    source_line: 13
+- name: bamf
+  source_file: game/displayables/effects.rpy
+  source_line: 132
+  signature: bamf(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0, pause = True) -> None
+- name: bone_crack
+  source_file: game/displayables/effects.rpy
+  source_line: 184
+  signature: bone_crack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: boom
+  source_file: game/displayables/effects.rpy
+  source_line: 144
+  signature: boom(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0) -> None
+- name: bzilll
+  source_file: game/displayables/effects.rpy
+  source_line: 194
+  signature: bzilll(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: CharlesXavier_animations_activate_power
+  source_file: game/characters/CharlesXavier/animations.rpy
+  source_line: 1
+  signature: CharlesXavier_animations_activate_power() -> None
+- name: CharlesXavier_animations_deactivate_power
+  source_file: game/characters/CharlesXavier/animations.rpy
+  source_line: 11
+  signature: CharlesXavier_animations_deactivate_power() -> None
+- name: cinematic_bamf
+  source_file: game/displayables/effects.rpy
+  source_line: 396
+  signature: cinematic_bamf(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0, pause = True) -> None
+- name: cinematic_bone_crack
+  source_file: game/displayables/effects.rpy
+  source_line: 492
+  signature: cinematic_bone_crack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_boom
+  source_file: game/displayables/effects.rpy
+  source_line: 436
+  signature: cinematic_boom(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_bzilll
+  source_file: game/displayables/effects.rpy
+  source_line: 502
+  signature: cinematic_bzilll(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_clang
+  source_file: game/displayables/effects.rpy
+  source_line: 522
+  signature: cinematic_clang(x = 0.5, y = 0.5, z = 0, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_clash
+  source_file: game/displayables/effects.rpy
+  source_line: 512
+  signature: cinematic_clash(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_click
+  source_file: game/displayables/effects.rpy
+  source_line: 539
+  signature: cinematic_click(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_crack
+  source_file: game/displayables/effects.rpy
+  source_line: 549
+  signature: cinematic_crack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_crash
+  source_file: game/displayables/effects.rpy
+  source_line: 559
+  signature: cinematic_crash(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_green_smack
+  source_file: game/displayables/effects.rpy
+  source_line: 678
+  signature: cinematic_green_smack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_kaboom
+  source_file: game/displayables/effects.rpy
+  source_line: 569
+  signature: cinematic_kaboom(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_knock
+  source_file: game/displayables/effects.rpy
+  source_line: 609
+  signature: cinematic_knock(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_phone_buzz
+  source_file: game/displayables/effects.rpy
+  source_line: 476
+  signature: cinematic_phone_buzz(x = 0.5, y = 0.5, times = 1, intensity = 0.5, pause = True) -> None
+- name: cinematic_pow
+  source_file: game/displayables/effects.rpy
+  source_line: 626
+  signature: cinematic_pow(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_roar
+  source_file: game/displayables/effects.rpy
+  source_line: 636
+  signature: cinematic_roar(x = 0.5, y = 0.5, intensity = 1.0, duration = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_shirk
+  source_file: game/displayables/effects.rpy
+  source_line: 659
+  signature: cinematic_shirk(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_smack
+  source_file: game/displayables/effects.rpy
+  source_line: 669
+  signature: cinematic_smack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_snakt
+  source_file: game/displayables/effects.rpy
+  source_line: 684
+  signature: cinematic_snakt(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0, duration = 0.01) -> None
+- name: cinematic_snikt
+  source_file: game/displayables/effects.rpy
+  source_line: 693
+  signature: cinematic_snikt(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0, duration = 0.01) -> None
+- name: cinematic_zing
+  source_file: game/displayables/effects.rpy
+  source_line: 702
+  signature: cinematic_zing(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: cinematic_zirk
+  source_file: game/displayables/effects.rpy
+  source_line: 719
+  signature: cinematic_zirk(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: clang
+  source_file: game/displayables/effects.rpy
+  source_line: 214
+  signature: clang(x = 0.5, y = 0.5, z = 0, intensity = 1.0, final_alpha = 0.0) -> None
+- name: clash
+  source_file: game/displayables/effects.rpy
+  source_line: 204
+  signature: clash(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: click
+  source_file: game/displayables/effects.rpy
+  source_line: 231
+  signature: click(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: crack
+  source_file: game/displayables/effects.rpy
+  source_line: 241
+  signature: crack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: crash
+  source_file: game/displayables/effects.rpy
+  source_line: 247
+  signature: crash(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: green_smack
+  source_file: game/displayables/effects.rpy
+  source_line: 345
+  signature: green_smack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: JeanGrey_animations_activate_power
+  source_file: game/characters/JeanGrey/animations.rpy
+  source_line: 1
+  signature: JeanGrey_animations_activate_power() -> None
+- name: JeanGrey_animations_deactivate_power
+  source_file: game/characters/JeanGrey/animations.rpy
+  source_line: 6
+  signature: JeanGrey_animations_deactivate_power() -> None
+- name: kaboom
+  source_file: game/displayables/effects.rpy
+  source_line: 257
+  signature: kaboom(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0) -> None
+- name: knock_on_door
+  source_file: game/core/mechanics/knocking.rpy
+  source_line: 229
+  signature: 'knock_on_door(x: float = 0.5, y: float = 0.4, times: int = 1, intensity: float = 1.5, layer: str = "effects",
+    pause: bool = True) -> None'
+- name: KurtWagner_animations_teleports_in
+  source_file: game/characters/KurtWagner/animations.rpy
+  source_line: 1
+  signature: KurtWagner_animations_teleports_in(dialogue = None, x = None, y = None, add = True) -> None
+- name: KurtWagner_animations_teleports_out
+  source_file: game/characters/KurtWagner/animations.rpy
+  source_line: 6
+  signature: KurtWagner_animations_teleports_out() -> None
+- name: LauraKinney_animations_sheathes_claws
+  source_file: game/characters/LauraKinney/animations.rpy
+  source_line: 6
+  signature: LauraKinney_animations_sheathes_claws(x = 0.675, y = 0.25, hand = "both") -> None
+  param_choices:
+    hand:
+    - '"both"'
+    - '"left"'
+    - '"right"'
+- name: LauraKinney_animations_unsheathes_claws
+  source_file: game/characters/LauraKinney/animations.rpy
+  source_line: 1
+  signature: LauraKinney_animations_unsheathes_claws(x = 0.675, y = 0.25, hand = "both") -> None
+  param_choices:
+    hand:
+    - '"both"'
+    - '"left"'
+    - '"right"'
+- name: phone_buzz
+  source_file: game/core/mechanics/phone.rpy
+  source_line: 3
+  signature: 'phone_buzz(x: float = 0.5, y: float = 0.5, times: int = 1, intensity: float = 0.5, layer: str = "effects", pause:
+    bool = True) -> None'
+- name: pow
+  source_file: game/displayables/effects.rpy
+  source_line: 297
+  signature: pow(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: roar
+  source_file: game/displayables/effects.rpy
+  source_line: 303
+  signature: roar(x = 0.5, y = 0.5, intensity = 1.0, duration = 1.0, final_alpha = 0.0) -> None
+- name: shirk
+  source_file: game/displayables/effects.rpy
+  source_line: 326
+  signature: shirk(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: smack
+  source_file: game/displayables/effects.rpy
+  source_line: 336
+  signature: smack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: snakt
+  source_file: game/displayables/effects.rpy
+  source_line: 351
+  signature: snakt(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0, duration = 0.01) -> None
+- name: snikt
+  source_file: game/displayables/effects.rpy
+  source_line: 360
+  signature: snikt(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0, duration = 0.01) -> None
+- name: zing
+  source_file: game/displayables/effects.rpy
+  source_line: 369
+  signature: zing(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
+- name: zirk
+  source_file: game/displayables/effects.rpy
+  source_line: 386
+  signature: zirk(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None

@@ -199,6 +199,8 @@ class Allowlists:
     sfx: set[str] = field(default_factory=set)
     run_operations: set[str] = field(default_factory=set)
     fx: set[str] = field(default_factory=set)
+    fx_signatures: dict[str, str] = field(default_factory=dict)
+    fx_param_choices: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     condition_functions: set[str] = field(default_factory=set)
     character_methods: set[str] = field(default_factory=set)
     traits: set[str] = field(default_factory=set)
@@ -248,10 +250,21 @@ class Allowlists:
         # family. Schema parallels run_operations.yaml.
         fx_payload = _read_yaml(allowlists_dir / "fx.yaml")
         fx: set[str] = set()
+        fx_signatures: dict[str, str] = {}
+        fx_param_choices: dict[str, dict[str, list[str]]] = {}
         if fx_payload and isinstance(fx_payload.get("effects"), list):
             for item in fx_payload["effects"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     fx.add(item["name"])
+                    sig = item.get("signature")
+                    if isinstance(sig, str):
+                        fx_signatures[item["name"]] = sig
+                    choices = item.get("param_choices")
+                    if isinstance(choices, dict):
+                        fx_param_choices[item["name"]] = {
+                            k: v for k, v in choices.items()
+                            if isinstance(k, str) and isinstance(v, list)
+                        }
 
         # Condition-functions allowlist (hand-maintained). Helpers
         # callable from [[if]] / [[elif]] / [[choice ... if]]. The
@@ -320,6 +333,8 @@ class Allowlists:
             sfx = sfx,
             run_operations = run_operations,
             fx = fx,
+            fx_signatures = fx_signatures,
+            fx_param_choices = fx_param_choices,
             condition_functions = condition_functions,
             character_methods = character_methods,
             traits = traits,
@@ -489,6 +504,8 @@ class Allowlists:
             sfx=self.sfx | other.sfx,
             run_operations=self.run_operations | other.run_operations,
             fx=self.fx | other.fx,
+            fx_signatures={**self.fx_signatures, **other.fx_signatures},
+            fx_param_choices={**self.fx_param_choices, **other.fx_param_choices},
             condition_functions=self.condition_functions | other.condition_functions,
             character_methods=self.character_methods | other.character_methods,
             traits=self.traits | other.traits,

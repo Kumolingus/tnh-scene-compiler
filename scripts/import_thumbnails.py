@@ -242,7 +242,10 @@ def main() -> None:
     parser.add_argument(
         "visual_ref_dir",
         type=Path,
-        help="Path to the TNH-VisualReference repository root.",
+        nargs="?",
+        default=REPO_ROOT / "external" / "TNH-VisualReference",
+        help="Path to the TNH-VisualReference repository root "
+             "(default: external/TNH-VisualReference submodule).",
     )
     parser.add_argument(
         "--face-width",
