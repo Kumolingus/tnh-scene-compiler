@@ -2,8 +2,7 @@
 
 ## 1. Get the app
 
-Download `TNHSceneCompiler.exe` from the [Releases](https://github.com/Kumolingus/tnh-scene-compiler/releases) page. Double-click to launch.
-No installation needed.
+Download `TNHSceneCompiler.exe` from the release page / discord forum. Double-click to launch. No installation needed.
 
 For character thumbnails in the palette, also download `thumbnails.zip` from the same release and extract it next to the exe.
 
