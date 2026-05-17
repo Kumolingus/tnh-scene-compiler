@@ -49,6 +49,8 @@ JEANGREY (happy, face=smile, pose=sitting)
 With mood, face, and pose.
 ```
 
+> **Note:** Arm poses listed in the palette/allowlists are standing poses only.
+
 ### Text messages
 
 ```
@@ -196,12 +198,17 @@ Combine with `and`, `or`, `not`:
 [[fx smack()]]
 ```
 
+> In cinematic scenes, the compiler automatically uses the cinematic layer variant. Write `[[fx bamf()]]` — the compiler handles the rest.
+
 ### Sound effects
 
 ```
 [[sfx door_open]]
 [[sfx phone_buzz]]
+[[sfx door_open 2.0]]
 ```
+
+An optional duration (in seconds) can follow the sound name: `[[sfx name]]` or `[[sfx name 2.0]]`.
 
 ### Pause
 

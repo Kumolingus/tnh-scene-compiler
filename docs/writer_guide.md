@@ -270,6 +270,10 @@ You're a terrible liar, [player.petname].
 
 Exact valid values per character are in the cheatsheet.
 
+> **Note on arm poses:** the arm poses listed in the cheatsheet and
+> editor palette are standing poses only. Non-standing poses (sex scene
+> poses) are not included in the allowlists.
+
 ### Cross-lookup errors
 
 The compiler validates every attribute against the character who owns
@@ -564,6 +568,9 @@ form. Common uses:
 
 Valid SFX names are in the cheatsheet.
 
+**In the editor:** the SFX dialog includes an optional duration field
+so you can set playback duration without typing it manually.
+
 ### Engine effects (FX)
 
 Visual effects the game engine draws (a screen shake, a knock overlay,
@@ -572,14 +579,26 @@ a flash). Use `[[fx]]`, not `[[sfx]]`:
 ```
 [[fx phone_buzz()]]          # phone shake + implicit short pause
 [[fx knock_on_door()]]       # knock overlay + implicit short pause
+[[fx bamf()]]                # teleportation effect
 ```
 
 Parentheses are required, even when empty. Do not confuse the two:
 - `[[sfx something]]` plays a sound file.
 - `[[fx something()]]` runs a visual effect.
 
+**Cinematic layer variants are automatic.** Always write the base name
+(e.g. `[[fx bamf()]]`). When the scene type is `cinematic`, the
+compiler automatically uses the cinematic layer variant internally.
+You never write `cinematic_` prefixed names — those do not appear in
+the cheatsheet or allowlists.
+
 Valid FX names are in the cheatsheet. If what you need is not listed,
 ask the developer.
+
+**In the editor:** clicking an effect in the FX palette opens a
+parameter dialog with per-parameter fields (defaults pre-filled). For
+effects that take no parameters, clicking inserts the directive
+directly.
 
 ### Phone UI
 
@@ -814,6 +833,29 @@ add a condition to break out.
 3. Look at an existing `.scene` file that does something similar and
    copy the pattern.
 4. Ask the developer. Paste the error message exactly as it appears.
+
+
+---
+
+## Using the editor
+
+The compiler ships with a graphical editor. Here are tips that are not
+obvious from looking at the interface:
+
+- **Mood hover preview:** hovering a mood button in the Visuals tab
+  shows the associated face thumbnails cycling through, so you can
+  preview what expression cluster a mood represents.
+- **FX/SFX hover preview:** in the FX/SFX tab, hovering an effect
+  shows a thumbnail preview of what it looks like.
+- **Thumbnails are a separate download.** The thumbnail images are
+  distributed as `thumbnails.zip` and are not bundled inside the
+  `.exe`. Extract the archive next to the editor for previews to
+  appear.
+- **Settings button:** available in the editor toolbar for configuring
+  preferences (thumbnail display, featured characters, etc.).
+- **Interpolation tab:** respects the "featured characters only"
+  setting — when enabled, only interpolation paths for your project's
+  characters are shown.
 
 
 ---

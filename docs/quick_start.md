@@ -6,6 +6,9 @@ Download `TNHSceneCompiler.exe` from the
 [Releases](https://github.com/Kumolingus/tnh-scene-compiler/releases) page.
 Double-click to launch. No installation needed.
 
+For character thumbnails in the palette, also download `thumbnails.zip` from
+the same release and extract it next to the exe.
+
 ## 2. Create a new scene
 
 Click **New scene** on the welcome screen. The editor opens with a
@@ -110,6 +113,12 @@ Go back to the welcome screen, click **Quick compile**, add your
 `.scene` file, choose an output folder, and click **Compile**.
 
 Your `.rpy` file is ready.
+
+## Tips
+
+- Use the **Settings** button in the editor toolbar to configure
+  project paths and preferences.
+- The **About** button on the welcome screen shows version and links.
 
 ## What's next?
 

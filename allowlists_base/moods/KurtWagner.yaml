@@ -1,17 +1,21 @@
 character: KurtWagner
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-05-17'
 inherits_from_shared: _shared.yaml
 values:
 - name: bewildered
   source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/moods.rpy
   source_line: 43
+  faces: confused2,confused3,confused4
 - name: confused
   source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/moods.rpy
   source_line: 31
+  faces: bemused,confused1,confused2
 - name: curious
   source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/moods.rpy
   source_line: 6
+  faces: bemused,confused1,surprised1
 - name: puzzled
   source_file: TheNullHypothesis/game/characters/KurtWagner/definitions/moods.rpy
   source_line: 19
+  faces: bemused,confused1,squint

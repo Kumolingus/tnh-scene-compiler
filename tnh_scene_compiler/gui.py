@@ -507,11 +507,17 @@ class WelcomeScreen(ttk.Frame):
             command=self._create_project,
         ).pack()
 
-        # -- Settings -------------------------------------------------------
+        # -- Settings / About -----------------------------------------------
+        bottom_bar = ttk.Frame(self)
+        bottom_bar.pack(fill=tk.X, padx=8, pady=(12, 0))
         ttk.Button(
-            self, text="Settings",
+            bottom_bar, text="About",
+            command=lambda: _show_about(self),
+        ).pack(side=tk.RIGHT, padx=(4, 0))
+        ttk.Button(
+            bottom_bar, text="Settings",
             command=lambda: _SettingsDialog(self, app),
-        ).pack(anchor=tk.E, padx=8, pady=(12, 0))
+        ).pack(side=tk.RIGHT)
 
         # -- Recent projects ------------------------------------------------
         self._recent_entries = _load_recent()
@@ -1903,6 +1909,11 @@ def _apply_dark_theme(root: tk.Tk) -> None:
     root.option_add("*TCombobox*Listbox.foreground", "#D4D4D4")
     root.option_add("*TCombobox*Listbox.selectBackground", "#264F78")
     root.option_add("*TCombobox*Listbox.selectForeground", "#FFFFFF")
+
+
+def _show_about(master: tk.Widget) -> None:
+    from .editor import _AboutDialog
+    _AboutDialog(master)
 
 
 def main() -> None:
