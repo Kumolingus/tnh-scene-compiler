@@ -1,6 +1,6 @@
 character: Rogue
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-05-17'
 arms:
 - name: bra
   source_file: TheNullHypothesis/game/characters/Rogue/definitions/expressions.rpy
@@ -60,39 +60,18 @@ left_arm:
 - name: fist
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 88
-- name: fondle_balls
-  source_file: TheNullHypothesis/game/characters/Rogue/images/hands_and_knees/hands_and_knees.rpy
-  source_line: 231
 - name: grope
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 88
-- name: handjob
-  source_file: TheNullHypothesis/game/characters/Rogue/images/hands_and_knees/hands_and_knees.rpy
-  source_line: 231
 - name: hip
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 88
-- name: hold_hands
-  source_file: TheNullHypothesis/game/characters/Rogue/images/missionary/missionary.rpy
-  source_line: 161
 - name: neutral
-  source_file: TheNullHypothesis/game/characters/Rogue/images/doggy/doggy.rpy
-  source_line: 154
+  source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
+  source_line: 88
 - name: rub_neck
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 88
-- name: self_finger_ass
-  source_file: TheNullHypothesis/game/characters/Rogue/images/leaning_back/leaning_back.rpy
-  source_line: 167
-- name: self_finger_pussy
-  source_file: TheNullHypothesis/game/characters/Rogue/images/leaning_back/leaning_back.rpy
-  source_line: 167
-- name: self_touch_breasts
-  source_file: TheNullHypothesis/game/characters/Rogue/images/doggy/doggy.rpy
-  source_line: 154
-- name: self_touch_pussy
-  source_file: TheNullHypothesis/game/characters/Rogue/images/doggy/doggy.rpy
-  source_line: 154
 - name: touch_ass
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 88
@@ -112,33 +91,12 @@ right_arm:
 - name: fist
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 89
-- name: fondle_balls
-  source_file: TheNullHypothesis/game/characters/Rogue/images/hands_and_knees/hands_and_knees.rpy
-  source_line: 232
-- name: handjob
-  source_file: TheNullHypothesis/game/characters/Rogue/images/hands_and_knees/hands_and_knees.rpy
-  source_line: 232
 - name: hip
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 89
-- name: hold_hands
-  source_file: TheNullHypothesis/game/characters/Rogue/images/missionary/missionary.rpy
-  source_line: 162
 - name: neutral
-  source_file: TheNullHypothesis/game/characters/Rogue/images/doggy/doggy.rpy
-  source_line: 155
-- name: self_finger_ass
-  source_file: TheNullHypothesis/game/characters/Rogue/images/doggy/doggy.rpy
-  source_line: 155
-- name: self_finger_pussy
-  source_file: TheNullHypothesis/game/characters/Rogue/images/leaning_back/leaning_back.rpy
-  source_line: 168
-- name: self_touch_breasts
-  source_file: TheNullHypothesis/game/characters/Rogue/images/doggy/doggy.rpy
-  source_line: 155
-- name: self_touch_pussy
-  source_file: TheNullHypothesis/game/characters/Rogue/images/hands_and_knees/hands_and_knees.rpy
-  source_line: 232
+  source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
+  source_line: 89
 - name: touch_pussy
   source_file: TheNullHypothesis/game/characters/Rogue/images/standing/standing.rpy
   source_line: 89

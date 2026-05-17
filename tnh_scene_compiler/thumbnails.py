@@ -95,6 +95,21 @@ class ThumbnailStore:
         """Return ``True`` if any thumbnails exist for *character*."""
         return bool(self._faces.get(character) or self._arms.get(character))
 
+    def available_arms(self, character: str) -> set[str]:
+        """Return arm preset names that have a thumbnail for *character*."""
+        char_map = self._arms.get(character, {})
+        return {k.removeprefix("both_") for k in char_map if k.startswith("both_")}
+
+    def available_left_arms(self, character: str) -> set[str]:
+        """Return left arm names that have a thumbnail for *character*."""
+        char_map = self._arms.get(character, {})
+        return {k.removeprefix("left_") for k in char_map if k.startswith("left_")}
+
+    def available_right_arms(self, character: str) -> set[str]:
+        """Return right arm names that have a thumbnail for *character*."""
+        char_map = self._arms.get(character, {})
+        return {k.removeprefix("right_") for k in char_map if k.startswith("right_")}
+
 
 # -- Module-level singleton ---------------------------------------------------
 

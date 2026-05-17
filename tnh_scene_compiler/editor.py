@@ -455,6 +455,268 @@ _DIRECTIVE_DESCRIPTIONS: dict[str, str] = {
 }
 
 
+def _parse_fx_signature(signature: str) -> list[tuple[str, str, str]]:
+    """Extract (name, type_hint, default) tuples from an FX signature string.
+
+    Handles signatures like:
+        "phone_buzz(x: float = 0.5, y: float = 0.5, ...) -> None"
+    Returns an empty list if the signature is empty or unparseable.
+    """
+    if not signature:
+        return []
+    paren_start = signature.find("(")
+    paren_end = signature.rfind(")")
+    if paren_start < 0 or paren_end < 0:
+        return []
+    params_str = signature[paren_start + 1:paren_end].strip()
+    if not params_str:
+        return []
+
+    params: list[tuple[str, str, str]] = []
+    depth = 0
+    current = ""
+    for ch in params_str:
+        if ch in ("(", "[", "{"):
+            depth += 1
+            current += ch
+        elif ch in (")", "]", "}"):
+            depth -= 1
+            current += ch
+        elif ch == "," and depth == 0:
+            params.append(_parse_single_param(current.strip()))
+            current = ""
+        else:
+            current += ch
+    if current.strip():
+        params.append(_parse_single_param(current.strip()))
+    return params
+
+
+def _parse_single_param(param: str) -> tuple[str, str, str]:
+    """Parse a single parameter like 'x: float = 0.5' into (name, type, default).
+
+    Default values are kept verbatim (including quotes for strings) since
+    they are inserted as-is into the [[fx name(...)]] call.
+    """
+    name = ""
+    type_hint = ""
+    default = ""
+
+    if "=" in param:
+        before_eq, default = param.rsplit("=", 1)
+        default = default.strip()
+        param = before_eq.strip()
+
+    if ":" in param:
+        name, type_hint = param.split(":", 1)
+        name = name.strip()
+        type_hint = type_hint.strip()
+    else:
+        name = param.strip()
+
+    return (name, type_hint, default)
+
+
+class _SfxParamDialog(tk.Toplevel):
+    """Popup form for inserting an [[sfx]] directive with optional duration."""
+
+    def __init__(self, master: tk.Widget, sfx_name: str, insert_cb) -> None:
+        super().__init__(master)
+        self.title(f"Insert — [[sfx {sfx_name}]]")
+        self.resizable(False, False)
+        self.grab_set()
+
+        self._insert = insert_cb
+        self._sfx_name = sfx_name
+
+        body = ttk.Frame(self, padding=12)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            body, text=f"[[sfx {sfx_name}]]",
+            font=("Consolas", 12, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 2))
+
+        ttk.Label(
+            body, text="Play a sound effect.",
+            foreground="#808080", font=("Segoe UI", 9),
+        ).pack(anchor=tk.W, pady=(0, 8))
+
+        fields = ttk.Frame(body)
+        fields.pack(fill=tk.X)
+        ttk.Label(fields, text="Duration (optional):").grid(
+            row=0, column=0, sticky=tk.W, pady=2,
+        )
+        self._duration_var = tk.StringVar()
+        ttk.Entry(fields, textvariable=self._duration_var, width=24).grid(
+            row=0, column=1, sticky=tk.W, padx=4, pady=2,
+        )
+        self._duration_var.trace_add("write", self._update_preview)
+
+        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
+        self._preview_var = tk.StringVar()
+        ttk.Label(
+            body, textvariable=self._preview_var,
+            font=("Consolas", 10), foreground="#C586C0",
+        ).pack(anchor=tk.W)
+
+        self._update_preview()
+
+        btn_frame = ttk.Frame(body)
+        btn_frame.pack(anchor=tk.E, pady=(8, 0))
+        ttk.Button(
+            btn_frame, text="Cancel", style="Danger.TButton",
+            command=self.destroy,
+        ).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(
+            btn_frame, text="Insert", style="Compile.TButton",
+            command=self._do_insert,
+        ).pack(side=tk.LEFT)
+
+        self.bind("<Return>", lambda _e: self._do_insert())
+        self.bind("<Escape>", lambda _e: self.destroy())
+
+    def _update_preview(self, *_args: Any) -> None:
+        dur = self._duration_var.get().strip()
+        if dur:
+            self._preview_var.set(f"[[sfx {self._sfx_name} {dur}]]")
+        else:
+            self._preview_var.set(f"[[sfx {self._sfx_name}]]")
+
+    def _do_insert(self) -> None:
+        dur = self._duration_var.get().strip()
+        if dur:
+            self._insert(f"[[sfx {self._sfx_name} {dur}]]\n")
+        else:
+            self._insert(f"[[sfx {self._sfx_name}]]\n")
+        self.destroy()
+
+
+class _FxParamDialog(tk.Toplevel):
+    """Popup form for inserting an [[fx]] directive with per-parameter fields."""
+
+    def __init__(
+        self,
+        master: tk.Widget,
+        fx_name: str,
+        allow: Allowlists,
+        insert_cb,
+    ) -> None:
+        super().__init__(master)
+        self.title(f"Insert — [[fx {fx_name}]]")
+        self.resizable(False, False)
+        self.grab_set()
+
+        self._insert = insert_cb
+        self._fx_name = fx_name
+        self._param_vars: list[tuple[str, str, tk.StringVar]] = []
+
+        body = ttk.Frame(self, padding=12)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            body, text=f"[[fx {fx_name}]]",
+            font=("Consolas", 12, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 2))
+
+        ttk.Label(
+            body, text="Trigger a visual effect or animation.",
+            foreground="#808080", font=("Segoe UI", 9), wraplength=340,
+        ).pack(anchor=tk.W, pady=(0, 8))
+
+        sig = allow.fx_signatures.get(fx_name, "")
+        params = _parse_fx_signature(sig)
+        choices_map = allow.fx_param_choices.get(fx_name, {})
+
+        if params:
+            fields = ttk.Frame(body)
+            fields.pack(fill=tk.X)
+            for i, (pname, ptype, pdefault) in enumerate(params):
+                hint = pname
+                if ptype:
+                    hint += f"  ({ptype})"
+                ttk.Label(fields, text=f"{hint}:").grid(
+                    row=i, column=0, sticky=tk.W, pady=2,
+                )
+                var = tk.StringVar(value=pdefault)
+                self._param_vars.append((pname, pdefault, var))
+                choices = choices_map.get(pname)
+                if choices:
+                    ttk.Combobox(
+                        fields, textvariable=var, values=choices,
+                        state="readonly", width=22,
+                    ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=2)
+                else:
+                    ttk.Entry(fields, textvariable=var, width=24).grid(
+                        row=i, column=1, sticky=tk.W, padx=4, pady=2,
+                    )
+                var.trace_add("write", self._update_preview)
+        else:
+            ttk.Label(
+                body, text="No parameters.",
+                foreground="#808080", font=("Segoe UI", 9),
+            ).pack(anchor=tk.W, pady=(0, 4))
+
+        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
+        self._preview_var = tk.StringVar()
+        ttk.Label(
+            body, textvariable=self._preview_var,
+            font=("Consolas", 10), foreground="#C586C0",
+        ).pack(anchor=tk.W)
+
+        self._update_preview()
+
+        btn_frame = ttk.Frame(body)
+        btn_frame.pack(anchor=tk.E, pady=(8, 0))
+        ttk.Button(
+            btn_frame, text="Cancel", style="Danger.TButton",
+            command=self.destroy,
+        ).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(
+            btn_frame, text="Insert", style="Compile.TButton",
+            command=self._do_insert,
+        ).pack(side=tk.LEFT)
+
+        self.bind("<Return>", lambda _e: self._do_insert())
+        self.bind("<Escape>", lambda _e: self.destroy())
+
+    def _assemble_args(self) -> str:
+        if not self._param_vars:
+            return ""
+        values: list[tuple[str, str]] = []
+        for _pname, default, var in self._param_vars:
+            values.append((var.get().strip(), default))
+
+        last_non_default = -1
+        for i, (val, default) in enumerate(values):
+            if val and val != default:
+                last_non_default = i
+
+        if last_non_default < 0:
+            return ""
+
+        parts: list[str] = []
+        for i in range(last_non_default + 1):
+            val, default = values[i]
+            parts.append(val if val else default)
+        return ", ".join(parts)
+
+    def _update_preview(self, *_args: Any) -> None:
+        args = self._assemble_args()
+        if args:
+            self._preview_var.set(f"[[fx {self._fx_name}({args})]]")
+        else:
+            self._preview_var.set(f"[[fx {self._fx_name}()]]")
+
+    def _do_insert(self) -> None:
+        args = self._assemble_args()
+        if args:
+            self._insert(f"[[fx {self._fx_name}({args})]]\n")
+        else:
+            self._insert(f"[[fx {self._fx_name}()]]\n")
+        self.destroy()
+
+
 class _DirectiveDialog(tk.Toplevel):
     """Mini-form for each directive type."""
 
@@ -723,7 +985,64 @@ class _DirectiveDialog(tk.Toplevel):
             row = self._add_combo(parent, 0, "Effect", "name", fx_names)
         else:
             row = self._add_entry(parent, 0, "Effect name", "name")
-        self._add_entry(parent, row, "Arguments (optional)", "args")
+
+        self._fx_params_frame = ttk.Frame(parent)
+        self._fx_params_frame.grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0),
+        )
+        self._fx_param_vars: list[tuple[str, str, tk.StringVar]] = []
+        self._fx_signatures = allow.fx_signatures
+
+        def _on_fx_change(*_a: Any) -> None:
+            for widget in self._fx_params_frame.winfo_children():
+                widget.destroy()
+            self._fx_param_vars.clear()
+
+            name = self._vars["name"].get()
+            sig = self._fx_signatures.get(name, "")
+            params = _parse_fx_signature(sig)
+            for i, (pname, ptype, pdefault) in enumerate(params):
+                hint = pname
+                if ptype:
+                    hint += f" ({ptype})"
+                ttk.Label(self._fx_params_frame, text=f"{hint}:").grid(
+                    row=i, column=0, sticky=tk.W, pady=1,
+                )
+                var = tk.StringVar(value=pdefault)
+                self._fx_param_vars.append((pname, pdefault, var))
+                ttk.Entry(
+                    self._fx_params_frame, textvariable=var, width=20,
+                ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
+                var.trace_add("write", self._update_preview)
+
+            self._update_preview()
+
+        self._vars["name"].trace_add("write", _on_fx_change)
+
+    def _build_fx_args(self) -> str:
+        """Assemble positional args from per-parameter fields.
+
+        Only includes args up to the last one that differs from its default.
+        """
+        if not hasattr(self, "_fx_param_vars") or not self._fx_param_vars:
+            return ""
+        values: list[tuple[str, str]] = []
+        for _pname, default, var in self._fx_param_vars:
+            values.append((var.get().strip(), default))
+
+        last_non_default = -1
+        for i, (val, default) in enumerate(values):
+            if val and val != default:
+                last_non_default = i
+
+        if last_non_default < 0:
+            return ""
+
+        parts: list[str] = []
+        for i in range(last_non_default + 1):
+            val, default = values[i]
+            parts.append(val if val else default)
+        return ", ".join(parts)
 
     # -- Preview + insert ---------------------------------------------------
 
@@ -840,7 +1159,7 @@ class _DirectiveDialog(tk.Toplevel):
 
         if d == "fx":
             name = v.get("name", "effect")
-            args = v.get("args", "")
+            args = self._build_fx_args()
             if args:
                 return f"[[fx {name}({args})]]"
             return f"[[fx {name}()]]"
@@ -1261,25 +1580,41 @@ class _PaletteSidebar(ttk.Frame):
         char_names_lower = {c.lower() for c in allow.characters}
 
         char_fx: list[tuple[str, str | None]] = []
+        cinematic_fx: list[tuple[str, str | None]] = []
         generic_fx: list[tuple[str, str | None]] = []
         for name in sorted(allow.fx):
-            prefix = name.split("_")[0].lower() if "_" in name else ""
-            if prefix in char_names_lower:
-                char_fx.append((name, f"[[fx {name}()]]\n"))
+            if name.startswith("cinematic_"):
+                cinematic_fx.append((name, None))
             else:
-                generic_fx.append((name, f"[[fx {name}()]]\n"))
+                prefix = name.split("_")[0].lower() if "_" in name else ""
+                if prefix in char_names_lower:
+                    char_fx.append((name, None))
+                else:
+                    generic_fx.append((name, None))
 
-        sfx_items = [(n, f"[[sfx {n}]]\n") for n in sorted(allow.sfx)]
+        sfx_items: list[tuple[str, str | None]] = [(n, None) for n in sorted(allow.sfx)]
 
         cats: dict[str, list[tuple[str, str | None]]] = {}
         if generic_fx:
-            cats["Effects (generic)"] = generic_fx
+            cats["Effects"] = generic_fx
+        if cinematic_fx:
+            cats["Cinematic"] = cinematic_fx
         if char_fx:
-            cats["Effects (character)"] = char_fx
+            cats["Character FX"] = char_fx
         if sfx_items:
             cats["Sounds (SFX)"] = sfx_items
 
-        self._build_categorized_tab("FX/SFX", cats)
+        self._build_categorized_tab("FX/SFX", cats, on_click="fx_effect")
+
+    def _on_fx_effect_click(self, display: str) -> None:
+        if display in self._allow.sfx:
+            _SfxParamDialog(self, display, self._insert)
+        else:
+            sig = self._allow.fx_signatures.get(display, "")
+            if not _parse_fx_signature(sig):
+                self._insert(f"[[fx {display}()]]\n")
+            else:
+                _FxParamDialog(self, display, self._allow, self._insert)
 
     # -- Structures ---------------------------------------------------------
 
@@ -1417,14 +1752,30 @@ class _PaletteSidebar(ttk.Frame):
 
     def _get_visual_categories(self, char: str) -> dict[str, set[str]]:
         allow = self._allow
+        arms = allow.char_arms.get(char, set())
+        left_arm = allow.char_left_arm.get(char, set())
+        right_arm = allow.char_right_arm.get(char, set())
+
+        thumb_store = _get_thumb_store() if self._show_thumbnails else None
+        if thumb_store:
+            available_arms = thumb_store.available_arms(char)
+            available_left = thumb_store.available_left_arms(char)
+            available_right = thumb_store.available_right_arms(char)
+            if available_arms:
+                arms = arms & available_arms
+            if available_left:
+                left_arm = left_arm & available_left
+            if available_right:
+                right_arm = right_arm & available_right
+
         all_cats: dict[str, set[str]] = {
             "Moods": allow.shared_moods | allow.char_moods.get(char, set()),
             "Faces": allow.char_faces.get(char, set()),
             "Poses": allow.char_poses.get(char, set()),
             "Outfits": allow.char_outfits.get(char, set()),
-            "Arms": allow.char_arms.get(char, set()),
-            "Left Arm": allow.char_left_arm.get(char, set()),
-            "Right Arm": allow.char_right_arm.get(char, set()),
+            "Arms": arms,
+            "Left Arm": left_arm,
+            "Right Arm": right_arm,
             "Looks": allow.looks,
             "Stages": allow.stages,
         }
