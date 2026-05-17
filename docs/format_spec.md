@@ -866,13 +866,13 @@ layers of allowlists are merged at load time:
    `tnh-scene-compiler` package) -- ship with the tool and cover
    TNH's base-game characters, locations, moods, faces, arms,
    outfits, looks, stages, SFX, and interpolation paths.
-2. **Mod allowlists** (`scenes_source/_allowlists/` or the path
-   configured under `mod_allowlists` in
+2. **Project allowlists** (`scenes_source/_allowlists/` or the path
+   configured under `project_allowlists` in
    `tnh_scene_compiler.yaml`) -- project-specific additions. The mod
    layer extends the base: new characters, new moods, custom SFX,
    mod-specific operations, etc.
 
-Base and mod layers are merged with set-union semantics: if a value appears in either layer, it is valid. Per-character dicts are merged per
+Base and project layers are merged with set-union semantics: if a value appears in either layer, it is valid. Per-character dicts are merged per
 key. The `include_base_allowlists` config option (default `true`) controls whether the base layer is included at all.
 
 ### 12.1 Allowlist files
@@ -1200,7 +1200,7 @@ mod_prefix: my_mod
 scenes_source: scenes_source/
 
 # Mod-specific allowlists directory (relative to this file).
-mod_allowlists: scenes_source/_allowlists/
+project_allowlists: scenes_source/_allowlists/
 
 # Output directory for compiled .rpy files (relative to this file).
 output: game/my_mod/scenes/
@@ -1218,9 +1218,9 @@ include_base_allowlists: true
 | ------------------------- | -------- | ------------------------------ | ------------------------------------------------------- |
 | `mod_prefix`              | Yes      | ------------------------------ | Unique prefix (`[a-z][a-z0-9_]*`). [^mp]                |
 | `scenes_source`           | No       | `scenes_source/`               | Root directory for `.scene` files.                      |
-| `mod_allowlists`          | No       | `scenes_source/_allowlists/`   | Directory for mod-specific allowlist YAMLs.             |
+| `project_allowlists`          | No       | `scenes_source/_allowlists/`   | Directory for project-specific allowlist YAMLs.             |
 | `output`                  | No       | `game/{prefix}/scenes/`        | Output directory for compiled `.rpy` files.             |
-| `include_base_allowlists` | No       | `true`                         | Merge base TNH allowlists beneath the mod layer.        |
+| `include_base_allowlists` | No       | `true`                         | Merge base TNH allowlists beneath the project layer.        |
 | `refresh.base_game`       | No       | `../TheNullHypothesis/`        | Path to the TNH base game (for the refresh tool).       |
 | `refresh.mod_root`        | No       | `.`                            | Path to the mod root (for the refresh tool).            |
 
@@ -1302,7 +1302,7 @@ Let's sit down.
 ```yaml
 mod_prefix: my_mod
 scenes_source: scenes_source/
-mod_allowlists: scenes_source/_allowlists/
+project_allowlists: scenes_source/_allowlists/
 output: game/my_mod/scenes/
 include_base_allowlists: true
 ```

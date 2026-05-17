@@ -32,8 +32,8 @@ mod_prefix: my_mod
 # Where your .scene source files live.
 scenes_source: scenes_source/
 
-# Where your mod-specific allowlist extensions live.
-mod_allowlists: scenes_source/_allowlists/
+# Where your project-specific allowlist extensions live.
+project_allowlists: scenes_source/_allowlists/
 
 # Where compiled .rpy files go (inside your mod's game/ tree).
 output: MyMod/game/my_mod/scenes/
@@ -58,7 +58,7 @@ Rename them to match your mod prefix. These files are generated once and committ
 
 ```
 scenes_source/
-├── _allowlists/       ← mod-specific allowlist extensions (optional)
+├── _allowlists/       ← project-specific allowlist extensions (optional)
 ├── JeanGrey/          ← one directory per character
 │   └── my_mod_dialogue_jeangrey_greeting.scene
 ├── Rogue/
@@ -79,7 +79,7 @@ against YAML allowlists. Unknown values produce a compile error with a "did you 
    moods, faces, arms, poses, outfits, SFX, looks, stages, and
    interpolation paths.
 
-2. **Mod layer** — your mod's additions, under `mod_allowlists`
+2. **Project layer** — your mod's additions, under `project_allowlists`
    (configured in `tnh_scene_compiler.yaml`). Only provide files for
    what your mod adds. Missing files are fine — the base layer covers
    vanilla TNH.
@@ -97,7 +97,7 @@ Layers merge automatically: mod entries extend the base (sets are unioned, locat
   do not need to manually enumerate effects — the refresh process
   picks them up automatically.
 
-### What goes in the mod layer
+### What goes in the project layer
 
 | File                        | When to add it                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------------- |
@@ -250,7 +250,7 @@ config file. Use **Open project** and navigate to the folder containing
 your `tnh_scene_compiler.yaml`.
 
 **"No allowlists directories found"** — neither the base allowlists
-(shipped with the tool) nor your mod allowlists directory exist. Check
+(shipped with the tool) nor your project allowlists directory exist. Check
 that `include_base_allowlists: true` is set in your config.
 
 **Unknown character/mood/face errors** — the value is not in any
