@@ -344,7 +344,7 @@ def test_codegen_show_emits_state_changes_before_add_characters(
     assert outfit_idx < mood_idx
 
 
-def test_codegen_hide_emits_remove_characters(allowlists: Allowlists) -> None:
+def test_codegen_hide_emits_hide_character(allowlists: Allowlists) -> None:
     text = (
         "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
         "[[hide JeanGrey]]\n"
@@ -353,7 +353,31 @@ def test_codegen_hide_emits_remove_characters(allowlists: Allowlists) -> None:
 
     output = generate(scene, allowlists, _CTX)
 
-    assert "$ remove_Characters(JeanGrey, fade = False)" in output
+    assert "$ hide_Character(JeanGrey, fade = False)" in output
+
+
+def test_codegen_hide_fade_emits_dissolve(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "[[hide JeanGrey fade]]\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    assert "$ hide_Character(JeanGrey, fade = 0.5)" in output
+
+
+def test_codegen_show_fade_emits_add_characters_with_fade(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "[[show JeanGrey stage=stage_center fade=true]]\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    assert "add_Characters(JeanGrey, direction = \"middle\", fade = True)" in output
 
 
 def test_codegen_call_emits_ren_py_call(allowlists: Allowlists) -> None:
