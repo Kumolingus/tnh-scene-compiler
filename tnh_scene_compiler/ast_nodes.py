@@ -340,9 +340,10 @@ class Show:
 
 @dataclass(frozen=True, slots=True)
 class Hide:
-    """``[[hide <Character>]]`` — remove the character from the scene."""
+    """``[[hide <Character>]]`` or ``[[hide <Character> fade]]``."""
 
     character: str
+    fade: bool = False
     line: int = 0
     col: int = 0
 

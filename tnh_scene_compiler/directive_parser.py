@@ -312,7 +312,7 @@ def parse_phone(raw: str, *, path: str, line: int, col: int) -> PhoneOpen | Phon
 # validation since the directive does not carry a medium.
 _SHOW_KEYS: frozenset[str] = frozenset({
     "mood", "face", "arms", "look", "outfit", "stage",
-    "left_arm", "right_arm", "pose",
+    "left_arm", "right_arm", "pose", "fade",
 })
 
 
@@ -617,10 +617,10 @@ def parse_fx(raw: str, *, path: str, line: int, col: int) -> FxCall:
 def parse_hide(raw: str, *, path: str, line: int, col: int) -> Hide:
     body = _strip_directive(raw)
     parts = body.split()
-    if len(parts) != 2 or parts[0] != "hide":
+    if len(parts) < 2 or len(parts) > 3 or parts[0] != "hide":
         raise CompileError(
             path = path, line = line, col = col,
-            message = "Malformed [[hide]] directive. Expected '[[hide Character]]'.",
+            message = "Malformed [[hide]] directive. Expected '[[hide Character]]' or '[[hide Character fade]]'.",
         )
     character = parts[1]
     if not _RE_IDENT.match(character):
@@ -628,7 +628,13 @@ def parse_hide(raw: str, *, path: str, line: int, col: int) -> Hide:
             path = path, line = line, col = col,
             message = f"Character {character!r} is not a plain identifier.",
         )
-    return Hide(character = character, line = line, col = col)
+    fade = len(parts) == 3 and parts[2] == "fade"
+    if len(parts) == 3 and not fade:
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = f"Unknown [[hide]] modifier {parts[2]!r}. Only 'fade' is supported.",
+        )
+    return Hide(character = character, fade = fade, line = line, col = col)
 
 
 def parse_approval(raw: str, *, path: str, line: int, col: int) -> Approval:

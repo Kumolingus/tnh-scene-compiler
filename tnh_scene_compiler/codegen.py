@@ -724,6 +724,8 @@ def _emit_parenthetical_prelude(
     paren: Parenthetical,
     speaker_pascal: str,
     indent: str,
+    *,
+    use_fade: bool = False,
 ) -> list[str]:
     """Emit state-change calls for the parenthetical's populated slots.
 
@@ -799,9 +801,10 @@ def _emit_parenthetical_prelude(
                 "add_Characters direction equivalent — adjust by hand.",
             )
         else:
+            fade_value = "True" if use_fade else "False"
             lines.append(
                 f"{indent}$ add_Characters({speaker_pascal}, "
-                f"direction = \"{direction}\", fade = False)",
+                f"direction = \"{direction}\", fade = {fade_value})",
             )
     return lines
 
@@ -893,6 +896,8 @@ def _emit_show(node: Show, indent: str) -> list[str]:
     character from being visibly "dressing" after entering the stage.
     """
     attrs = node.attrs
+    fade_raw = attrs.get("fade", "").lower()
+    use_fade = fade_raw in ("true", "yes", "1")
     paren_like = Parenthetical(
         mood = attrs.get("mood"),
         face = attrs.get("face"),
@@ -904,11 +909,14 @@ def _emit_show(node: Show, indent: str) -> list[str]:
         pose = attrs.get("pose"),
         stage = attrs.get("stage"),
     )
-    return _emit_parenthetical_prelude(paren_like, node.character, indent)
+    return _emit_parenthetical_prelude(paren_like, node.character, indent, use_fade = use_fade)
 
 
 def _emit_hide(node: Hide, indent: str) -> str:
-    return f"{indent}$ remove_Characters({node.character}, fade = False)"
+    # hide_Character is the sprite-level hide — no outfit-change
+    # animation, unlike remove_Characters which calls set_Outfits.
+    fade_value = "0.5" if node.fade else "False"
+    return f"{indent}$ hide_Character({node.character}, fade = {fade_value})"
 
 
 def _emit_phone_open(node: PhoneOpen, indent: str) -> str:
@@ -989,14 +997,31 @@ def _emit_choice(
 
 
 _CINEMATIC_FX_OVERRIDES: dict[str, str] = {
-    "knock_on_door": "cinematic_knock",
+    # Base-game labels whose cinematic_ variant has a compatible
+    # parameter signature (straight name prefix, same args).
+    # knock_on_door is deliberately absent: cinematic_knock has
+    # incompatible parameters (no times, 3rd arg is intensity).
+    "bamf": "cinematic_bamf",
+    "boom": "cinematic_boom",
+    "bone_crack": "cinematic_bone_crack",
+    "bzilll": "cinematic_bzilll",
+    "clash": "cinematic_clash",
+    "clang": "cinematic_clang",
+    "click": "cinematic_click",
+    "crack": "cinematic_crack",
+    "crash": "cinematic_crash",
+    "green_smack": "cinematic_green_smack",
+    "kaboom": "cinematic_kaboom",
     "phone_buzz": "cinematic_phone_buzz",
+    "pow": "cinematic_pow",
+    "roar": "cinematic_roar",
+    "shirk": "cinematic_shirk",
+    "smack": "cinematic_smack",
+    "snakt": "cinematic_snakt",
+    "snikt": "cinematic_snikt",
+    "zing": "cinematic_zing",
+    "zirk": "cinematic_zirk",
 }
-
-
-def _cinematic_fx_name(base_name: str) -> str:
-    """Return the cinematic layer variant name for a base FX."""
-    return _CINEMATIC_FX_OVERRIDES.get(base_name, f"cinematic_{base_name}")
 
 
 def _emit_body(
@@ -1093,8 +1118,8 @@ def _emit_body(
         elif isinstance(node, FxCall):
             call_text = node.call_text
             is_label = allow.fx_call_modes.get(node.target_name) == "label"
-            if use_cinematic_fx:
-                cinematic_name = _cinematic_fx_name(node.target_name)
+            cinematic_name = _CINEMATIC_FX_OVERRIDES.get(node.target_name)
+            if use_cinematic_fx and cinematic_name is not None:
                 call_text = cinematic_name + call_text[len(node.target_name):]
                 lines.append(f"{indent}call {call_text}")
             elif is_label:
