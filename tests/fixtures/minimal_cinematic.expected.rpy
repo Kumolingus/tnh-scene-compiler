@@ -18,6 +18,7 @@ label mymod_scene_minimal:
     $ _scene_state = dict(getattr(testmod_runtime, 'scene_state', None) or {})
 
     $ set_the_scene(location = "loc_XavierSchool_JeanGreyRoom", greetings = False, show_Characters = False)
+    $ remove_everyone_but([], send_Offscreen = True)
     "She sits on her bed and sighs."
     ch_JeanGrey "Hey [player.petname], you awake?"
     "You nod silently."

@@ -801,6 +801,10 @@ def test_codegen_cinematic_passes_show_characters_false_to_set_the_scene(
         "$ set_the_scene(location = \"loc_XavierSchool_JeanGreyRoom\", "
         "greetings = False, show_Characters = False)"
     ) in output
+    # The cinematic slugline must also clear Present so a later
+    # add_Characters cannot re-render a stray NPC (show_Characters=False
+    # only suppresses rendering, it does not empty Location.Present).
+    assert "$ remove_everyone_but([], send_Offscreen = True)" in output
 
 
 def test_codegen_phone_omits_show_characters_flag(
