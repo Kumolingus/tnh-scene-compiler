@@ -54,6 +54,7 @@ from .ast_nodes import (
     CallScene,
     Choice,
     DialogueBlock,
+    Fade,
     FxCall,
     GiveTrait,
     Goto,
@@ -936,6 +937,15 @@ def _emit_hide(node: Hide, indent: str) -> str:
     return f"{indent}$ hide_Character({node.character}, fade = {fade_value})"
 
 
+def _emit_fade(node: Fade, indent: str) -> str:
+    # Full-screen cinematic fade via the base-game helpers: the black
+    # overlay renders on the "cinematic" layer at zorder 99 (above sprites
+    # and Live2D) and the global black_screen state is managed for us. This
+    # is the screen-level fade, distinct from the sprite-level [[hide C fade]].
+    fn = "fade_to_black" if node.to_black else "fade_in_from_black"
+    return f"{indent}$ {fn}({_format_seconds(node.duration)})"
+
+
 def _emit_phone_open(node: PhoneOpen, indent: str) -> str:
     """Open the phone overlay via the TNH core primitives.
 
@@ -1115,6 +1125,8 @@ def _emit_body(
             lines.extend(_emit_show(node, indent))
         elif isinstance(node, Hide):
             lines.append(_emit_hide(node, indent))
+        elif isinstance(node, Fade):
+            lines.append(_emit_fade(node, indent))
         elif isinstance(node, PhoneOpen):
             lines.append(_emit_phone_open(node, indent))
         elif isinstance(node, PhoneClose):

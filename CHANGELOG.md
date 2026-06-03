@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `[[fade to black]]` / `[[fade from black]]` directive for full-screen cinematic fades. Compiles to the base-game `fade_to_black(delay)` / `fade_in_from_black(delay)` helpers (default `0.4`s; optional duration override, e.g. `[[fade to black 0.6]]`). Distinct from the per-character `[[show … fade=true]]` / `[[hide … fade]]`.
 - **Visual thumbnails** for character faces and arms in the editor GUI:
   - Face and arm pose thumbnails displayed in `_CharacterInsertDialog`, `[[show]]` directive dialog, and Visuals palette tab.
   - Import script (`scripts/import_thumbnails.py`) generates thumbnails from a TNH-VisualReference checkout via Pillow.

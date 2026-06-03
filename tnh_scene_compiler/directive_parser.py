@@ -17,6 +17,7 @@ import shlex
 from .ast_nodes import (
     Approval,
     CallScene,
+    Fade,
     FxCall,
     GiveTrait,
     Goto,
@@ -637,6 +638,48 @@ def parse_hide(raw: str, *, path: str, line: int, col: int) -> Hide:
     return Hide(character = character, fade = fade, line = line, col = col)
 
 
+def parse_fade(raw: str, *, path: str, line: int, col: int) -> Fade:
+    """Parse ``[[fade to black]]`` / ``[[fade from black]]`` with optional duration.
+
+    Grammar: ``fade`` ``to``|``from`` ``black`` followed by an optional numeric
+    delay (``[[fade to black 0.4]]``). Maps to the base-game ``fade_to_black`` /
+    ``fade_in_from_black`` helpers; the default delay is ``0.4``. This is the
+    full-screen cinematic fade, distinct from the per-character ``[[hide <C> fade]]``.
+    """
+    body = _strip_directive(raw)
+    parts = body.split()
+    if (
+        len(parts) < 3
+        or len(parts) > 4
+        or parts[0] != "fade"
+        or parts[1] not in ("to", "from")
+        or parts[2] != "black"
+    ):
+        raise CompileError(
+            path = path, line = line, col = col,
+            message = (
+                "Malformed [[fade]] directive. Expected '[[fade to black]]' or "
+                "'[[fade from black]]' (optional duration: '[[fade to black 0.4]]')."
+            ),
+        )
+    to_black = parts[1] == "to"
+    duration = 0.4
+    if len(parts) == 4:
+        try:
+            duration = float(parts[3])
+        except ValueError as exc:
+            raise CompileError(
+                path = path, line = line, col = col,
+                message = f"Fade duration {parts[3]!r} is not a number.",
+            ) from exc
+        if duration < 0:
+            raise CompileError(
+                path = path, line = line, col = col,
+                message = "Fade duration must be non-negative.",
+            )
+    return Fade(to_black = to_black, duration = duration, line = line, col = col)
+
+
 def parse_approval(raw: str, *, path: str, line: int, col: int) -> Approval:
     """Parse ``[[approval Character axis +magnitude]]``.
 
@@ -744,6 +787,8 @@ def parse_directive(raw: str, *, path: str, line: int, col: int):
         return parse_show(raw, path = path, line = line, col = col)
     if first == "hide":
         return parse_hide(raw, path = path, line = line, col = col)
+    if first == "fade":
+        return parse_fade(raw, path = path, line = line, col = col)
     if first == "run":
         return parse_run(raw, path = path, line = line, col = col)
     if first == "give_trait":

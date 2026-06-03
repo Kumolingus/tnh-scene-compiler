@@ -368,6 +368,42 @@ def test_codegen_hide_fade_emits_dissolve(allowlists: Allowlists) -> None:
     assert "$ hide_Character(JeanGrey, fade = 0.5)" in output
 
 
+def test_codegen_fade_to_black_emits_base_game_helper(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "[[fade to black]]\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    assert "$ fade_to_black(0.4)" in output
+
+
+def test_codegen_fade_from_black_emits_base_game_helper(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "[[fade from black]]\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    assert "$ fade_in_from_black(0.4)" in output
+
+
+def test_codegen_fade_with_explicit_duration(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "[[fade to black 0.6]]\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    assert "$ fade_to_black(0.6)" in output
+
+
 def test_codegen_show_fade_emits_add_characters_with_fade(allowlists: Allowlists) -> None:
     text = (
         "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
