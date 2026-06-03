@@ -349,6 +349,27 @@ class Hide:
 
 
 @dataclass(frozen=True, slots=True)
+class Fade:
+    """``[[fade to black]]`` / ``[[fade from black]]`` — full-screen cinematic fade.
+
+    Maps to TNH's base-game ``fade_to_black(delay)`` / ``fade_in_from_black(delay)``
+    (``core/mechanics/displayables.rpy``), which render the black overlay on the
+    ``cinematic`` layer at zorder 99 — above sprites and Live2D — and manage the
+    global ``black_screen`` state. This is distinct from the character-level fade
+    carried by ``[[show ... fade=true]]`` / ``[[hide <Character> fade]]``.
+
+    ``to_black`` is ``True`` for ``fade to black`` (the image darkens to black)
+    and ``False`` for ``fade from black`` (the image returns). ``duration`` is the
+    transition delay in seconds; the default ``0.4`` matches every base-game call.
+    """
+
+    to_black: bool
+    duration: float = 0.4
+    line: int = 0
+    col: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class ChoiceOption:
     """One branch inside a :class:`Choice` block.
 
@@ -414,7 +435,7 @@ class IfChain:
 BodyNode = (
     Slugline | DialogueBlock | NarrationBlock
     | Pause | Sfx | SetDirective | Label | Goto | IfChain
-    | CallScene | PhoneOpen | PhoneClose | Show | Hide | Choice | Run | FxCall
+    | CallScene | PhoneOpen | PhoneClose | Show | Hide | Fade | Choice | Run | FxCall
     | Approval | GiveTrait | RemoveTrait | RecordEvent | SetPersonality
 )
 

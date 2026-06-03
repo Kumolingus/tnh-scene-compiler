@@ -406,3 +406,51 @@ def test_hide_parses() -> None:
 
     assert isinstance(node, Hide)
     assert node.character == "JeanGrey"
+
+
+def test_fade_to_black_parses() -> None:
+    from tnh_scene_compiler.ast_nodes import Fade
+    node = _dir("[[fade to black]]")
+
+    assert isinstance(node, Fade)
+    assert node.to_black is True
+    assert node.duration == 0.4
+
+
+def test_fade_from_black_parses() -> None:
+    from tnh_scene_compiler.ast_nodes import Fade
+    node = _dir("[[fade from black]]")
+
+    assert isinstance(node, Fade)
+    assert node.to_black is False
+    assert node.duration == 0.4
+
+
+def test_fade_with_explicit_duration() -> None:
+    from tnh_scene_compiler.ast_nodes import Fade
+    node = _dir("[[fade to black 0.6]]")
+
+    assert isinstance(node, Fade)
+    assert node.to_black is True
+    assert node.duration == 0.6
+
+
+def test_fade_malformed_is_rejected() -> None:
+    with pytest.raises(CompileError) as excinfo:
+        _dir("[[fade sideways]]")
+
+    assert "Malformed [[fade]]" in excinfo.value.message
+
+
+def test_fade_non_numeric_duration_is_rejected() -> None:
+    with pytest.raises(CompileError) as excinfo:
+        _dir("[[fade to black soon]]")
+
+    assert "not a number" in excinfo.value.message
+
+
+def test_fade_negative_duration_is_rejected() -> None:
+    with pytest.raises(CompileError) as excinfo:
+        _dir("[[fade to black -1]]")
+
+    assert "non-negative" in excinfo.value.message

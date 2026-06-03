@@ -54,6 +54,7 @@ from .ast_nodes import (
     CallScene,
     Choice,
     DialogueBlock,
+    Fade,
     FxCall,
     GiveTrait,
     Goto,
@@ -701,13 +702,26 @@ def _emit_set_scene(
     assignment first so the background renders with the correct
     lighting / tint.
 
-    When ``clean_present`` is set, the codegen passes
-    ``show_Characters = False`` to ``set_the_scene``. This makes the
-    base-game helper ``hide_Character`` every non-Party character at
-    the destination — no outfit-change animation runs (unlike
-    ``remove_Characters`` which calls ``set_Outfits(C, instant=False)``
-    and produces a visible re-dress before the hide). The writer then
-    opts in to specific characters via ``[[show]]`` / ``[[say]]``.
+    When ``clean_present`` is set (cinematic scenes), the codegen passes
+    ``show_Characters = False`` to ``set_the_scene`` AND follows it with
+    ``remove_everyone_but([], send_Offscreen = True)``. Both are needed:
+
+    - ``show_Characters = False`` only suppresses *rendering*; it does
+      not empty ``Location.Present``. ``set_the_scene`` (and the
+      ``rebalance_Location_Characters`` it runs while travelling) leaves
+      stray NPCs in ``Present``, so a later ``add_Characters`` re-renders
+      them — e.g. Jean popping into Rogue's announcement.
+    - ``remove_everyone_but([], send_Offscreen = True)`` empties
+      ``Present`` (``get_visible_Characters`` reads ``Location.Present``,
+      not the rendered set, so it still finds the suppressed NPCs). The
+      ``send_Offscreen`` path goes through ``hide_Character`` rather than
+      ``remove_Characters``, so no ``set_Outfits(instant=False)`` re-dress
+      animation runs. ``show_Characters = False`` means nobody was drawn,
+      so the clear is also flash-free.
+
+    The cinematic then opts characters back in via ``[[show]]`` /
+    ``[[say]]`` (``add_Characters``) — the documented "cinematic starts
+    empty" contract in 11_dialogue_authoring.md §11.8.
     """
     lines: list[str] = []
     if time_index is not None:
@@ -717,6 +731,10 @@ def _emit_set_scene(
         f"{indent}$ set_the_scene(location = \"{location_id}\", "
         f"greetings = False{extra_args})",
     )
+    if clean_present:
+        lines.append(
+            f"{indent}$ remove_everyone_but([], send_Offscreen = True)",
+        )
     return lines
 
 
@@ -919,6 +937,15 @@ def _emit_hide(node: Hide, indent: str) -> str:
     return f"{indent}$ hide_Character({node.character}, fade = {fade_value})"
 
 
+def _emit_fade(node: Fade, indent: str) -> str:
+    # Full-screen cinematic fade via the base-game helpers: the black
+    # overlay renders on the "cinematic" layer at zorder 99 (above sprites
+    # and Live2D) and the global black_screen state is managed for us. This
+    # is the screen-level fade, distinct from the sprite-level [[hide C fade]].
+    fn = "fade_to_black" if node.to_black else "fade_in_from_black"
+    return f"{indent}$ {fn}({_format_seconds(node.duration)})"
+
+
 def _emit_phone_open(node: PhoneOpen, indent: str) -> str:
     """Open the phone overlay via the TNH core primitives.
 
@@ -1043,7 +1070,8 @@ def _emit_body(
 
     ``clean_present_on_set_scene`` is threaded the same way: cinematic
     scenes set it so every ``set_the_scene`` (slugline mid-scene) is
-    preceded by a ``remove_Characters(location = ...)`` call.
+    followed by a ``remove_everyone_but([], send_Offscreen = True)`` call
+    that empties ``Location.Present`` (see :func:`_emit_set_scene`).
 
     ``use_cinematic_fx`` causes ``[[fx name()]]`` to emit the
     ``cinematic_`` prefixed label variant when one exists.
@@ -1097,6 +1125,8 @@ def _emit_body(
             lines.extend(_emit_show(node, indent))
         elif isinstance(node, Hide):
             lines.append(_emit_hide(node, indent))
+        elif isinstance(node, Fade):
+            lines.append(_emit_fade(node, indent))
         elif isinstance(node, PhoneOpen):
             lines.append(_emit_phone_open(node, indent))
         elif isinstance(node, PhoneClose):

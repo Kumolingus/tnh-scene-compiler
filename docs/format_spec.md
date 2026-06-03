@@ -582,7 +582,7 @@ buttons, not chat bubbles.
 - Target scene id must exist in the project's compiled set.
 - Compiles to `call <target_label>`.
 
-### 8.10 show / hide
+### 8.10 show / hide / fade
 
 ```
 [[show JeanGrey stage=middle outfit=Pajamas face=worried1 arms=crossed]]
@@ -598,6 +598,25 @@ buttons, not chat bubbles.
 - `[[show]]` with a `stage` attribute compiles to
   `$ add_Characters(<Char>, direction = "<mapped>", fade = False)`.
 - Other attributes compile to the corresponding `change_*` calls.
+
+**Full-screen fade.** `[[fade to black]]` / `[[fade from black]]` are the
+screen-level cinematic fade — distinct from the per-character fade above
+(`[[show ... fade=true]]` / `[[hide <C> fade]]`).
+
+```
+[[fade to black]]
+You spend the next few hours talking, the tension slowly bleeding away.
+[[fade from black]]
+```
+
+- `[[fade to black]]` compiles to `$ fade_to_black(0.4)`; `[[fade from black]]`
+  compiles to `$ fade_in_from_black(0.4)`. Both are TNH base-game helpers
+  (`core/mechanics/displayables.rpy`) that draw the black overlay on the
+  `cinematic` layer at zorder 99 — above sprites and Live2D — and manage the
+  global `black_screen` state.
+- An optional duration overrides the 0.4 s default: `[[fade to black 0.6]]`.
+- Pair them: fade out, narrate the elided time, fade back in. They guard
+  against double-fades, so a stray repeat is a harmless no-op.
 
 ### 8.11 phone (UI switch)
 
