@@ -4,29 +4,18 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "tnh-scene-compiler"
-version = "0.1.0"
+version = "0.1.1"
 description = "Fountain-TNH scene compiler for The Null Hypothesis (Ren'Py game)."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-dependencies = [
-    "pyyaml>=6.0",
-]
+dependencies = ["pyyaml>=6.0"]
 
 [project.optional-dependencies]
-test = [
-    "pytest>=7.0",
-]
-dnd = [
-    "tkinterdnd2>=0.3",
-]
-build = [
-    "pyinstaller>=6.0",
-    "tkinterdnd2>=0.3",
-]
-thumbnails = [
-    "Pillow>=10.0",
-]
+test = ["pytest>=7.0"]
+dnd = ["tkinterdnd2>=0.3"]
+build = ["pyinstaller>=6.0", "tkinterdnd2>=0.3"]
+thumbnails = ["Pillow>=10.0"]
 
 [project.scripts]
 tnh-scene-compiler = "tnh_scene_compiler.__main__:main"
