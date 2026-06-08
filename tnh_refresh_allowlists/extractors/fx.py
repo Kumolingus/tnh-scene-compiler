@@ -1,4 +1,4 @@
-"""Extract engine effect names and signatures from TNH + mod source.
+"""Extract base-game engine effect names and signatures from TNH source.
 
 Scans three kinds of FX source:
 
@@ -8,9 +8,11 @@ Scans three kinds of FX source:
    ``game/characters/*/animations.rpy``.
 3. **Mechanics functions** — ``def`` functions in ``init python:`` blocks
    whose names match a known set (``phone_buzz``, ``knock_on_door``).
-4. **Mod FX** — ``def`` functions in the mod source whose names match
-   entries already present in the output ``fx.yaml`` (preserves
-   mod-specific effects across refreshes).
+
+Project/mod-specific effects are NOT scanned here. They live in the
+hand-maintained ``fx_custom.yaml`` allowlist (never regenerated) and are
+merged with this auto-generated ``fx.yaml`` at load time — see
+``tnh_scene_compiler.allowlists.Allowlists.load``.
 """
 
 from __future__ import annotations
@@ -91,59 +93,6 @@ def _scan_mechanics_functions(
     return entries
 
 
-def _scan_mod_functions(
-    path: Path, text: str, context: ScanContext, known_names: frozenset[str],
-) -> list[AllowlistEntry]:
-    """Extract mod FX functions by matching against known names."""
-    if not known_names:
-        return []
-    entries: list[AllowlistEntry] = []
-    for match in _FUNC_DEF_RE.finditer(text):
-        name = match.group("name")
-        if name not in known_names:
-            continue
-        raw_params = match.group("params") or ""
-        ret = match.group("ret")
-        line = text[: match.start()].count("\n") + 1
-        sig = _build_signature(name, raw_params, ret)
-        entries.append(AllowlistEntry(
-            name=name,
-            source_file=context.relative(path),
-            source_line=line,
-            metadata=(("signature", sig),),
-        ))
-    return entries
-
-
-def _read_existing_mod_fx_names(out_dir: Path, base_game_prefix: str) -> frozenset[str]:
-    """Read existing fx.yaml and return names whose source_file points to the mod."""
-    import yaml
-
-    fx_path = out_dir / "fx.yaml"
-    if not fx_path.is_file():
-        return frozenset()
-    try:
-        with fx_path.open("r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
-    except (OSError, yaml.YAMLError):
-        return frozenset()
-    if not isinstance(data, dict):
-        return frozenset()
-    effects = data.get("effects") or data.get("values")
-    if not isinstance(effects, list):
-        return frozenset()
-    names: set[str] = set()
-    for item in effects:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("name")
-        src = item.get("source_file", "")
-        if isinstance(name, str) and isinstance(src, str):
-            if not src.startswith(base_game_prefix):
-                names.add(name)
-    return frozenset(names)
-
-
 def extract(context: ScanContext) -> ExtractionResult:
     """Return an :class:`ExtractionResult` listing every discovered FX with signatures."""
     result = ExtractionResult(category="fx")
@@ -182,23 +131,5 @@ def extract(context: ScanContext) -> ExtractionResult:
                     if entry.name not in seen:
                         seen.add(entry.name)
                         result.entries.append(entry)
-
-    # --- Mod FX: preserve existing mod entries by re-scanning source ---
-    base_prefix = context.relative(context.base_game_root)
-    mod_fx_names = _read_existing_mod_fx_names(
-        context.project_root.parent / "scenes_source" / "_allowlists",
-        base_prefix,
-    )
-    if mod_fx_names:
-        from ..scanner import iter_rpy_files
-
-        for rpy_file in iter_rpy_files(context.project_root):
-            mod_text = safe_read_text(rpy_file)
-            if not mod_text:
-                continue
-            for entry in _scan_mod_functions(rpy_file, mod_text, context, mod_fx_names):
-                if entry.name not in seen:
-                    seen.add(entry.name)
-                    result.entries.append(entry)
 
     return result

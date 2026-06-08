@@ -267,16 +267,23 @@ class Allowlists:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     run_operations.add(item["name"])
 
-        # Engine-effects allowlist (hand-maintained). Populated with the
-        # TNH core helpers writers are allowed to trigger from [[fx]] —
-        # phone_buzz, knock_on_door, bamf, and the displayables/effects
-        # family. Schema parallels run_operations.yaml.
-        fx_payload = _read_yaml(allowlists_dir / "fx.yaml")
+        # Engine-effects allowlist. Two layers, merged here (same pattern as
+        # locations / interpolation):
+        #   * fx.yaml         — auto-generated, regenerated on every refresh;
+        #                       holds base-game effects scanned from TNH
+        #                       (effects.rpy, animations.rpy, phone_buzz, ...).
+        #   * fx_custom.yaml  — hand-maintained, NEVER regenerated; holds
+        #                       project/mod effects so they are never lost on
+        #                       a refresh. Loaded second, so it wins on name
+        #                       collisions. Schema parallels fx.yaml.
         fx: set[str] = set()
         fx_signatures: dict[str, str] = {}
         fx_param_choices: dict[str, dict[str, list[str]]] = {}
         fx_call_modes: dict[str, str] = {}
-        if fx_payload and isinstance(fx_payload.get("effects"), list):
+        for fx_file in ("fx.yaml", "fx_custom.yaml"):
+            fx_payload = _read_yaml(allowlists_dir / fx_file)
+            if not (fx_payload and isinstance(fx_payload.get("effects"), list)):
+                continue
             for item in fx_payload["effects"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     fx.add(item["name"])
