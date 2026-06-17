@@ -28,7 +28,6 @@ class TitlePage:
         tags: Optional list of mod-prefixed tag strings (``Tags:`` key).
         location: Optional slugline text implying ``set_scene`` at entry
             (``Location:`` key).
-        format_version: Optional format version override (``Format:`` key).
         source_line: 1-based line where the title page starts (always 1).
     """
 
@@ -43,7 +42,6 @@ class TitlePage:
     repeatable: bool | None = None
     tags: tuple[str, ...] = ()
     location: str | None = None
-    format_version: int | None = None
     openness: str | None = None
     stage: str | None = None
     source_line: int = 1
@@ -58,7 +56,6 @@ class Slugline:
     position so errors can point at the original spelling.
     """
 
-    prefix: str
     text: str
     line: int
     col: int

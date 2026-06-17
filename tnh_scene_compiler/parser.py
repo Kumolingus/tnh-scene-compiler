@@ -42,6 +42,8 @@ _TITLE_KEYS: frozenset[str] = frozenset({
     "Repeatable",
     "Tags",
     "Location",
+    # ``Format`` is accepted for backward compatibility with existing scenes
+    # but no longer parsed — the version value was never consumed downstream.
     "Format",
     # Phone-specific keys from §11.13 — accepted here so phone scenes fail at
     # the Scene Type check (which is informative) rather than at the unknown-
@@ -191,11 +193,6 @@ def _build_title_page(
         raw, line, col = fields["Repeatable"]
         repeatable = _parse_bool(raw, path, line, col)
 
-    format_version: int | None = None
-    if "Format" in fields:
-        raw, line, col = fields["Format"]
-        format_version = _parse_int(raw, path, line, col, field = "Format")
-
     tags: tuple[str, ...] = ()
     if "Tags" in fields:
         raw, _, _ = fields["Tags"]
@@ -231,7 +228,6 @@ def _build_title_page(
         repeatable = repeatable,
         tags = tags,
         location = location,
-        format_version = format_version,
         openness = openness,
         stage = stage,
     )
@@ -699,9 +695,8 @@ def _parse_body(
         if kind == TokenKind.SLUGLINE:
             slug_token = tokens[cursor]
             raw = slug_token.value
-            prefix, _, text_rest = raw.partition(" ")
+            _, _, text_rest = raw.partition(" ")
             body.append(Slugline(
-                prefix = prefix.rstrip(),
                 text = text_rest.strip(),
                 line = slug_token.line,
                 col = slug_token.col,

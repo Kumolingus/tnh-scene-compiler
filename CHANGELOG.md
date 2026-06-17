@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The `Format:` title-page field and the `INT.`/`EXT.` slugline prefix are
+  no longer stored in the AST — both parsed values were dead (never read by
+  the validator or codegen). Author-facing syntax is unchanged: `Format:`
+  stays an accepted title-page key and the slugline prefix is still required
+  to recognise a slugline.
+
 ## [0.1.1] - 2026-06-08
 
 ### Added
