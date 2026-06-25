@@ -143,7 +143,6 @@ def _render_character(char: CharacterData) -> str:
 
     lines.extend(_render_character_subsection("Moods (character-specific)", char.moods))
     lines.extend(_render_character_subsection("Faces", char.faces))
-    lines.extend(_render_character_subsection("Poses", char.poses))
     lines.extend(_render_character_subsection("Arms", char.arms))
     lines.extend(_render_character_subsection("Left arm", char.arms_left))
     lines.extend(_render_character_subsection("Right arm", char.arms_right))

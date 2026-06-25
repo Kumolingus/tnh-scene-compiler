@@ -4,21 +4,6 @@ values:
 - name: stage_center
   source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
   source_line: 73
-- name: stage_far_far_far_right
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 77
-- name: stage_far_far_left
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 70
-- name: stage_far_far_right
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 76
-- name: stage_far_left
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 71
-- name: stage_far_right
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 75
 - name: stage_left
   source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
   source_line: 72

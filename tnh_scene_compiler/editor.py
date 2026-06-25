@@ -275,17 +275,6 @@ class _CharacterInsertDialog(tk.Toplevel):
         )
         self._face_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
 
-        # Pose
-        row += 1
-        poses = [""] + sorted(allow.char_poses.get(char, set()))
-        ttk.Label(body, text="Pose:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._pose_var = tk.StringVar()
-        self._pose_combo = ttk.Combobox(
-            body, textvariable=self._pose_var, values=poses,
-            state="readonly", width=20,
-        )
-        self._pose_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
         # Arms
         row += 1
         arms = [""] + sorted(allow.char_arms.get(char, set()))
@@ -322,7 +311,7 @@ class _CharacterInsertDialog(tk.Toplevel):
         # Thumbnail preview (column 2, spanning the visual attribute rows)
         self._thumb_label = ttk.Label(body)
         self._thumb_label.grid(
-            row=2, column=2, rowspan=6, sticky=tk.N, padx=(12, 0),
+            row=2, column=2, rowspan=5, sticky=tk.N, padx=(12, 0),
         )
 
         # Preview
@@ -344,7 +333,7 @@ class _CharacterInsertDialog(tk.Toplevel):
         # Trace changes to update preview
         for var in (
             self._medium_var, self._mood_var, self._face_var,
-            self._pose_var, self._arms_var, self._outfit_var,
+            self._arms_var, self._outfit_var,
             self._look_var,
         ):
             var.trace_add("write", self._update_preview)
@@ -369,14 +358,12 @@ class _CharacterInsertDialog(tk.Toplevel):
         state = "disabled" if is_text else "readonly"
         self._mood_combo.configure(state=state)
         self._face_combo.configure(state=state)
-        self._pose_combo.configure(state=state)
         self._arms_combo.configure(state=state)
         self._outfit_combo.configure(state=state)
         self._look_combo.configure(state=state)
         if is_text:
             self._mood_var.set("")
             self._face_var.set("")
-            self._pose_var.set("")
             self._arms_var.set("")
             self._look_var.set("")
             self._outfit_var.set("")
@@ -412,7 +399,6 @@ class _CharacterInsertDialog(tk.Toplevel):
 
         for slot, var in [
             ("face", self._face_var),
-            ("pose", self._pose_var),
             ("arms", self._arms_var),
             ("outfit", self._outfit_var),
             ("look", self._look_var),
@@ -903,7 +889,6 @@ class _DirectiveDialog(tk.Toplevel):
         moods = [""] + sorted(allow.shared_moods)
         row = self._add_combo(parent, row, "Mood", "mood", moods)
         row = self._add_combo(parent, row, "Face", "face", [""])
-        row = self._add_combo(parent, row, "Pose", "pose", [""])
         row = self._add_combo(parent, row, "Arms", "arms", [""])
         row = self._add_combo(parent, row, "Outfit", "outfit", [""])
         row = self._add_combo(parent, row, "Look", "look", [""] + sorted(allow.looks))
@@ -920,7 +905,6 @@ class _DirectiveDialog(tk.Toplevel):
             c = self._vars["char"].get()
             for key, getter in [
                 ("face", lambda: [""] + sorted(allow.char_faces.get(c, set()))),
-                ("pose", lambda: [""] + sorted(allow.char_poses.get(c, set()))),
                 ("arms", lambda: [""] + sorted(allow.char_arms.get(c, set()))),
                 ("outfit", lambda: [""] + sorted(allow.char_outfits.get(c, set()))),
                 ("mood", lambda: [""] + sorted(
@@ -1153,7 +1137,7 @@ class _DirectiveDialog(tk.Toplevel):
         if d == "show":
             char = v.get("char", "Character")
             attrs = []
-            for slot in ("mood", "face", "pose", "arms", "outfit", "look"):
+            for slot in ("mood", "face", "arms", "outfit", "look"):
                 val = v.get(slot, "")
                 if val:
                     attrs.append(f"{slot}={val}")
@@ -1936,7 +1920,6 @@ class _PaletteSidebar(ttk.Frame):
         all_cats: dict[str, set[str]] = {
             "Moods": allow.shared_moods | allow.char_moods.get(char, set()),
             "Faces": allow.char_faces.get(char, set()),
-            "Poses": allow.char_poses.get(char, set()),
             "Outfits": allow.char_outfits.get(char, set()),
             "Arms": arms,
             "Left Arm": left_arm,

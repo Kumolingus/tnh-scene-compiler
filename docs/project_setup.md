@@ -76,7 +76,7 @@ against YAML allowlists. Unknown values produce a compile error with a "did you 
 
 1. **Base layer** — vanilla TNH data, ships in `allowlists_base/`
    inside the tool. Covers all base-game characters (including NPCs), locations,
-   moods, faces, arms, poses, outfits, SFX, looks, stages, and
+   moods, faces, arms, outfits, SFX, looks, stages, and
    interpolation paths.
 
 2. **Project layer** — your mod's additions, under `project_allowlists`

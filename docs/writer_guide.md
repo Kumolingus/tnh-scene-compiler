@@ -222,7 +222,6 @@ You're a terrible liar, [player.petname].
 | `look`                   | Where they look (at_player, away, down, up...)              |
 | `outfit`                 | Clothing (only when it changes mid-scene)                   |
 | `stage`                  | Position on stage (left, middle, right)                     |
-| `pose`                   | Full-body pose preset                                       |
 
 Exact valid values per character are in the cheatsheet.
 

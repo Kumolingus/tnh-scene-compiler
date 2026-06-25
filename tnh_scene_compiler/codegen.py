@@ -802,15 +802,6 @@ def _emit_parenthetical_prelude(
             f"getattr({speaker_pascal}, \"face\", None), "
             f"eyes = \"{paren.look}\")",
         )
-    if paren.pose:
-        # TODO(compile_scenes): ``change_pose`` does not exist on
-        # CompanionClass. The slot is accepted by the grammar but the
-        # codegen emission is a no-op with a trailing comment so the dev
-        # notices on review. Wait for the mod to decide on the API.
-        lines.append(
-            f"{indent}# TODO(pose): {speaker_pascal} pose \"{paren.pose}\" "
-            "- no change_pose API yet; set a mod-side helper.",
-        )
     if paren.stage:
         direction = _stage_to_direction(paren.stage)
         if direction is None:
@@ -924,7 +915,6 @@ def _emit_show(node: Show, indent: str) -> list[str]:
         outfit = attrs.get("outfit"),
         left_arm = attrs.get("left_arm"),
         right_arm = attrs.get("right_arm"),
-        pose = attrs.get("pose"),
         stage = attrs.get("stage"),
     )
     return _emit_parenthetical_prelude(paren_like, node.character, indent, use_fade = use_fade)

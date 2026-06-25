@@ -44,9 +44,6 @@ A line with a mood.
 
 JEANGREY (happy, face=smile)
 With mood and face.
-
-JEANGREY (happy, face=smile, pose=sitting)
-With mood, face, and pose.
 ```
 
 > **Note:** Arm poses listed in the palette/allowlists are standing poses only.
@@ -230,7 +227,7 @@ Tiers: `tiny_stat` (+2), `small_stat` (+5), `medium_stat` (+10), `large_stat` (+
 
 ```
 [[show JeanGrey mood=happy]]
-[[show JeanGrey mood=happy, face=smile, pose=sitting]]
+[[show JeanGrey mood=happy, face=smile]]
 [[hide JeanGrey]]
 ```
 

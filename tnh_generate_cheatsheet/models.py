@@ -38,7 +38,6 @@ class CharacterData:
         name: The character's PascalCase identifier (e.g. ``"JeanGrey"``).
         moods: Character-specific moods, excluding the shared list.
         faces: All face values for this character.
-        poses: All pose values for this character.
         arms: Both-arms presets (YAML ``arms`` subgroup).
         arms_left: Left-arm values (YAML ``left_arm`` subgroup).
         arms_right: Right-arm values (YAML ``right_arm`` subgroup).
@@ -48,7 +47,6 @@ class CharacterData:
     name: str
     moods: list[Entry] = field(default_factory = list)
     faces: list[Entry] = field(default_factory = list)
-    poses: list[Entry] = field(default_factory = list)
     arms: list[Entry] = field(default_factory = list)
     arms_left: list[Entry] = field(default_factory = list)
     arms_right: list[Entry] = field(default_factory = list)
@@ -59,7 +57,6 @@ class CharacterData:
         return bool(
             self.moods
             or self.faces
-            or self.poses
             or self.arms
             or self.arms_left
             or self.arms_right
@@ -97,7 +94,7 @@ class CheatsheetData:
             ``signature`` and ``source_file``).
         per_character: Mapping character-name -> :class:`CharacterData`,
             populated only for characters that have at least one authoring
-            value across moods/faces/poses/arms/outfits.
+            value across moods/faces/arms/outfits.
         warnings: Non-fatal loader warnings (missing file, malformed entry,
             ...). Surfaced by the CLI in verbose mode.
     """

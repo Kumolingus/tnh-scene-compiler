@@ -81,7 +81,7 @@ def _build_interpolation_set(
 def _load_per_char_simple(dir_path: Path) -> dict[str, set[str]]:
     """Return ``{character: set(names)}`` for a simple ``values:`` per-char dir.
 
-    Used by faces/poses/outfits where each character YAML carries a single
+    Used by faces/outfits where each character YAML carries a single
     ``values`` list with one name per entry.
     """
     result: dict[str, set[str]] = {}
@@ -180,7 +180,7 @@ def _load_moods_with_shared(
 class Allowlists:
     """Validator-facing view of the allowlists.
 
-    Phase 6B adds per-character mood/face/pose/arms/outfit sets so the
+    Phase 6B adds per-character mood/face/arms/outfit sets so the
     parenthetical grammar §11.6 can cross-lookup a value against every
     slot and suggest the right key when a writer picks the wrong one.
 
@@ -195,7 +195,7 @@ class Allowlists:
             like ``JEANGREY`` can be checked in O(1).
         shared_moods: Global shared mood set (from ``moods/_shared.yaml``).
         char_moods: Per-character mood additions (not including the shared).
-        char_faces / char_poses / char_outfits: one set per character.
+        char_faces / char_outfits: one set per character.
         char_arms / char_left_arm / char_right_arm: three sets per character
             matching the YAML subgroups in ``arms/<Character>.yaml``.
         looks: Global look values (``looks.yaml``). Same list for every
@@ -211,7 +211,6 @@ class Allowlists:
     char_moods: dict[str, set[str]] = field(default_factory=dict)
     mood_faces: dict[str, list[str]] = field(default_factory=dict)
     char_faces: dict[str, set[str]] = field(default_factory=dict)
-    char_poses: dict[str, set[str]] = field(default_factory=dict)
     char_outfits: dict[str, set[str]] = field(default_factory=dict)
     char_arms: dict[str, set[str]] = field(default_factory=dict)
     char_left_arm: dict[str, set[str]] = field(default_factory=dict)
@@ -247,7 +246,6 @@ class Allowlists:
 
         shared_moods, char_moods, mood_faces = _load_moods_with_shared(allowlists_dir / "moods")
         char_faces = _load_per_char_simple(allowlists_dir / "faces")
-        char_poses = _load_per_char_simple(allowlists_dir / "poses")
         char_outfits = _load_per_char_simple(allowlists_dir / "outfits")
         char_arms, char_left_arm, char_right_arm = _load_per_char_arms(
             allowlists_dir / "arms",
@@ -358,7 +356,6 @@ class Allowlists:
             char_moods = char_moods,
             mood_faces = mood_faces,
             char_faces = char_faces,
-            char_poses = char_poses,
             char_outfits = char_outfits,
             char_arms = char_arms,
             char_left_arm = char_left_arm,
@@ -409,9 +406,6 @@ class Allowlists:
     def is_face(self, character: str, value: str) -> bool:
         return value in self.char_faces.get(character, set())
 
-    def is_pose(self, character: str, value: str) -> bool:
-        return value in self.char_poses.get(character, set())
-
     def is_outfit(self, character: str, value: str) -> bool:
         return value in self.char_outfits.get(character, set())
 
@@ -441,8 +435,6 @@ class Allowlists:
             hits.append("mood")
         if self.is_face(character, value):
             hits.append("face")
-        if self.is_pose(character, value):
-            hits.append("pose")
         if self.is_outfit(character, value):
             hits.append("outfit")
         if self.is_arms_preset(character, value):
@@ -531,7 +523,6 @@ class Allowlists:
             char_moods=_merge_char_sets(self.char_moods, other.char_moods),
             mood_faces={**self.mood_faces, **other.mood_faces},
             char_faces=_merge_char_sets(self.char_faces, other.char_faces),
-            char_poses=_merge_char_sets(self.char_poses, other.char_poses),
             char_outfits=_merge_char_sets(self.char_outfits, other.char_outfits),
             char_arms=_merge_char_sets(self.char_arms, other.char_arms),
             char_left_arm=_merge_char_sets(self.char_left_arm, other.char_left_arm),

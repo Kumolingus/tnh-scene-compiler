@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- The `pose` visual slot is gone from the scene vocabulary. It was accepted
+  by the grammar (`(… pose=…)` and `[[show … pose=…]]`) and validated against
+  a per-character `poses/<Char>.yaml` allowlist, but the codegen had no
+  `change_pose` emission path (no such API in the base game) so a pose only
+  ever produced a `# TODO` comment — a silent no-op in the output. Using
+  `pose=` is now a compile error (`unknown attribute`). The `poses` extractor,
+  the `poses/<Char>.yaml` allowlists, `Allowlists.char_poses` / `is_pose`, the
+  cheatsheet `Poses` sections, and the editor pose widgets were all removed.
+- Far-stage positions (`stage_far_left`, `stage_far_right`,
+  `stage_far_far_left`, `stage_far_far_right`, `stage_far_far_far_right`) are
+  no longer extracted into the `stages` allowlist. They are valid TNH
+  X-coordinates used by `show_Character(x=…)`, but the compiler only emits the
+  three slot-based `add_Characters` directions (`stage_left`, `stage_center`,
+  `stage_right`); a far-stage previously produced a `# TODO` no-op. Using one
+  is now a compile error (`not a valid stage`).
+
 ### Changed
 
 - The `Format:` title-page field and the `INT.`/`EXT.` slugline prefix are

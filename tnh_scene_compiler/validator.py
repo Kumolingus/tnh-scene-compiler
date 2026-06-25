@@ -301,7 +301,6 @@ _SLOT_CHECKS: dict[str, str] = {
     "stage": "stage",
     "left_arm": "left_arm value",
     "right_arm": "right_arm value",
-    "pose": "pose",
 }
 
 
@@ -316,8 +315,6 @@ def _check_slot_value(
         return allow.is_mood(character, value)
     if slot == "face":
         return allow.is_face(character, value)
-    if slot == "pose":
-        return allow.is_pose(character, value)
     if slot == "outfit":
         return allow.is_outfit(character, value)
     if slot == "arms":
@@ -353,10 +350,9 @@ def _validate_slot(
     # bypass ``Allowlists.load``), and we shouldn't fail scenes for that.
     if slot in ("mood",) and not (allow.shared_moods or allow.char_moods):
         return
-    if slot in ("face", "pose", "outfit", "arms", "left_arm", "right_arm"):
+    if slot in ("face", "outfit", "arms", "left_arm", "right_arm"):
         lookups: dict[str, dict[str, set[str]]] = {
             "face": allow.char_faces,
-            "pose": allow.char_poses,
             "outfit": allow.char_outfits,
             "arms": allow.char_arms,
             "left_arm": allow.char_left_arm,
@@ -411,7 +407,6 @@ def _validate_parenthetical(
         ("stage", paren.stage),
         ("left_arm", paren.left_arm),
         ("right_arm", paren.right_arm),
-        ("pose", paren.pose),
     )
     for slot, value in slots:
         if value is None:
@@ -532,7 +527,6 @@ def _validate_show(
         stage = node.attrs.get("stage"),
         left_arm = node.attrs.get("left_arm"),
         right_arm = node.attrs.get("right_arm"),
-        pose = node.attrs.get("pose"),
         line = node.line,
         col = node.col,
     )

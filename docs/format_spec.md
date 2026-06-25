@@ -277,7 +277,7 @@ JEANGREY (_, _, crossed)                           -> arms=crossed
 
 ### 6.4 Valid keys
 
-`mood`, `face`, `arms`, `left_arm`, `right_arm`, `look`, `outfit`, `stage`, `pose`. Any other key is a compile error.
+`mood`, `face`, `arms`, `left_arm`, `right_arm`, `look`, `outfit`, `stage`. Any other key is a compile error.
 
 `left_arm` and `right_arm` are named-only -- they have no positional slot. Use them when the `arms` preset (both arms at once) is not
 precise enough.
@@ -903,14 +903,13 @@ key. The `include_base_allowlists` config option (default `true`) controls wheth
 | 3  | `faces/<Char>.yaml`                        | `face` slot values                   | auto        |
 | 4  | `arms/<Char>.yaml`                         | `arms`/`left_arm`/`right_arm`        | auto        |
 | 5  | `outfits/<Char>.yaml`                      | `outfit` slot values                 | auto        |
-| 6  | `poses/<Char>.yaml`                        | `pose` slot values                   | auto        |
-| 7  | `looks.yaml`                               | `look` slot values (global)          | auto        |
-| 8  | `stages.yaml`                              | `stage` slot values (global)         | auto        |
-| 9  | `locations.yaml` + `*_overrides`           | Slugline → location ID               | auto+manual |
-| 10 | `sfx.yaml`                                 | `[[sfx]]` names                      | auto        |
-| 11 | `interpolation.yaml` + `*_custom`          | `[...]` interpolation paths          | auto+manual |
-| 12 | `run_operations.yaml`                      | `[[run]]` operations                 | manual      |
-| 13 | `fx.yaml`                                  | `[[fx]]` functions + signatures      | auto        |
+| 6  | `looks.yaml`                               | `look` slot values (global)          | auto        |
+| 7  | `stages.yaml`                              | `stage` slot values (global)         | auto        |
+| 8  | `locations.yaml` + `*_overrides`           | Slugline → location ID               | auto+manual |
+| 9  | `sfx.yaml`                                 | `[[sfx]]` names                      | auto        |
+| 10 | `interpolation.yaml` + `*_custom`          | `[...]` interpolation paths          | auto+manual |
+| 11 | `run_operations.yaml`                      | `[[run]]` operations                 | manual      |
+| 12 | `fx.yaml`                                  | `[[fx]]` functions + signatures      | auto        |
 | 14 | `condition_functions.yaml`                 | `[[if]]`/`[[elif]]` functions        | manual      |
 | 15 | `traits.yaml`                              | `[[give_trait]]`/`[[remove_trait]]`  | auto        |
 | 16 | `history_events.yaml`                      | `[[record]]` event names             | auto        |

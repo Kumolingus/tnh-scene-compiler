@@ -4,7 +4,7 @@ Extractors are split in two groups:
 
 * flat extractors emit a single ``<category>.yaml`` (characters, stages, sfx);
 * per-character extractors emit one file per character under
-  ``<category>/<Character>.yaml`` (faces, poses, arms, outfits).
+  ``<category>/<Character>.yaml`` (faces, arms, outfits).
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ from .extractors import (
     moods,
     outfits,
     personalities,
-    poses,
     sfx,
     stages,
     traits,
@@ -57,7 +56,6 @@ _FLAT_EXTRACTORS: tuple[_Extractor, ...] = (
 
 _PER_CHARACTER_EXTRACTORS: tuple[_Extractor, ...] = (
     faces.extract,
-    poses.extract,
     arms.extract,
     outfits.extract,
     moods.extract,

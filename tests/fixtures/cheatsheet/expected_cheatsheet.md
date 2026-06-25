@@ -30,7 +30,7 @@ Positional order when writing without keys:
 ```
 
 Named-only slots (no positional slot):
-`left_arm`, `right_arm`, `pose`.
+`left_arm`, `right_arm`.
 
 Reserved value: `text` (on its own, switches the line to phone-text
 medium; mutually exclusive with visual attributes).
@@ -119,7 +119,7 @@ character below.
 ## Per-character authoring values
 
 Each character listed below has at least one authoring value (mood,
-face, pose, arm, outfit). Speakers that appear only in the Speakers
+face, arm, outfit). Speakers that appear only in the Speakers
 table have no authoring surface of their own.
 
 ### JeanGrey
@@ -137,12 +137,6 @@ table have no authoring surface of their own.
 |---|
 | `smile` |
 | `smirk` |
-
-#### Poses
-
-| Value |
-|---|
-| `standing` |
 
 #### Arms
 
@@ -332,6 +326,7 @@ Exact behaviour is documented in the Guide.
 | `[[choice]]` / `= option` / `[[/choice]]` | Player choice |
 | `[[call scene_id]]` | Chain another scene |
 | `[[show Character …]]` / `[[hide Character]]` | Visual change without dialogue |
+| `[[fade to black]]` / `[[fade from black]]` | Full-screen cinematic fade (optional duration: `[[fade to black 0.6]]`) |
 | `[[phone open]]` / `[[phone open Character]]` / `[[phone close]]` | Phone UI |
 | `[[run ...]]` | Persistent state change (only allowlisted operations) |
 | `[[approval Char love\|trust ±N]]` | Move love/trust by a stat tier (`tiny_stat` ... `massive_stat`) or integer (≥ 1) |

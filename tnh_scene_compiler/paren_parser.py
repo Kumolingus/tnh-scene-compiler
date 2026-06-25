@@ -20,12 +20,12 @@ from .errors import CompileError
 # positional token past the last slot is an error.
 _POSITIONAL_SLOTS: tuple[str, ...] = ("mood", "face", "arms", "look", "outfit", "stage")
 
-# Every legal key, including the named-only ones (``left_arm``, ``right_arm``,
-# ``pose``) §11.6 "Valid keys". ``medium`` is not in the key-set — it is
-# triggered by the reserved value ``text``/``spoken``.
+# Every legal key, including the named-only ones (``left_arm``, ``right_arm``)
+# §11.6 "Valid keys". ``medium`` is not in the key-set — it is triggered by the
+# reserved value ``text``/``spoken``.
 _NAMED_KEYS: frozenset[str] = frozenset({
     "mood", "face", "arms", "look", "outfit", "stage",
-    "left_arm", "right_arm", "pose",
+    "left_arm", "right_arm",
 })
 
 # Reserved values that select the dialogue medium §11.7. ``spoken`` is the
@@ -262,7 +262,6 @@ def parse_parenthetical(
         stage = assignments.get("stage"),
         left_arm = assignments.get("left_arm"),
         right_arm = assignments.get("right_arm"),
-        pose = assignments.get("pose"),
         medium = medium,
         line = line,
         col = col,

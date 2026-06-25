@@ -28,7 +28,7 @@ import yaml
 
 from .models import CharacterData, CheatsheetData, Entry
 
-_PER_CHARACTER_CATEGORIES = ("moods", "faces", "poses", "arms", "outfits")
+_PER_CHARACTER_CATEGORIES = ("moods", "faces", "arms", "outfits")
 
 
 def _read_yaml(path: Path) -> dict[str, Any] | None:
@@ -235,8 +235,6 @@ def _populate_category(char: CharacterData, category: str, payload: dict[str, An
         char.moods = _entries_from_values(payload.get("values"))
     elif category == "faces":
         char.faces = _entries_from_values(payload.get("values"))
-    elif category == "poses":
-        char.poses = _entries_from_values(payload.get("values"))
     elif category == "outfits":
         char.outfits = _entries_from_values(payload.get("values"))
     elif category == "arms":

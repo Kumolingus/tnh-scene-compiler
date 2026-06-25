@@ -313,7 +313,7 @@ def parse_phone(raw: str, *, path: str, line: int, col: int) -> PhoneOpen | Phon
 # validation since the directive does not carry a medium.
 _SHOW_KEYS: frozenset[str] = frozenset({
     "mood", "face", "arms", "look", "outfit", "stage",
-    "left_arm", "right_arm", "pose", "fade",
+    "left_arm", "right_arm", "fade",
 })
 
 

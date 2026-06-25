@@ -51,7 +51,6 @@ def allowlists() -> Allowlists:
             "JeanGrey": {"smirk", "worried1", "sympathetic"},
             "Rogue": {"glare"},
         },
-        char_poses = {"JeanGrey": {"standing", "sitting"}, "Rogue": set()},
         char_outfits = {"JeanGrey": {"casual", "Pajamas"}, "Rogue": set()},
         char_arms = {"JeanGrey": {"crossed", "covering_face"}, "Rogue": set()},
         char_left_arm = {"JeanGrey": {"bra", "extended"}, "Rogue": set()},
