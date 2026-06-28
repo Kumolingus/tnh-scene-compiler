@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import re
 
-from .allowlists import Allowlists
+from .allowlists import Allowlists, signature_arity
 from .ast_nodes import (
     Approval,
     Choice,
@@ -68,6 +68,54 @@ _RE_INTERPOLATION = re.compile(r"\[([^\[\]]+)\]")
 # ``JeanGrey.pregnancy_stage``. No function calls, no arithmetic, no
 # f-strings. Anything else inside ``[...]`` is rejected.
 _RE_PATH = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+
+def _plural(n: int) -> str:
+    """Return ``"s"`` unless ``n`` is exactly 1 — for "argument" / "arguments"."""
+    return "" if n == 1 else "s"
+
+
+def _arity_error(
+    *,
+    kind: str,
+    name: str,
+    signature: str | None,
+    arg_count: int,
+    line: int,
+    col: int,
+    path: str,
+) -> CompileError | None:
+    """Return a :class:`CompileError` when ``arg_count`` breaks ``signature``'s arity.
+
+    ``kind`` is the human label for the call site (``"[[fx]] effect"``,
+    ``"[[run]] operation"``, ``"Condition function"``). Returns ``None`` when
+    there is no signature, the signature cannot be parsed, or the arity is
+    satisfied — the caller appends only a real error. The grammar admits no
+    keyword arguments, so ``arg_count`` is the full positional count.
+    """
+    if not signature:
+        return None
+    arity = signature_arity(signature)
+    if arity is None:
+        return None
+    minimum, maximum = arity
+    if minimum <= arg_count and (maximum is None or arg_count <= maximum):
+        return None
+    if maximum is None:
+        expectation = f"at least {minimum} argument{_plural(minimum)}"
+    elif minimum == maximum:
+        expectation = f"exactly {minimum} argument{_plural(minimum)}"
+    elif arg_count < minimum:
+        expectation = f"at least {minimum} argument{_plural(minimum)}"
+    else:
+        expectation = f"at most {maximum} argument{_plural(maximum)}"
+    return CompileError(
+        path = path,
+        line = line,
+        col = col,
+        message = f"{kind} {name!r} takes {expectation} but got {arg_count}.",
+        hint = f"Signature: {signature}",
+    )
 
 
 def _strip_time_suffix(text: str) -> str:
@@ -593,6 +641,18 @@ def _validate_run(
                 "run_operations.yaml."
             ),
         ))
+        return
+    arity_error = _arity_error(
+        kind = "[[run]] operation",
+        name = node.target_name,
+        signature = allow.run_operation_signatures.get(node.target_name),
+        arg_count = node.arg_count,
+        line = node.line,
+        col = node.col,
+        path = path,
+    )
+    if arity_error is not None:
+        errors.append(arity_error)
 
 
 def _validate_give_trait(
@@ -709,6 +769,18 @@ def _validate_fx(
                 "fx.yaml."
             ),
         ))
+        return
+    arity_error = _arity_error(
+        kind = "[[fx]] effect",
+        name = node.target_name,
+        signature = allow.fx_signatures.get(node.target_name),
+        arg_count = node.arg_count,
+        line = node.line,
+        col = node.col,
+        path = path,
+    )
+    if arity_error is not None:
+        errors.append(arity_error)
 
 
 def _validate_approval(
@@ -825,6 +897,18 @@ def _validate_standalone_call(
             ),
             hint = hint,
         ))
+        return
+    arity_error = _arity_error(
+        kind = "Condition function",
+        name = func_name,
+        signature = allow.condition_function_signatures.get(func_name),
+        arg_count = len(call.args),
+        line = line,
+        col = call.col_offset,
+        path = path,
+    )
+    if arity_error is not None:
+        errors.append(arity_error)
 
 
 def _validate_method_call(

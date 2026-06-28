@@ -154,6 +154,15 @@ def test_run_inherits_expression_grammar_rejections() -> None:
     assert "Arithmetic" in excinfo.value.message
 
 
+def test_run_records_argument_count() -> None:
+    from tnh_scene_compiler.ast_nodes import Run
+    assert _dir("[[run mymod_set_stage()]]").arg_count == 0
+    assert _dir("[[run mymod_set_stage(JeanGrey)]]").arg_count == 1
+    node = _dir("[[run mymod_set_stage(JeanGrey, 2)]]")
+    assert isinstance(node, Run)
+    assert node.arg_count == 2
+
+
 # -- give_trait ---------------------------------------------------------------
 
 
@@ -265,6 +274,14 @@ def test_fx_accepts_call_with_positional_args() -> None:
 
     assert isinstance(node, FxCall)
     assert node.target_name == "phone_buzz"
+
+
+def test_fx_records_argument_count() -> None:
+    from tnh_scene_compiler.ast_nodes import FxCall
+    assert _dir("[[fx phone_buzz()]]").arg_count == 0
+    node = _dir("[[fx knock_on_door(0.5, 0.4, 2)]]")
+    assert isinstance(node, FxCall)
+    assert node.arg_count == 3
 
 
 def test_approval_parses_named_stat_tier_positive() -> None:

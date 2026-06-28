@@ -8,13 +8,56 @@ down view focused on validation.
 
 from __future__ import annotations
 
+import ast
 import difflib
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+
+@lru_cache(maxsize = None)
+def signature_arity(signature: str) -> tuple[int, int | None] | None:
+    """Parse an allowlist signature string into ``(min_required, max_positional)``.
+
+    ``signature`` is the reference string stored next to a ``[[fx]]`` /
+    ``[[run]]`` / condition-function entry, e.g. ``"bamf(x = 0.5, y = 0.5) ->
+    None"`` or ``"pregnancy_mod_record_player_preference(Character,
+    preference)"``. The string is wrapped in ``def <sig>: pass`` and parsed
+    with :mod:`ast`, which handles type annotations (``Character:
+    CharacterClass | None``), default values, ``*args`` and folded
+    (multi-line) signatures uniformly.
+
+    Returns ``(min_required, max_positional)`` where ``min_required`` is the
+    number of positional parameters with no default and ``max_positional`` is
+    the total positional parameter count — or ``None`` for the upper bound
+    when the function accepts ``*args`` (unbounded). The whole result is
+    ``None`` when the signature cannot be parsed, so callers skip the arity
+    check rather than failing the build on a malformed reference string.
+
+    The safe-subset call grammar admits no keyword arguments, so only the
+    positional arity matters; keyword-only parameters (after ``*``) cannot be
+    reached by a positional call and are ignored.
+    """
+    text = signature.strip()
+    if not text:
+        return None
+    try:
+        module = ast.parse(f"def {text}: pass")
+    except SyntaxError:
+        return None
+    node = module.body[0]
+    if not isinstance(node, ast.FunctionDef):
+        return None
+    args = node.args
+    positional = list(args.posonlyargs) + list(args.args)
+    total = len(positional)
+    required = total - len(args.defaults)
+    max_positional = None if args.vararg is not None else total
+    return (required, max_positional)
 
 
 def _read_yaml(path: Path) -> dict[str, Any] | None:
@@ -219,11 +262,13 @@ class Allowlists:
     stages: set[str] = field(default_factory=set)
     sfx: set[str] = field(default_factory=set)
     run_operations: set[str] = field(default_factory=set)
+    run_operation_signatures: dict[str, str] = field(default_factory=dict)
     fx: set[str] = field(default_factory=set)
     fx_signatures: dict[str, str] = field(default_factory=dict)
     fx_param_choices: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     fx_call_modes: dict[str, str] = field(default_factory=dict)
     condition_functions: set[str] = field(default_factory=set)
+    condition_function_signatures: dict[str, str] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
     traits: set[str] = field(default_factory=set)
     personalities: set[str] = field(default_factory=set)
@@ -258,12 +303,16 @@ class Allowlists:
         # Mod-operations allowlist (hand-maintained manual scaffold).
         run_operations_payload = _read_yaml(allowlists_dir / "run_operations.yaml")
         run_operations: set[str] = set()
+        run_operation_signatures: dict[str, str] = {}
         if run_operations_payload and isinstance(
             run_operations_payload.get("operations"), list,
         ):
             for item in run_operations_payload["operations"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     run_operations.add(item["name"])
+                    sig = item.get("signature")
+                    if isinstance(sig, str):
+                        run_operation_signatures[item["name"]] = sig
 
         # Engine-effects allowlist. Two layers, merged here (same pattern as
         # locations / interpolation):
@@ -306,12 +355,16 @@ class Allowlists:
             allowlists_dir / "condition_functions.yaml",
         )
         condition_functions: set[str] = set()
+        condition_function_signatures: dict[str, str] = {}
         if condition_functions_payload and isinstance(
             condition_functions_payload.get("functions"), list,
         ):
             for item in condition_functions_payload["functions"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     condition_functions.add(item["name"])
+                    sig = item.get("signature")
+                    if isinstance(sig, str):
+                        condition_function_signatures[item["name"]] = sig
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
@@ -364,11 +417,13 @@ class Allowlists:
             stages = stages,
             sfx = sfx,
             run_operations = run_operations,
+            run_operation_signatures = run_operation_signatures,
             fx = fx,
             fx_signatures = fx_signatures,
             fx_param_choices = fx_param_choices,
             fx_call_modes = fx_call_modes,
             condition_functions = condition_functions,
+            condition_function_signatures = condition_function_signatures,
             character_methods = character_methods,
             traits = traits,
             personalities = personalities,
@@ -531,11 +586,18 @@ class Allowlists:
             stages=self.stages | other.stages,
             sfx=self.sfx | other.sfx,
             run_operations=self.run_operations | other.run_operations,
+            run_operation_signatures={
+                **self.run_operation_signatures, **other.run_operation_signatures,
+            },
             fx=self.fx | other.fx,
             fx_signatures={**self.fx_signatures, **other.fx_signatures},
             fx_param_choices={**self.fx_param_choices, **other.fx_param_choices},
             fx_call_modes={**self.fx_call_modes, **other.fx_call_modes},
             condition_functions=self.condition_functions | other.condition_functions,
+            condition_function_signatures={
+                **self.condition_function_signatures,
+                **other.condition_function_signatures,
+            },
             character_methods=self.character_methods | other.character_methods,
             traits=self.traits | other.traits,
             personalities=self.personalities | other.personalities,

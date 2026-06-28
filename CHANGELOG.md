@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Arity validation for `[[fx]]`, `[[run]]`, and `[[if]]` condition-function
+  calls. The `signature:` already stored next to each `fx.yaml` /
+  `run_operations.yaml` / `condition_functions.yaml` entry is now parsed for
+  its positional arity (required count + maximum), and a call with too few or
+  too many arguments is a compile error instead of valid-looking Ren'Py that
+  raises `TypeError` at runtime — the project's dominant crash class.
+  Signatures are parsed via `ast`, so type annotations
+  (`Character: CharacterClass | None`), default values, and `*args` are all
+  handled; an entry with no signature (or an unparseable one) keeps the
+  previous name-only check, so the change is purely additive on the existing
+  scene corpus.
+
 ### Removed
 
 - The `pose` visual slot is gone from the scene vocabulary. It was accepted

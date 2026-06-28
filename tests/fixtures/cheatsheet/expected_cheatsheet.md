@@ -95,6 +95,11 @@ See `scenes_source/_allowlists/fx.yaml` for the authoritative list
 and signatures. The common ones: `phone_buzz()`, `knock_on_door()`,
 `bamf()`, `smack()`, `crack()`, `pow_effect()`.
 
+Pass the right number of arguments: the signature's argument count is
+checked at compile time, so too few or too many is a compile error
+(the message shows the full signature). The same check applies to
+`[[run ...]]` operations.
+
 ## Looks
 
 Typically the same list for every character. Source:
@@ -188,7 +193,9 @@ inside dialogue or narration as `[path]`.
 
 Source: `_allowlists/condition_functions.yaml` (manual). Functions
 callable from `[[if]]` expressions. Adding one here is a stable
-contract: the signature must stay compatible across releases.
+contract: the signature must stay compatible across releases. The
+argument count is checked at compile time — calling one with the
+wrong number of arguments is a compile error.
 
 | Name | Signature | Source file |
 |---|---|---|

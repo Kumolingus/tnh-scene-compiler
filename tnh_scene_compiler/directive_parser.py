@@ -554,6 +554,7 @@ def parse_run(raw: str, *, path: str, line: int, col: int) -> Run:
         target_name = target_name,
         line = line,
         col = col,
+        arg_count = len(expr.args),
     )
 
 
@@ -612,6 +613,7 @@ def parse_fx(raw: str, *, path: str, line: int, col: int) -> FxCall:
         target_name = target_name,
         line = line,
         col = col,
+        arg_count = len(expr.args),
     )
 
 

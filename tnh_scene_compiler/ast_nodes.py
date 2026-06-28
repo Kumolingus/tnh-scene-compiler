@@ -186,12 +186,18 @@ class Run:
             function/method matches an allowlist entry.
         target_name: The function name (bare) or last attribute
             (``Char.method`` -> ``method``) used for allowlist lookup.
+        arg_count: Number of positional arguments in the call. The
+            safe-subset grammar admits no keyword arguments, so this is the
+            full argument count — the validator compares it against the
+            allowlisted signature's arity to catch run-time call errors at
+            compile time.
     """
 
     call_text: str
     target_name: str
     line: int = 0
     col: int = 0
+    arg_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,12 +212,19 @@ class FxCall:
     purpose-specific: ``fx.yaml`` lists engine effects,
     ``run_operations.yaml`` lists state mutations.
 
+    Attributes:
+        call_text: The raw call expression, kept verbatim for codegen.
+        target_name: The function name used for ``fx.yaml`` lookup.
+        arg_count: Number of positional arguments in the call (no keyword
+            arguments are admitted by the grammar), compared against the
+            allowlisted signature's arity by the validator.
     """
 
     call_text: str
     target_name: str
     line: int = 0
     col: int = 0
+    arg_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)

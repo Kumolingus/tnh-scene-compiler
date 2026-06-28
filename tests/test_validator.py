@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tnh_scene_compiler.allowlists import Allowlists
+from tnh_scene_compiler.allowlists import Allowlists, signature_arity
 from tnh_scene_compiler.parser import parse
 from tnh_scene_compiler.validator import validate
 
@@ -443,3 +443,158 @@ def test_validate_approval_unknown_character_is_rejected(allowlists: Allowlists)
     assert errors
     assert "Bishop" in errors[0].message
     assert "characters.yaml" in errors[0].message
+
+
+# -- signature_arity helper ---------------------------------------------------
+
+
+def test_signature_arity_all_defaults() -> None:
+    assert signature_arity("bamf(x = 0.5, y = 0.5) -> None") == (0, 2)
+
+
+def test_signature_arity_required_positional() -> None:
+    assert signature_arity("f(Character, preference)") == (2, 2)
+
+
+def test_signature_arity_typed_required() -> None:
+    # The `| None` union annotation must not confuse the parser.
+    assert signature_arity("f(Character: CharacterClass | None) -> bool") == (1, 1)
+
+
+def test_signature_arity_no_params() -> None:
+    assert signature_arity("f() -> None") == (0, 0)
+
+
+def test_signature_arity_mixed_required_and_default() -> None:
+    assert signature_arity("f(a, b, c = 1, d = 2) -> None") == (2, 4)
+
+
+def test_signature_arity_varargs_is_unbounded() -> None:
+    assert signature_arity("f(a, *rest) -> None") == (1, None)
+
+
+def test_signature_arity_unparseable_returns_none() -> None:
+    assert signature_arity("not a signature !!!") is None
+    assert signature_arity("") is None
+
+
+# -- run / fx / condition-function arity --------------------------------------
+
+_ARITY_HEAD = (
+    "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+    "Scene Type: cinematic\nTrigger: manual\n\n"
+)
+
+
+def _arity_allowlists() -> Allowlists:
+    """Allowlists carrying signatures so the arity checks engage.
+
+    Names registered without a signature (``no_sig_fx`` / ``no_sig_run``)
+    exercise the graceful skip: the name passes, but no arity check runs.
+    """
+    return Allowlists(
+        characters = ["JeanGrey", "Rogue", "Narrator", "Player"],
+        characters_upper = {"JEANGREY", "ROGUE", "NARRATOR", "PLAYER"},
+        fx = {"bamf", "phone_buzz", "no_sig_fx"},
+        fx_signatures = {
+            "bamf": (
+                "bamf(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0, "
+                "pause = True) -> None"
+            ),
+            "phone_buzz": "phone_buzz() -> None",
+        },
+        run_operations = {"record_player_preference", "retire_for_the_night", "no_sig_run"},
+        run_operation_signatures = {
+            "record_player_preference": (
+                "pregnancy_mod_record_player_preference(Character, preference)"
+            ),
+            "retire_for_the_night": (
+                "pregnancy_mod_announcement_retire_for_the_night(Character)"
+            ),
+        },
+        condition_functions = {"ready_for_parenthood", "announcer_was_present"},
+        condition_function_signatures = {
+            "ready_for_parenthood": (
+                "pregnancy_mod_ready_for_parenthood(Character: CharacterClass | None) -> bool"
+            ),
+            "announcer_was_present": (
+                "pregnancy_mod_announcement_announcer_was_present() -> bool"
+            ),
+        },
+    )
+
+
+def test_fx_arity_within_bounds_ok() -> None:
+    scene = _scene(_ARITY_HEAD + "[[fx bamf(0.5, 0.5)]]\n")
+    assert validate(scene, _arity_allowlists()) == []
+
+
+def test_fx_arity_max_bound_ok() -> None:
+    scene = _scene(_ARITY_HEAD + "[[fx bamf(1, 2, 3, 4, 5)]]\n")
+    assert validate(scene, _arity_allowlists()) == []
+
+
+def test_fx_arity_too_many_is_rejected() -> None:
+    scene = _scene(_ARITY_HEAD + "[[fx bamf(1, 2, 3, 4, 5, 6)]]\n")
+    errors = validate(scene, _arity_allowlists())
+    assert errors
+    assert "at most 5 arguments" in errors[0].message
+    assert "got 6" in errors[0].message
+    assert "bamf" in (errors[0].hint or "")
+
+
+def test_fx_arity_skipped_without_signature() -> None:
+    scene = _scene(_ARITY_HEAD + "[[fx no_sig_fx(1, 2, 3)]]\n")
+    assert validate(scene, _arity_allowlists()) == []
+
+
+def test_run_arity_exact_ok() -> None:
+    scene = _scene(_ARITY_HEAD + "[[run record_player_preference(Rogue, \"keep\")]]\n")
+    assert validate(scene, _arity_allowlists()) == []
+
+
+def test_run_arity_too_few_is_rejected() -> None:
+    scene = _scene(_ARITY_HEAD + "[[run record_player_preference(Rogue)]]\n")
+    errors = validate(scene, _arity_allowlists())
+    assert errors
+    assert "exactly 2 arguments" in errors[0].message
+    assert "got 1" in errors[0].message
+
+
+def test_run_arity_single_required_ok() -> None:
+    scene = _scene(_ARITY_HEAD + "[[run retire_for_the_night(Rogue)]]\n")
+    assert validate(scene, _arity_allowlists()) == []
+
+
+def test_run_arity_skipped_without_signature() -> None:
+    scene = _scene(_ARITY_HEAD + "[[run no_sig_run(1, 2, 3)]]\n")
+    assert validate(scene, _arity_allowlists()) == []
+
+
+def test_condition_function_arity_ok() -> None:
+    scene = _scene(
+        _ARITY_HEAD
+        + "[[if ready_for_parenthood(JeanGrey)]]\nShe nods.\n[[/if]]\n",
+    )
+    assert validate(scene, _arity_allowlists()) == []
+
+
+def test_condition_function_arity_too_few_is_rejected() -> None:
+    scene = _scene(
+        _ARITY_HEAD + "[[if ready_for_parenthood()]]\nShe nods.\n[[/if]]\n",
+    )
+    errors = validate(scene, _arity_allowlists())
+    assert errors
+    assert "exactly 1 argument" in errors[0].message
+
+
+def test_condition_function_arity_too_many_is_rejected() -> None:
+    scene = _scene(
+        _ARITY_HEAD
+        + "[[if announcer_was_present(JeanGrey)]]\nShe nods.\n[[/if]]\n",
+    )
+    errors = validate(scene, _arity_allowlists())
+    assert errors
+    # A zero-parameter function reads as "exactly 0", not "at most 0".
+    assert "exactly 0 arguments" in errors[0].message
+    assert "got 1" in errors[0].message
