@@ -5,11 +5,40 @@ from __future__ import annotations
 import pytest
 
 from tnh_scene_compiler.errors import CompileError
-from tnh_scene_compiler.paren_parser import parse_parenthetical
+from tnh_scene_compiler.paren_parser import parse_look_values, parse_parenthetical
 
 
 def _p(raw: str):
     return parse_parenthetical(raw, path = "inline.scene", line = 1, col = 1)
+
+
+def test_parse_look_values_scalar() -> None:
+    assert parse_look_values("down") == ["down"]
+
+
+def test_parse_look_values_pipe_set() -> None:
+    assert parse_look_values("{down|neutral}") == ["down", "neutral"]
+
+
+def test_parse_look_values_comma_set() -> None:
+    assert parse_look_values("{down, neutral}") == ["down", "neutral"]
+
+
+def test_parse_look_values_drops_empty_members() -> None:
+    assert parse_look_values("{down||neutral|}") == ["down", "neutral"]
+
+
+def test_parse_look_values_empty_braces() -> None:
+    assert parse_look_values("{}") == []
+
+
+def test_look_set_value_survives_token_split() -> None:
+    # The comma inside the braces must NOT split the parenthetical into two
+    # tokens (brace-depth tracking in _split_tokens).
+    result = _p("(face=smirk, look={down, neutral})")
+
+    assert result.face == "smirk"
+    assert result.look == "{down, neutral}"
 
 
 def test_empty_parenthetical_is_legal() -> None:

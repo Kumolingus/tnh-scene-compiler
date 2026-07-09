@@ -49,6 +49,7 @@ from dataclasses import dataclass
 
 from .allowlists import Allowlists
 from .dsl import transform as dsl_transform
+from .paren_parser import parse_look_values
 from .ast_nodes import (
     Approval,
     CallScene,
@@ -738,6 +739,22 @@ def _emit_set_scene(
     return lines
 
 
+def _eyes_expr(look: str) -> str:
+    """Render a ``look`` value as an ``eyes=`` argument for ``change_face``.
+
+    A scalar look becomes a quoted string (``"down"``); a set look becomes a
+    Python set literal (``{"down", "neutral"}``) so ``change_face`` random-draws
+    a member each render for a livelier gaze (the dominant base-game idiom).
+    """
+    tokens = parse_look_values(look)
+    if not tokens:
+        return "\"neutral\""
+    if len(tokens) == 1:
+        return f"\"{tokens[0]}\""
+    members = ", ".join(f"\"{token}\"" for token in tokens)
+    return "{" + members + "}"
+
+
 def _emit_parenthetical_prelude(
     paren: Parenthetical,
     speaker_pascal: str,
@@ -776,7 +793,15 @@ def _emit_parenthetical_prelude(
     if paren.mood:
         lines.append(f"{indent}$ {speaker_pascal}.change_mood(\"{paren.mood}\")")
     if paren.face:
-        lines.append(f"{indent}$ {speaker_pascal}.change_face(\"{paren.face}\")")
+        # Fold a paired gaze into the face change so brows/mouth come from the
+        # face preset — no second, wiping ``change_face`` call is emitted.
+        if paren.look:
+            lines.append(
+                f"{indent}$ {speaker_pascal}.change_face("
+                f"\"{paren.face}\", eyes = {_eyes_expr(paren.look)})",
+            )
+        else:
+            lines.append(f"{indent}$ {speaker_pascal}.change_face(\"{paren.face}\")")
     if paren.arms or paren.left_arm or paren.right_arm:
         preset = f"\"{paren.arms}\"" if paren.arms else "None"
         kwargs: list[str] = []
@@ -786,21 +811,15 @@ def _emit_parenthetical_prelude(
             kwargs.append(f"right_arm = \"{paren.right_arm}\"")
         args = ", ".join([preset, *kwargs])
         lines.append(f"{indent}$ {speaker_pascal}.change_arms({args})")
-    if paren.look:
-        # CompanionClass has no ``change_look`` method, and no ``face``
-        # attribute either — ``FACE_PARTS = ("brows", "eyes", "mouth")``
-        # so the current face is not stored as ``Char.face``. The
-        # runner's equivalent sets ``<Char>.eyes`` then re-renders via
-        # ``change_face(<current face or None>, eyes=X)`` using
-        # ``getattr(Char, "face", None)`` as a defensive read. Mirror
-        # that here: the ``getattr`` tolerates the missing attribute
-        # and ``change_face(None, eyes=...)`` still refreshes the
-        # sprite without touching mood-driven defaults.
-        lines.append(f"{indent}$ {speaker_pascal}.eyes = \"{paren.look}\"")
+    if paren.look and not paren.face:
+        # Gaze-only. ``FACE_PARTS = ("brows", "eyes", "mouth")`` and there is no
+        # ``Char.face`` attribute, so ``change_face(None, ...)`` would reset
+        # brows/mouth to "neutral" (``npcs.rpy:211-219``). Pass the current
+        # brows/mouth through so only the gaze changes.
         lines.append(
-            f"{indent}$ {speaker_pascal}.change_face("
-            f"getattr({speaker_pascal}, \"face\", None), "
-            f"eyes = \"{paren.look}\")",
+            f"{indent}$ {speaker_pascal}.change_face(None, "
+            f"brows = {speaker_pascal}.brows, mouth = {speaker_pascal}.mouth, "
+            f"eyes = {_eyes_expr(paren.look)})",
         )
     if paren.stage:
         direction = _stage_to_direction(paren.stage)

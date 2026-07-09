@@ -105,6 +105,10 @@ checked at compile time, so too few or too many is a compile error
 Typically the same list for every character. Source:
 `_allowlists/looks.yaml`.
 
+A `look` can be a single value (`look=down`) or a **set** for a livelier,
+random-drawn gaze: `look={down|neutral}` (members separated by `|` or `,`).
+Pair it with a `face` or `mood` so brows and mouth come from that preset.
+
 | Look |
 |---|
 | `at_player` |

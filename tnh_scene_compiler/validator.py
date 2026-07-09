@@ -52,6 +52,7 @@ from .ast_nodes import (
 )
 from .dsl import transform as dsl_transform
 from .errors import CompileError
+from .paren_parser import parse_look_values
 from .expr_parser import Attribute, BoolOp, Call, Compare, Expr, Member, Name, UnaryNot
 
 _SCENE_ID_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -372,7 +373,8 @@ def _check_slot_value(
     if slot == "right_arm":
         return allow.is_right_arm(character, value)
     if slot == "look":
-        return allow.is_look(value)
+        tokens = parse_look_values(value)
+        return bool(tokens) and all(allow.is_look(token) for token in tokens)
     if slot == "stage":
         return allow.is_stage(value)
     return False

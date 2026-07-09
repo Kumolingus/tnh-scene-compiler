@@ -19,6 +19,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   handled; an entry with no signature (or an unparseable one) keeps the
   previous name-only check, so the change is purely additive on the existing
   scene corpus.
+- A `look`/gaze value can now be a **set** for a livelier, random-drawn gaze:
+  `look={down|neutral}` (members separated by `|` or `,`) compiles to the native
+  `change_face(..., eyes={"down", "neutral"})` set idiom, so the sprite draws a
+  member each render. A single value still compiles to `eyes="down"`. Every set
+  member is validated against the `looks` allowlist.
 
 ### Removed
 
@@ -45,6 +50,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the validator or codegen). Author-facing syntax is unchanged: `Format:`
   stays an accepted title-page key and the slugline prefix is still required
   to recognise a slugline.
+
+### Fixed
+
+- A `look=` gaze no longer wipes the character's brows and mouth. The old
+  codegen emitted `change_face(getattr(Char, "face", None), eyes=…)`, but there
+  is no `Char.face` attribute (`FACE_PARTS = ("brows", "eyes", "mouth")`), so
+  `change_face(None, …)` reset brows and mouth to "neutral" every time —
+  undoing any `face=` / `mood=` set in the same parenthetical. A paired
+  `face`+`look` now folds into one `change_face("<face>", eyes=…)` call, and a
+  gaze-only `look` passes the current brows/mouth through so only the eyes move.
 
 ## [0.1.1] - 2026-06-08
 

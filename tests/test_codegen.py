@@ -201,16 +201,49 @@ def test_codegen_face_look_outfit_all_emit_change_calls(allowlists: Allowlists) 
 
     output = generate(scene, allowlists, _CTX)
 
-    assert "$ JeanGrey.change_face(\"smirk\")" in output
-    assert "$ JeanGrey.eyes = \"at_player\"" in output
-    assert (
-        "$ JeanGrey.change_face("
-        "getattr(JeanGrey, \"face\", None), eyes = \"at_player\")"
-    ) in output
+    # A paired face + look folds into a single change_face so brows/mouth come
+    # from the face preset; the old wiping change_face(getattr(...,"face",None))
+    # call and the bare .eyes write are gone (item-4 fix).
+    assert "$ JeanGrey.change_face(\"smirk\", eyes = \"at_player\")" in output
+    assert "getattr(JeanGrey, \"face\", None)" not in output
+    assert "$ JeanGrey.eyes = " not in output
     assert (
         "$ change_Outfit(JeanGrey, "
         "JeanGrey.Wardrobe.Outfits[\"Pajamas\"], instant = True)"
     ) in output
+
+
+def test_codegen_look_only_preserves_brows_and_mouth(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "JEANGREY (look=down)\nLine.\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    # Gaze-only keeps the current brows/mouth so change_face does not reset
+    # them; the old getattr(...,"face",None) wipe is gone (item-4 fix).
+    assert (
+        "$ JeanGrey.change_face(None, "
+        "brows = JeanGrey.brows, mouth = JeanGrey.mouth, eyes = \"down\")"
+    ) in output
+    assert "getattr(JeanGrey, \"face\", None)" not in output
+    assert "$ JeanGrey.eyes = " not in output
+
+
+def test_codegen_look_set_emits_eyes_set_literal(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "JEANGREY (face=smirk, look={down|away})\nLine.\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    # A set look folds into the face call as a Python set literal so the sprite
+    # random-draws a member each render for a livelier gaze.
+    assert "$ JeanGrey.change_face(\"smirk\", eyes = {\"down\", \"away\"})" in output
 
 
 def test_codegen_stage_emits_add_characters_with_mapped_direction(

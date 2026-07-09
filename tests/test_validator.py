@@ -227,6 +227,23 @@ def test_validate_unknown_stage_with_suggestion(allowlists: Allowlists) -> None:
     assert "stage" in errors[0].message
 
 
+def test_validate_look_set_all_members_accepted(allowlists: Allowlists) -> None:
+    scene = _scene(_scene_with_paren("(face=smirk, look={down|away})"))
+
+    errors = validate(scene, allowlists)
+
+    assert errors == []
+
+
+def test_validate_look_set_rejects_an_unknown_member(allowlists: Allowlists) -> None:
+    scene = _scene(_scene_with_paren("(look={down|bogus_value})"))
+
+    errors = validate(scene, allowlists)
+
+    assert errors
+    assert "valid look for JeanGrey" in errors[0].message
+
+
 # --- Directive validation ----------------------------------------
 
 
