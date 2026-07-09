@@ -60,6 +60,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   undoing any `face=` / `mood=` set in the same parenthetical. A paired
   `face`+`look` now folds into one `change_face("<face>", eyes=…)` call, and a
   gaze-only `look` passes the current brows/mouth through so only the eyes move.
+- The faces extractor no longer emits a duplicate when the base game declares
+  the same face name for a character twice (e.g. LauraKinney `squint` at two
+  lines). Each distinct name is kept once (first occurrence), so the generated
+  `faces/<Char>.yaml` and the cheatsheet no longer list it twice.
 
 ## [0.1.1] - 2026-06-08
 
