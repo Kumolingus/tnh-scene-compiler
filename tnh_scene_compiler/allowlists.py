@@ -60,6 +60,75 @@ def signature_arity(signature: str) -> tuple[int, int | None] | None:
     return (required, max_positional)
 
 
+def parse_signature_params(signature: str) -> list[tuple[str, str, str]]:
+    """Extract ``(name, type_hint, default)`` tuples from a signature string.
+
+    Handles signatures like ``"phone_buzz(x: float = 0.5, y: float = 0.5) ->
+    None"`` or ``"Character.History.check(Item: str, tracker: str =
+    'persistent') -> int"``. Only the parenthesized parameter list is
+    parsed — everything before ``(`` (including a leading ``Character.``
+    call path) and after the matching ``)`` is ignored. Returns an empty
+    list if the signature is empty or has no parentheses.
+
+    Shared by every GUI form that turns an allowlist signature into
+    per-parameter fields with pre-filled defaults: ``[[fx]]``, ``[[run]]``,
+    standalone condition functions, and ``Character.method()`` conditions.
+    """
+    if not signature:
+        return []
+    paren_start = signature.find("(")
+    paren_end = signature.rfind(")")
+    if paren_start < 0 or paren_end < 0:
+        return []
+    params_str = signature[paren_start + 1:paren_end].strip()
+    if not params_str:
+        return []
+
+    params: list[tuple[str, str, str]] = []
+    depth = 0
+    current = ""
+    for ch in params_str:
+        if ch in ("(", "[", "{"):
+            depth += 1
+            current += ch
+        elif ch in (")", "]", "}"):
+            depth -= 1
+            current += ch
+        elif ch == "," and depth == 0:
+            params.append(_parse_single_param(current.strip()))
+            current = ""
+        else:
+            current += ch
+    if current.strip():
+        params.append(_parse_single_param(current.strip()))
+    return params
+
+
+def _parse_single_param(param: str) -> tuple[str, str, str]:
+    """Parse a single parameter like ``'x: float = 0.5'`` into (name, type, default).
+
+    Default values are kept verbatim (including quotes for strings) since
+    they are inserted as-is into the generated call.
+    """
+    name = ""
+    type_hint = ""
+    default = ""
+
+    if "=" in param:
+        before_eq, default = param.rsplit("=", 1)
+        default = default.strip()
+        param = before_eq.strip()
+
+    if ":" in param:
+        name, type_hint = param.split(":", 1)
+        name = name.strip()
+        type_hint = type_hint.strip()
+    else:
+        name = param.strip()
+
+    return (name, type_hint, default)
+
+
 def _read_yaml(path: Path) -> dict[str, Any] | None:
     """Return the top-level mapping of ``path`` or ``None`` if missing/empty."""
     if not path.is_file():
@@ -270,6 +339,7 @@ class Allowlists:
     condition_functions: set[str] = field(default_factory=set)
     condition_function_signatures: dict[str, str] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
+    character_method_signatures: dict[str, str] = field(default_factory=dict)
     traits: set[str] = field(default_factory=set)
     personalities: set[str] = field(default_factory=set)
     history_events: set[str] = field(default_factory=set)
@@ -370,12 +440,16 @@ class Allowlists:
             allowlists_dir / "character_methods.yaml",
         )
         character_methods: set[str] = set()
+        character_method_signatures: dict[str, str] = {}
         if character_methods_payload and isinstance(
             character_methods_payload.get("methods"), list,
         ):
             for item in character_methods_payload["methods"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     character_methods.add(item["name"])
+                    sig = item.get("signature")
+                    if isinstance(sig, str):
+                        character_method_signatures[item["name"]] = sig
 
         traits = set(_values_names(_read_yaml(allowlists_dir / "traits.yaml")))
         personalities = set(_values_names(
@@ -425,6 +499,7 @@ class Allowlists:
             condition_functions = condition_functions,
             condition_function_signatures = condition_function_signatures,
             character_methods = character_methods,
+            character_method_signatures = character_method_signatures,
             traits = traits,
             personalities = personalities,
             history_events = history_events,
@@ -599,6 +674,9 @@ class Allowlists:
                 **other.condition_function_signatures,
             },
             character_methods=self.character_methods | other.character_methods,
+            character_method_signatures={
+                **self.character_method_signatures, **other.character_method_signatures,
+            },
             traits=self.traits | other.traits,
             personalities=self.personalities | other.personalities,
             history_events=self.history_events | other.history_events,

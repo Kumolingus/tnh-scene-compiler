@@ -14,7 +14,7 @@ from collections.abc import Callable
 from tkinter import ttk
 from typing import Any
 
-from .allowlists import Allowlists
+from .allowlists import Allowlists, parse_signature_params
 
 # -- Constants ---------------------------------------------------------------
 
@@ -26,6 +26,7 @@ CONDITION_TYPES: list[tuple[str, str]] = [
     ("Friendship check", "friendship"),
     ("Nearby check", "nearby"),
     ("Personality check", "personality"),
+    ("Character method", "method"),
     ("Standalone function", "function"),
 ]
 
@@ -46,6 +47,7 @@ _REQUIRED_VARS: dict[str, list[str]] = {
     "friendship": ["character", "other_character"],
     "nearby": ["character"],
     "personality": ["character", "trait"],
+    "method": ["character", "method_name"],
     "function": ["func_name"],
 }
 
@@ -77,10 +79,17 @@ _DESCRIPTIONS: dict[str, str] = {
         "Checks a character’s personality trait.\n"
         "Optional numeric threshold for comparison."
     ),
+    "method": (
+        "Checks a low-level, read-only character method\n"
+        "(e.g. check_trait, get_status, History.check).\n"
+        "Arguments are pre-filled from the method's signature\n"
+        "once you pick one."
+    ),
     "function": (
         "Standalone functions from the\n"
         "condition_functions allowlist.\n"
-        "Arguments are free-text (e.g. JeanGrey)."
+        "Arguments are pre-filled from the function's signature\n"
+        "once you pick one."
     ),
 }
 
@@ -99,6 +108,8 @@ def build_condition(
     other_character: str = "",
     func_name: str = "",
     func_args: str = "",
+    method_path: str = "",
+    method_args: str = "",
 ) -> str:
     """Return the DSL condition expression for the given parameters.
 
@@ -110,6 +121,13 @@ def build_condition(
         For ``approval``: a numeric value (e.g. ``"500"``) or a tier
         name (``"medium"``).  For ``personality``: optional numeric
         threshold.
+    method_path
+        For ``method``: the attribute chain to call on ``character``,
+        e.g. ``"check_trait"`` or ``"History.check"`` — resolved by the
+        caller from the method's ``Character.<path>(...)`` signature
+        (see :func:`resolve_method_path`), since most methods hang
+        directly off the character but a few (``History.check``) need an
+        extra hop.
 
     Returns
     -------
@@ -132,11 +150,35 @@ def build_condition(
         if threshold:
             return f'{character}.personality("{trait}", {threshold})'
         return f'{character}.personality("{trait}")'
+    if kind == "method":
+        if method_args:
+            return f"{character}.{method_path}({method_args})"
+        return f"{character}.{method_path}()"
     if kind == "function":
         if func_args:
             return f"{func_name}({func_args})"
         return f"{func_name}()"
     return ""
+
+
+def resolve_method_path(signature: str, method_name: str) -> str:
+    """Return the attribute chain after ``Character.`` from a method signature.
+
+    ``"Character.History.check(...)"`` -> ``"History.check"``.
+    ``"Character.check_trait(...)"`` -> ``"check_trait"``.
+    Falls back to the bare *method_name* when *signature* is empty or does
+    not start with the expected ``Character.`` call path — this happens for
+    the free-text fallback used when no ``character_methods.yaml`` is
+    loaded.
+    """
+    if not signature:
+        return method_name
+    paren = signature.find("(")
+    head = (signature[:paren] if paren >= 0 else signature).strip()
+    prefix = "Character."
+    if head.startswith(prefix):
+        return head[len(prefix):]
+    return method_name
 
 
 def wrap_condition(condition: str, mode: str) -> str:
@@ -183,6 +225,8 @@ class ConditionBuilderDialog(tk.Toplevel):
         )
         self._vars: dict[str, tk.StringVar] = {}
         self._mood_combo_widget: ttk.Combobox | None = None
+        self._func_param_vars: list[tuple[str, str, tk.StringVar]] = []
+        self._method_param_vars: list[tuple[str, str, tk.StringVar]] = []
         self._current_kind: str | None = None
 
         body = ttk.Frame(self, padding=12)
@@ -283,6 +327,8 @@ class ConditionBuilderDialog(tk.Toplevel):
         self._param_frame.pack(fill=tk.BOTH, expand=True)
         self._vars.clear()
         self._mood_combo_widget = None
+        self._func_param_vars = []
+        self._method_param_vars = []
 
         builder = getattr(self, f"_params_{kind}", None)
         if builder:
@@ -501,16 +547,124 @@ class ConditionBuilderDialog(tk.Toplevel):
         )
         self._add_description(parent, row, "personality")
 
+    def _params_method(self, parent: ttk.Frame) -> None:
+        row = self._add_character_field(parent, "Character", 0)
+        known_methods = sorted(self._allow.character_methods) if self._allow.character_methods else []
+        if not known_methods:
+            row = self._add_text_field(
+                parent, "Method", row, "method_name", default="check_trait",
+            )
+            self._add_description(parent, row, "method")
+            return
+
+        row = self._add_combo_field(parent, "Method", row, "method_name", known_methods)
+        params_frame = ttk.Frame(parent)
+        params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
+        row += 1
+
+        def _on_method_change(*_a: Any) -> None:
+            for widget in params_frame.winfo_children():
+                widget.destroy()
+            self._method_param_vars.clear()
+
+            name = self._get_var("method_name")
+            sig = self._allow.character_method_signatures.get(name, "")
+            params = parse_signature_params(sig)
+            for i, (pname, ptype, pdefault) in enumerate(params):
+                hint = pname
+                if ptype:
+                    hint += f"  ({ptype})"
+                ttk.Label(params_frame, text=f"{hint}:").grid(
+                    row=i, column=0, sticky=tk.W, pady=1, padx=(0, 8),
+                )
+                var = tk.StringVar(value=pdefault)
+                self._method_param_vars.append((pname, pdefault, var))
+                ttk.Entry(params_frame, textvariable=var, width=20).grid(
+                    row=i, column=1, sticky=tk.W, pady=1,
+                )
+                var.trace_add("write", lambda *_: self._update_preview())
+
+            self._update_preview()
+
+        self._vars["method_name"].trace_add("write", _on_method_change)
+        _on_method_change()
+
+        self._add_description(parent, row, "method")
+
     def _params_function(self, parent: ttk.Frame) -> None:
         funcs = sorted(self._allow.condition_functions) if self._allow.condition_functions else []
-        if funcs:
-            row = self._add_combo_field(
-                parent, "Function", 0, "func_name", funcs,
-            )
-        else:
+        if not funcs:
             row = self._add_text_field(parent, "Function", 0, "func_name")
-        row = self._add_text_field(parent, "Arguments", row, "func_args")
+            row = self._add_text_field(parent, "Arguments", row, "func_args")
+            self._add_description(parent, row, "function")
+            return
+
+        row = self._add_combo_field(parent, "Function", 0, "func_name", funcs)
+        params_frame = ttk.Frame(parent)
+        params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
+        row += 1
+
+        def _on_func_change(*_a: Any) -> None:
+            for widget in params_frame.winfo_children():
+                widget.destroy()
+            self._func_param_vars.clear()
+
+            name = self._get_var("func_name")
+            sig = self._allow.condition_function_signatures.get(name, "")
+            params = parse_signature_params(sig)
+            for i, (pname, ptype, pdefault) in enumerate(params):
+                hint = pname
+                if ptype:
+                    hint += f"  ({ptype})"
+                ttk.Label(params_frame, text=f"{hint}:").grid(
+                    row=i, column=0, sticky=tk.W, pady=1, padx=(0, 8),
+                )
+                var = tk.StringVar(value=pdefault)
+                self._func_param_vars.append((pname, pdefault, var))
+                ttk.Entry(params_frame, textvariable=var, width=20).grid(
+                    row=i, column=1, sticky=tk.W, pady=1,
+                )
+                var.trace_add("write", lambda *_: self._update_preview())
+
+            self._update_preview()
+
+        self._vars["func_name"].trace_add("write", _on_func_change)
+        _on_func_change()
+
         self._add_description(parent, row, "function")
+
+    # -- Signature-derived argument assembly ----------------------------------
+
+    def _assemble_func_args(self) -> str:
+        """Return the comma-joined argument list for the "function" kind.
+
+        Falls back to the free-text ``func_args`` field when no
+        ``condition_functions`` allowlist was loaded (no per-parameter
+        fields were built).
+        """
+        if self._func_param_vars:
+            parts = []
+            for _pname, default, var in self._func_param_vars:
+                val = var.get().strip()
+                parts.append(val if val else default)
+            return ", ".join(parts)
+        return self._get_var("func_args")
+
+    def _assemble_method_args(self) -> str:
+        """Return the comma-joined argument list for the "method" kind."""
+        if not self._method_param_vars:
+            return ""
+        parts = []
+        for _pname, default, var in self._method_param_vars:
+            val = var.get().strip()
+            parts.append(val if val else default)
+        return ", ".join(parts)
+
+    def _resolve_method_path(self) -> str:
+        """Return the attribute chain to call for the current "method" kind."""
+        name = self._get_var("method_name")
+        sig = self._allow.character_method_signatures.get(name, "")
+        return resolve_method_path(sig, name)
 
     # -- Preview and insertion -----------------------------------------------
 
@@ -533,7 +687,9 @@ class ConditionBuilderDialog(tk.Toplevel):
             mood=self._get_var("mood"),
             other_character=self._get_var("other_character"),
             func_name=self._get_var("func_name"),
-            func_args=self._get_var("func_args"),
+            func_args=self._assemble_func_args(),
+            method_path=self._resolve_method_path(),
+            method_args=self._assemble_method_args(),
         )
 
     def _get_wrap_mode(self) -> str:

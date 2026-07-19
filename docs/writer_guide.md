@@ -306,6 +306,10 @@ I guess it's okay.
 [[/if]]
 ```
 
+**In the editor:** the Struct. palette tab's "Build condition…" button opens a Condition Builder — pick a condition type (love/trust,
+trait, history, mood, friendship, personality, a low-level character method, or a standalone function) and fill in guided fields instead
+of remembering the exact expression syntax.
+
 You can change approval values with named tiers:
 
 ```
@@ -552,6 +556,9 @@ the exact syntax when it is needed:
 ```
 
 You cannot invent `[[run]]` operations. Each one must be registered by the developer in `run_operations.yaml`.
+
+**In the editor:** picking a registered operation from the "run function" dialog opens a parameter dialog with per-parameter fields
+(defaults pre-filled), the same as FX effects — you don't need to remember argument order.
 
 
 ---

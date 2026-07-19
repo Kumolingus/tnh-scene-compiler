@@ -26,7 +26,7 @@ Fountain-TNH scene compiler: converts `.scene` files to Ren'Py `.rpy` scripts fo
 ## Testing
 
 - Framework: pytest
-- 398 tests in `tests/`
+- 459 tests in `tests/`
 - Run: `python -m pytest tests/ -q`
 
 ## Thumbnails

@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The scene editor's `[[show]]` insert form now exposes all 9 attributes the
+  directive grammar accepts — `stage`, `left_arm`, `right_arm`, and `fade`
+  joined `mood`/`face`/`arms`/`outfit`/`look`. `stage` and the two split-arm
+  slots were already populated in `stages.yaml` / `arms/<Character>.yaml` and
+  used elsewhere in the editor (the Visuals palette tab), but the combined
+  insert form silently dropped them, forcing writers to hand-type those
+  attributes instead of picking from real allowlist values.
+- The `[[run]]` insert form now builds one field per parameter from the
+  operation's `run_operations.yaml` signature, pre-filled with its declared
+  default — mirroring the treatment `[[fx]]` already had. Previously the
+  writer had to hand-type the entire call, including argument order, with no
+  guidance despite the signature already being on file.
+- The Condition Builder's "Standalone function" type now does the same:
+  per-parameter fields from `condition_functions.yaml` instead of one
+  free-text "Arguments" box.
+- New Condition Builder type, "Character method", for guided
+  `[[if Character.method(...)]]` conditions (`check_trait`, `get_status`,
+  `History.check`, …) driven by `character_methods.yaml` — a category of
+  condition that was previously usable only by hand-typing the exact call,
+  even though `character_methods.yaml` is explicitly curated for this
+  purpose. The loader now also captures each method's `signature:` field
+  (it was being read from the YAML and discarded).
 - Arity validation for `[[fx]]`, `[[run]]`, and `[[if]]` condition-function
   calls. The `signature:` already stored next to each `fx.yaml` /
   `run_operations.yaml` / `condition_functions.yaml` entry is now parsed for
@@ -50,9 +72,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the validator or codegen). Author-facing syntax is unchanged: `Format:`
   stays an accepted title-page key and the slugline prefix is still required
   to recognise a slugline.
+- `_DirectiveDialog._build_fx` / `_build_sfx` (and their supporting
+  `_build_fx_args`) are removed from `editor.py`. Neither `fx` nor `sfx` was
+  ever routed to `_DirectiveDialog` — real `[[fx]]`/`[[sfx]]` insertion goes
+  through the FX/SFX palette tab's `_FxParamDialog`/`_SfxParamDialog` — so
+  this was dead, and a stale duplicate at that (it didn't use
+  `fx_param_choices` for enum dropdowns like the live dialog does).
+- The FX-signature parameter parser (`name`/`type`/`default` extraction) moved
+  from `editor.py` (`_parse_fx_signature`) to `allowlists.py`
+  (`parse_signature_params`), since it is now shared by the `[[fx]]`,
+  `[[run]]`, and condition-builder per-parameter forms.
 
 ### Fixed
 
+- The scene editor's `[[show]]` insert form joined multiple attributes with
+  `, ` (e.g. `mood=happy, face=smile`). The directive grammar expects
+  space-separated `key=value` tokens; the trailing comma stayed glued to the
+  previous value after `shlex.split()`, so any multi-attribute `[[show]]`
+  built from that form failed allowlist validation with a value nobody
+  actually typed (e.g. mood `"happy,"`).
 - A `look=` gaze no longer wipes the character's brows and mouth. The old
   codegen emitted `change_face(getattr(Char, "face", None), eyes=…)`, but there
   is no `Char.face` attribute (`FACE_PARTS = ("brows", "eyes", "mouth")`), so

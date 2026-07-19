@@ -9,7 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
-from .allowlists import Allowlists
+from .allowlists import Allowlists, parse_signature_params
 from .condition_builder import ConditionBuilderDialog
 from .config import Config
 from .errors import CompileError
@@ -436,71 +436,7 @@ _DIRECTIVE_DESCRIPTIONS: dict[str, str] = {
     "remove_trait": "Remove a trait from a character.",
     "record": "Record that a character did something (for history checks).",
     "set_personality": "Set a character's personality score.",
-    "sfx": "Play a sound effect.",
-    "fx": "Trigger a visual effect or animation.",
 }
-
-
-def _parse_fx_signature(signature: str) -> list[tuple[str, str, str]]:
-    """Extract (name, type_hint, default) tuples from an FX signature string.
-
-    Handles signatures like:
-        "phone_buzz(x: float = 0.5, y: float = 0.5, ...) -> None"
-    Returns an empty list if the signature is empty or unparseable.
-    """
-    if not signature:
-        return []
-    paren_start = signature.find("(")
-    paren_end = signature.rfind(")")
-    if paren_start < 0 or paren_end < 0:
-        return []
-    params_str = signature[paren_start + 1:paren_end].strip()
-    if not params_str:
-        return []
-
-    params: list[tuple[str, str, str]] = []
-    depth = 0
-    current = ""
-    for ch in params_str:
-        if ch in ("(", "[", "{"):
-            depth += 1
-            current += ch
-        elif ch in (")", "]", "}"):
-            depth -= 1
-            current += ch
-        elif ch == "," and depth == 0:
-            params.append(_parse_single_param(current.strip()))
-            current = ""
-        else:
-            current += ch
-    if current.strip():
-        params.append(_parse_single_param(current.strip()))
-    return params
-
-
-def _parse_single_param(param: str) -> tuple[str, str, str]:
-    """Parse a single parameter like 'x: float = 0.5' into (name, type, default).
-
-    Default values are kept verbatim (including quotes for strings) since
-    they are inserted as-is into the [[fx name(...)]] call.
-    """
-    name = ""
-    type_hint = ""
-    default = ""
-
-    if "=" in param:
-        before_eq, default = param.rsplit("=", 1)
-        default = default.strip()
-        param = before_eq.strip()
-
-    if ":" in param:
-        name, type_hint = param.split(":", 1)
-        name = name.strip()
-        type_hint = type_hint.strip()
-    else:
-        name = param.strip()
-
-    return (name, type_hint, default)
 
 
 _FX_LABEL_STRIP_RE = re.compile(r"^[A-Z][A-Za-z]+_animations_")
@@ -682,7 +618,7 @@ class _FxParamDialog(tk.Toplevel):
         ).pack(anchor=tk.W, pady=(0, 8))
 
         sig = allow.fx_signatures.get(fx_name, "")
-        params = _parse_fx_signature(sig)
+        params = parse_signature_params(sig)
         choices_map = allow.fx_param_choices.get(fx_name, {})
 
         if params:
@@ -890,8 +826,12 @@ class _DirectiveDialog(tk.Toplevel):
         row = self._add_combo(parent, row, "Mood", "mood", moods)
         row = self._add_combo(parent, row, "Face", "face", [""])
         row = self._add_combo(parent, row, "Arms", "arms", [""])
+        row = self._add_combo(parent, row, "Left Arm", "left_arm", [""])
+        row = self._add_combo(parent, row, "Right Arm", "right_arm", [""])
         row = self._add_combo(parent, row, "Outfit", "outfit", [""])
         row = self._add_combo(parent, row, "Look", "look", [""] + sorted(allow.looks))
+        row = self._add_combo(parent, row, "Stage", "stage", [""] + sorted(allow.stages))
+        row = self._add_combo(parent, row, "Fade", "fade", ["", "true", "false"])
 
         # Thumbnail preview
         self._thumb_store = _get_thumb_store() if self._show_thumbnails else None
@@ -906,6 +846,8 @@ class _DirectiveDialog(tk.Toplevel):
             for key, getter in [
                 ("face", lambda: [""] + sorted(allow.char_faces.get(c, set()))),
                 ("arms", lambda: [""] + sorted(allow.char_arms.get(c, set()))),
+                ("left_arm", lambda: [""] + sorted(allow.char_left_arm.get(c, set()))),
+                ("right_arm", lambda: [""] + sorted(allow.char_right_arm.get(c, set()))),
                 ("outfit", lambda: [""] + sorted(allow.char_outfits.get(c, set()))),
                 ("mood", lambda: [""] + sorted(
                     allow.shared_moods | allow.char_moods.get(c, set())
@@ -1021,81 +963,57 @@ class _DirectiveDialog(tk.Toplevel):
 
     def _build_run(self, parent: ttk.Frame, allow: Allowlists) -> None:
         ops = sorted(allow.run_operations) if allow.run_operations else []
-        if ops:
-            self._add_combo(parent, 0, "Operation", "op", ops)
-        else:
+        self._run_param_vars: list[tuple[str, str, tk.StringVar]] = []
+        if not ops:
             self._add_entry(parent, 0, "Function call", "op")
+            return
 
-    def _build_sfx(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        sfx_names = sorted(allow.sfx) if allow.sfx else []
-        if sfx_names:
-            row = self._add_combo(parent, 0, "Sound", "name", sfx_names)
-        else:
-            row = self._add_entry(parent, 0, "Sound name", "name")
-        self._add_entry(parent, row, "Duration (optional)", "duration")
+        row = self._add_combo(parent, 0, "Operation", "op", ops)
 
-    def _build_fx(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        fx_names = sorted(allow.fx) if allow.fx else []
-        if fx_names:
-            row = self._add_combo(parent, 0, "Effect", "name", fx_names)
-        else:
-            row = self._add_entry(parent, 0, "Effect name", "name")
-
-        self._fx_params_frame = ttk.Frame(parent)
-        self._fx_params_frame.grid(
+        self._run_params_frame = ttk.Frame(parent)
+        self._run_params_frame.grid(
             row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0),
         )
-        self._fx_param_vars: list[tuple[str, str, tk.StringVar]] = []
-        self._fx_signatures = allow.fx_signatures
+        self._run_signatures = allow.run_operation_signatures
 
-        def _on_fx_change(*_a: Any) -> None:
-            for widget in self._fx_params_frame.winfo_children():
+        def _on_run_change(*_a: Any) -> None:
+            for widget in self._run_params_frame.winfo_children():
                 widget.destroy()
-            self._fx_param_vars.clear()
+            self._run_param_vars.clear()
 
-            name = self._vars["name"].get()
-            sig = self._fx_signatures.get(name, "")
-            params = _parse_fx_signature(sig)
+            name = self._vars["op"].get()
+            sig = self._run_signatures.get(name, "")
+            params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
                 hint = pname
                 if ptype:
                     hint += f" ({ptype})"
-                ttk.Label(self._fx_params_frame, text=f"{hint}:").grid(
+                ttk.Label(self._run_params_frame, text=f"{hint}:").grid(
                     row=i, column=0, sticky=tk.W, pady=1,
                 )
                 var = tk.StringVar(value=pdefault)
-                self._fx_param_vars.append((pname, pdefault, var))
+                self._run_param_vars.append((pname, pdefault, var))
                 ttk.Entry(
-                    self._fx_params_frame, textvariable=var, width=20,
+                    self._run_params_frame, textvariable=var, width=20,
                 ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
                 var.trace_add("write", self._update_preview)
 
             self._update_preview()
 
-        self._vars["name"].trace_add("write", _on_fx_change)
+        self._vars["op"].trace_add("write", _on_run_change)
 
-    def _build_fx_args(self) -> str:
-        """Assemble positional args from per-parameter fields.
+    def _build_run_args(self) -> str:
+        """Assemble positional args from the run operation's per-parameter fields.
 
-        Only includes args up to the last one that differs from its default.
+        Unlike FX args, every parameter is included verbatim (falling back
+        to its declared default when left blank) — ``[[run]]`` signatures
+        are mandatory state-mutation calls, not optional-tail effect calls.
         """
-        if not hasattr(self, "_fx_param_vars") or not self._fx_param_vars:
+        if not self._run_param_vars:
             return ""
-        values: list[tuple[str, str]] = []
-        for _pname, default, var in self._fx_param_vars:
-            values.append((var.get().strip(), default))
-
-        last_non_default = -1
-        for i, (val, default) in enumerate(values):
-            if val and val != default:
-                last_non_default = i
-
-        if last_non_default < 0:
-            return ""
-
         parts: list[str] = []
-        for i in range(last_non_default + 1):
-            val, default = values[i]
+        for _pname, default, var in self._run_param_vars:
+            val = var.get().strip()
             parts.append(val if val else default)
         return ", ".join(parts)
 
@@ -1127,6 +1045,14 @@ class _DirectiveDialog(tk.Toplevel):
             arms_var = self._vars.get("arms")
             if arms_var and arms_var.get():
                 img = store.get_arms(c, arms_var.get())
+        if img is None:
+            left_var = self._vars.get("left_arm")
+            if left_var and left_var.get():
+                img = store.get_left_arm(c, left_var.get())
+        if img is None:
+            right_var = self._vars.get("right_arm")
+            if right_var and right_var.get():
+                img = store.get_right_arm(c, right_var.get())
         self._thumb_image = img
         self._thumb_label.configure(image=img or "")
 
@@ -1137,11 +1063,17 @@ class _DirectiveDialog(tk.Toplevel):
         if d == "show":
             char = v.get("char", "Character")
             attrs = []
-            for slot in ("mood", "face", "arms", "outfit", "look"):
+            for slot in (
+                "mood", "face", "arms", "left_arm", "right_arm",
+                "outfit", "look", "stage", "fade",
+            ):
                 val = v.get(slot, "")
                 if val:
                     attrs.append(f"{slot}={val}")
-            attr_str = ", ".join(attrs)
+            # §11.6 attributes are space-separated key=value tokens, not
+            # comma-separated — a comma would end up glued to the previous
+            # value once the parser's shlex.split() runs on it.
+            attr_str = " ".join(attrs)
             if attr_str:
                 return f"[[show {char} {attr_str}]]"
             return f"[[show {char}]]"
@@ -1186,9 +1118,10 @@ class _DirectiveDialog(tk.Toplevel):
 
         if d == "run":
             op = v.get("op", "function()")
-            if "(" not in op:
-                op += "()"
-            return f"[[run {op}]]"
+            if "(" in op:
+                return f"[[run {op}]]"
+            args = self._build_run_args()
+            return f"[[run {op}({args})]]"
 
         if d == "give_trait":
             return f"[[give_trait {v.get('char', 'Character')} {v.get('trait', 'trait')}]]"
@@ -1204,20 +1137,6 @@ class _DirectiveDialog(tk.Toplevel):
                 f"[[set_personality {v.get('char', 'Character')} "
                 f"{v.get('trait', 'trait')} {v.get('value', '1')}]]"
             )
-
-        if d == "sfx":
-            name = v.get("name", "sound")
-            dur = v.get("duration", "")
-            if dur:
-                return f"[[sfx {name} {dur}]]"
-            return f"[[sfx {name}]]"
-
-        if d == "fx":
-            name = v.get("name", "effect")
-            args = self._build_fx_args()
-            if args:
-                return f"[[fx {name}({args})]]"
-            return f"[[fx {name}()]]"
 
         return f"[[{d}]]"
 
@@ -1754,7 +1673,7 @@ class _PaletteSidebar(ttk.Frame):
             _SfxParamDialog(self, display, self._insert)
         else:
             sig = self._allow.fx_signatures.get(display, "")
-            if not _parse_fx_signature(sig):
+            if not parse_signature_params(sig):
                 self._insert(f"[[fx {display}()]]\n")
             else:
                 _FxParamDialog(self, display, self._allow, self._insert)

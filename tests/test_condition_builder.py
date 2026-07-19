@@ -2,7 +2,11 @@
 
 import pytest
 
-from tnh_scene_compiler.condition_builder import build_condition, wrap_condition
+from tnh_scene_compiler.condition_builder import (
+    build_condition,
+    resolve_method_path,
+    wrap_condition,
+)
 
 
 # -- build_condition ---------------------------------------------------------
@@ -108,9 +112,59 @@ class TestBuildConditionFunction:
         assert result == "get_Location()"
 
 
+class TestBuildConditionMethod:
+    def test_no_args(self):
+        result = build_condition(
+            "method", character="JeanGrey", method_path="get_status",
+        )
+        assert result == "JeanGrey.get_status()"
+
+    def test_with_args(self):
+        result = build_condition(
+            "method", character="JeanGrey", method_path="check_trait",
+            method_args='"shy"',
+        )
+        assert result == 'JeanGrey.check_trait("shy")'
+
+    def test_nested_path(self):
+        # e.g. History.check, resolved by resolve_method_path from the
+        # method's "Character.History.check(...)" signature.
+        result = build_condition(
+            "method", character="Rogue", method_path="History.check",
+            method_args='"kissed_player"',
+        )
+        assert result == 'Rogue.History.check("kissed_player")'
+
+
 class TestBuildConditionUnknownKind:
     def test_returns_empty(self):
         assert build_condition("nonexistent") == ""
+
+
+# -- resolve_method_path ------------------------------------------------------
+
+
+class TestResolveMethodPath:
+    def test_simple_method(self):
+        result = resolve_method_path(
+            "Character.check_trait(trait: str) -> bool", "check_trait",
+        )
+        assert result == "check_trait"
+
+    def test_nested_attribute_chain(self):
+        result = resolve_method_path(
+            "Character.History.check(Item: str) -> int", "check",
+        )
+        assert result == "History.check"
+
+    def test_empty_signature_falls_back_to_method_name(self):
+        assert resolve_method_path("", "custom_method") == "custom_method"
+
+    def test_unexpected_prefix_falls_back_to_method_name(self):
+        # Signature does not start with "Character." — keep the bare name
+        # rather than guessing.
+        result = resolve_method_path("some_other_shape(x)", "custom_method")
+        assert result == "custom_method"
 
 
 # -- wrap_condition ----------------------------------------------------------
