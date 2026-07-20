@@ -1,0 +1,90 @@
+# Read-only character properties usable bare in a condition, e.g.
+# `[[if JeanGrey.desire >= 0.5]]`. These are `@property` accessors on the
+# base game's CompanionClass — no parentheses, no side effects — so they sit
+# between the DSL sugar (`.love`/`.mood`/`.nearby`) and the called
+# `character_methods.yaml`.
+#
+# Hand-maintained (no extractor), same as character_methods.yaml. Adding an
+# entry both (1) lets the validator accept `Character.<name>` in a condition
+# and (2) exposes it in the Condition Builder's "Character property" type.
+# The validator only checks the property NAME (like traits) — it does not
+# enforce which characters actually have it (these live on companions, not
+# every NPC/Player), so the writer is responsible for using them on a
+# companion.
+#
+# `type` drives the Condition Builder's comparison affordance (int/float are
+# comparable, so it offers an operator + value). `category` groups the
+# pick-list; `notes` is an optional per-selection hint.
+source: TNH base game
+generated_at: '2026-07-20'
+properties:
+  # -- Approval -----------------------------------------------------------
+  # The raw int approval values. `Character.love >= tier_name` (small,
+  # medium, ...) is better expressed via the "Love / Trust check" condition
+  # type, which fills in the tier for you; these entries cover the bare
+  # numeric form (`Character.love >= 500`) and keep the validator from
+  # rejecting it.
+  - name: love
+    type: int
+    category: Approval
+    notes: "Raw love value (int). For tier names, prefer the Love/Trust check type."
+    source_file: game/core/definitions/companions.rpy
+    source_line: 9
+  - name: trust
+    type: int
+    category: Approval
+    notes: "Raw trust value (int). For tier names, prefer the Love/Trust check type."
+    source_file: game/core/definitions/companions.rpy
+    source_line: 10
+
+  # -- Arousal ------------------------------------------------------------
+  - name: desire
+    type: float
+    category: Arousal
+    notes: |
+      Global arousal, a number (roughly 0..1) — use the Compare row, e.g.
+      `>= 0.5`. Bare (no comparison) means "aroused at all".
+    source_file: game/core/definitions/companions.rpy
+    source_line: 223
+
+  # -- Body ---------------------------------------------------------------
+  - name: breast_size
+    type: int
+    category: Body
+    notes: "Breast size, 0 (flat) .. 6 (massive). Compare it, e.g. >= 4."
+    source_file: game/core/definitions/companions.rpy
+    source_line: 238
+  - name: ass_size
+    type: int
+    category: Body
+    notes: "Ass size, 0 .. 6. Compare it, e.g. >= 4."
+    source_file: game/core/definitions/companions.rpy
+    source_line: 257
+
+  # -- Experience ---------------------------------------------------------
+  - name: sex_experience
+    type: int
+    category: Experience
+    notes: "How many distinct sex acts she has done. Compare it, e.g. > 0."
+    source_file: game/core/definitions/companions.rpy
+    source_line: 320
+  - name: dirty_talk_experience
+    type: int
+    category: Experience
+    source_file: game/core/definitions/companions.rpy
+    source_line: 362
+  - name: throat_training
+    type: int
+    category: Experience
+    source_file: game/core/definitions/companions.rpy
+    source_line: 379
+  - name: anal_training
+    type: int
+    category: Experience
+    source_file: game/core/definitions/companions.rpy
+    source_line: 388
+  - name: toy_experience
+    type: int
+    category: Experience
+    source_file: game/core/definitions/companions.rpy
+    source_line: 408

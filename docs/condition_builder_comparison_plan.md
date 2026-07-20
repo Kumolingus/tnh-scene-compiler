@@ -6,14 +6,32 @@ in `scripts/build_release.py`). Two backlog chantiers deferred during the
 either up without re-deriving the design. Companion to
 `docs/condition_function_audit.md`.
 
-> **Status: chantier A is DONE (2026-07-20).** Implemented as planned:
-> `signature_return_type` / `return_is_comparable` in `allowlists.py`,
-> `compare_op`/`compare_value` on `build_condition` (+ `_append_comparison`),
-> a per-selection "Compare:" row in `_ConditionClausePanel`
-> (`_build_comparison` / `_current_comparison`), `is_valid` gating on a
-> value when an operator is chosen. Phase-1 value input is a plain entry (the
-> Phase-2 `value_choices` tier-name dropdown remains a possible follow-up).
-> Chantier B (below) is still open and gated on the product decision.
+> **Status: chantiers A and B are both DONE (2026-07-20).**
+>
+> **A** — `signature_return_type` / `return_is_comparable` (+ shared
+> `type_is_comparable`) in `allowlists.py`, `compare_op`/`compare_value` on
+> `build_condition` (+ `_append_comparison`), a per-selection "Compare:" row
+> in `_ConditionClausePanel` (`_build_comparison(frame, is_comparable)` /
+> `_current_comparison`), `is_valid` gating. Phase-1 value input is a plain
+> entry (the Phase-2 `value_choices` tier-name dropdown remains a possible
+> follow-up).
+>
+> **B** — `character_properties.yaml` (base layer, hand-maintained: the 8
+> companion `@property` stats + `love`/`trust`), loaded into
+> `Allowlists.character_properties` / `_types` / `_categories` / `_notes` (+
+> merge). New "Character property" condition type
+> (`_params_property` + `build_condition` "property" branch producing
+> `Character.<prop>` + comparison). Validator: `_collect_bare_attributes` +
+> `_validate_condition_attributes` reject an unregistered bare
+> `RegisteredChar.<attr>`, guarded to skip when the property allowlist is empty
+> (preserves old pass-through). The product gate was cleared by the user ("go
+> B"); the semi-breaking-validation gate was cleared by grepping the corpus
+> (no bare attribute conditions existed) and validating all 161 scenes (zero
+> new errors). `love`/`trust` were added to properties so the numeric approval
+> form (`.love >= 500`, not rewritten by the tier-name sugar) still validates.
+>
+> The rest of this note is the original pre-implementation plan, kept for
+> reference.
 
 Grounding facts checked against live source before writing:
 - The Condition Builder inserts a **bare call** for the function/method

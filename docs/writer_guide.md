@@ -307,11 +307,16 @@ I guess it's okay.
 ```
 
 **In the editor:** the Struct. palette tab's "Condition Builder…" button opens a guided form — pick a condition type (love/trust,
-trait, history, mood, friendship, personality, a low-level character method, or a standalone function) and fill in guided fields instead
-of remembering the exact expression syntax. Standalone functions and character methods are grouped by category (e.g. Relationships,
-Location, History) to make them easier to browse than one flat alphabetical list. When a function or method returns a number (a
-friendship tier, a count) rather than a yes/no, a "Compare:" row appears so you can pick an operator and value (e.g. `>= 2`) — leave it
-on "(no comparison)" only if you really want the raw truthy test. You can also combine two conditions with AND/OR via "Combine with".
+trait, history, mood, friendship, personality, a character property, a low-level character method, or a standalone function) and fill in
+guided fields instead of remembering the exact expression syntax. Standalone functions, character methods, and character properties are
+grouped by category (e.g. Relationships, Location, Arousal, Body) to make them easier to browse than one flat alphabetical list. When a
+function/method/property is a number (a friendship tier, a count, arousal) rather than a yes/no, a "Compare:" row appears so you can pick
+an operator and value (e.g. `>= 2`) — leave it on "(no comparison)" only if you really want the raw truthy test. You can also combine two
+conditions with AND/OR via "Combine with".
+
+"Character property" checks a read-only stat on a companion (`desire`, `breast_size`, `sex_experience`, …). Only the properties the
+developer has registered are accepted — a bare `Character.<something>` that isn't on the list is now a compile error (with a "did you
+mean" suggestion), so a typo is caught instead of silently compiling.
 
 You can change approval values with named tiers:
 

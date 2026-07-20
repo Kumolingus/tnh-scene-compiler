@@ -631,3 +631,85 @@ def test_friends_with_sugar_transforms_to_single_list_arg_arity_ok() -> None:
         _ARITY_HEAD + "[[if JeanGrey.friends_with(Rogue)]]\nShe nods.\n[[/if]]\n",
     )
     assert validate(scene, _arity_allowlists()) == []
+
+
+# -- character-property validation --------------------------------------------
+
+_PROP_HEAD = (
+    "Title: T\nScene Id: s\nCharacter: JeanGrey\n"
+    "Scene Type: cinematic\nTrigger: manual\n\n"
+)
+
+
+def _prop_allowlists() -> Allowlists:
+    return Allowlists(
+        characters = ["JeanGrey", "Rogue", "Narrator", "Player"],
+        characters_upper = {"JEANGREY", "ROGUE", "NARRATOR", "PLAYER"},
+        character_properties = {"desire", "breast_size", "love"},
+        character_property_types = {
+            "desire": "float", "breast_size": "int", "love": "int",
+        },
+    )
+
+
+def test_known_property_passes() -> None:
+    scene = _scene(_PROP_HEAD + "[[if JeanGrey.desire >= 0.5]]\nOk.\n[[/if]]\n")
+    assert validate(scene, _prop_allowlists()) == []
+
+
+def test_unknown_property_is_rejected_with_suggestion() -> None:
+    scene = _scene(_PROP_HEAD + "[[if JeanGrey.desrie >= 0.5]]\nOk.\n[[/if]]\n")
+    errors = validate(scene, _prop_allowlists())
+    assert errors
+    assert "desrie" in errors[0].message
+    assert "character_properties.yaml" in errors[0].message
+    assert "desire" in (errors[0].hint or "")
+
+
+def test_numeric_approval_form_passes_when_love_registered() -> None:
+    # `X.love >= 500` (numeric threshold) isn't rewritten by the DSL sugar
+    # (only tier names are), so it reaches the property validator as a bare
+    # attribute — must pass because love is a registered property.
+    scene = _scene(_PROP_HEAD + "[[if JeanGrey.love >= 500]]\nOk.\n[[/if]]\n")
+    assert validate(scene, _prop_allowlists()) == []
+
+
+def test_property_check_skipped_when_allowlist_empty() -> None:
+    # A project without a character_properties.yaml keeps the previous
+    # behaviour: bare attribute access passes unvalidated (not newly rejected).
+    empty = Allowlists(
+        characters = ["JeanGrey"], characters_upper = {"JEANGREY"},
+    )
+    scene = _scene(_PROP_HEAD + "[[if JeanGrey.whatever >= 1]]\nOk.\n[[/if]]\n")
+    assert validate(scene, empty) == []
+
+
+def test_sugar_is_not_flagged_as_property() -> None:
+    # .mood/.nearby are rewritten to calls before the attribute check; none
+    # should surface as an unknown property.
+    allow = _prop_allowlists()
+    for cond in (
+        'JeanGrey.mood == "normal"',
+        "JeanGrey.nearby",
+    ):
+        scene = _scene(_PROP_HEAD + f"[[if {cond}]]\nOk.\n[[/if]]\n")
+        errors = [e for e in validate(scene, allow) if "property" in e.message.lower()]
+        assert errors == [], (cond, errors)
+
+
+def test_method_call_target_is_not_flagged_as_property() -> None:
+    # Char.History.check(...) is a method call — its attribute target must not
+    # be mistaken for a bare property.
+    allow = Allowlists(
+        characters = ["JeanGrey"], characters_upper = {"JEANGREY"},
+        character_properties = {"desire"},
+        character_methods = {"check"},
+        character_method_signatures = {
+            "check": "Character.History.check(item: str) -> int",
+        },
+    )
+    scene = _scene(
+        _PROP_HEAD + '[[if JeanGrey.History.check("kissed") > 0]]\nOk.\n[[/if]]\n',
+    )
+    errors = [e for e in validate(scene, allow) if "property" in e.message.lower()]
+    assert errors == []

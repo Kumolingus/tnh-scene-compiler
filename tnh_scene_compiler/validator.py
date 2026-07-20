@@ -853,6 +853,88 @@ def _collect_calls(expr: Expr) -> list[Call]:
     return []
 
 
+def _collect_bare_attributes(expr: Expr) -> list[Attribute]:
+    """Recursively extract ``Attribute`` nodes used as *operands*.
+
+    Deliberately does NOT descend into a ``Call``'s ``target`` — a method
+    call like ``Character.History.check(...)`` has an ``Attribute`` target
+    that :func:`_collect_calls` / ``_validate_method_call`` already cover.
+    Only attributes standing on their own (``Character.desire`` in a
+    comparison, a boolean chain, etc.) are collected here, so the property
+    validator sees bare property access and not method-call targets.
+    """
+    if isinstance(expr, Attribute):
+        return [expr]
+    if isinstance(expr, Call):
+        result: list[Attribute] = []
+        for arg in expr.args:
+            result.extend(_collect_bare_attributes(arg))
+        return result
+    if isinstance(expr, BoolOp):
+        result = []
+        for operand in expr.operands:
+            result.extend(_collect_bare_attributes(operand))
+        return result
+    if isinstance(expr, UnaryNot):
+        return _collect_bare_attributes(expr.operand)
+    if isinstance(expr, Compare):
+        result = _collect_bare_attributes(expr.left)
+        for _, right in expr.ops_and_rights:
+            result.extend(_collect_bare_attributes(right))
+        return result
+    if isinstance(expr, Member):
+        result = _collect_bare_attributes(expr.left)
+        result.extend(_collect_bare_attributes(expr.right))
+        return result
+    if isinstance(expr, ListExpr):
+        result = []
+        for element in expr.elements:
+            result.extend(_collect_bare_attributes(element))
+        return result
+    return []
+
+
+def _validate_condition_attributes(
+    condition: Expr,
+    allow: Allowlists,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    """Validate bare ``Character.<property>`` operands in a condition.
+
+    Only single-part attributes whose root is a registered character are
+    checked, against ``character_properties``. Skipped entirely when the
+    property allowlist is empty, so a project without a
+    ``character_properties.yaml`` keeps the previous behaviour (bare
+    attribute access passes unvalidated) instead of newly rejecting it.
+    Multi-part chains (``Character.History.check``) and non-character roots
+    (scene-local / time keys) are left alone.
+    """
+    if not allow.character_properties:
+        return
+    for attr in _collect_bare_attributes(condition):
+        if attr.root.name not in allow.characters:
+            continue
+        if len(attr.parts) != 1:
+            continue
+        prop = attr.parts[0]
+        if prop in allow.character_properties:
+            continue
+        suggestions = allow.suggest_character_property(prop)
+        hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = attr.col_offset,
+            message = (
+                f"Character property {prop!r} is not registered in "
+                "character_properties.yaml."
+            ),
+            hint = hint,
+        ))
+
+
 def _validate_condition_calls(
     condition: Expr,
     allow: Allowlists,
@@ -860,15 +942,17 @@ def _validate_condition_calls(
     path: str,
     line: int,
 ) -> None:
-    """Validate function calls in a condition expression.
+    """Validate calls and bare property access in a condition expression.
 
     The condition is first run through the DSL transformation layer so
     writer-friendly sugar (``X.love >= medium``, ``X.has("shy")``) is
     rewritten to canonical calls before validation.
 
-    Standalone calls (``func()``) are checked against
-    ``condition_functions``.  Method calls (``Character.method()``) are
-    checked against ``character_methods`` using the final attribute name.
+    Standalone calls (``func()``) are checked against ``condition_functions``.
+    Method calls (``Character.method()``) are checked against
+    ``character_methods`` using the final attribute name. Bare single-part
+    attributes (``Character.desire``) are checked against
+    ``character_properties`` (see :func:`_validate_condition_attributes`).
     """
     condition = dsl_transform(
         condition, allow.character_aliases, allow.function_aliases,
@@ -879,6 +963,7 @@ def _validate_condition_calls(
             _validate_standalone_call(call, allow, errors, path, line)
         elif isinstance(call.target, Attribute):
             _validate_method_call(call, allow, errors, path, line)
+    _validate_condition_attributes(condition, allow, errors, path, line)
 
 
 def _validate_standalone_call(

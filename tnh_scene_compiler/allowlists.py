@@ -140,21 +140,18 @@ def signature_return_type(signature: str) -> str:
     return signature.split("->", 1)[1].strip()
 
 
-def return_is_comparable(signature: str) -> bool:
-    """``True`` if the signature's return type is a number worth comparing.
+def type_is_comparable(return_type: str) -> bool:
+    """``True`` if a type string is a number worth comparing with ``>=``/``<``/…
 
-    Used by the Condition Builder to decide whether to offer an operator +
-    value affordance (`f(...) >= 2`) instead of inserting a bare, truthy-
-    when-nonzero call. A bare call is right for a ``bool`` return, but a
-    footgun for a tier/int/float — e.g. a bare `get_effective_friendship`
-    (returns a ``FriendshipTier`` IntEnum) reads as true for enemies too.
+    Heuristic on the type, unioned parts split on ``|`` with ``None`` dropped:
+    comparable if any part is ``int`` / ``float`` or ends in ``Tier`` /
+    ``Level`` (the base game's IntEnum ladders). A pure ``bool`` is not
+    comparable; ``bool | int`` is (the int branch is worth comparing).
 
-    Heuristic on the return type, unioned parts split on ``|`` with ``None``
-    dropped: comparable if any part is ``int`` / ``float`` or ends in
-    ``Tier`` / ``Level`` (the base game's IntEnum ladders). A pure ``bool``
-    is not comparable; ``bool | int`` is (the int branch is worth comparing).
+    Shared by function/method returns (via :func:`return_is_comparable`) and
+    by character-property types, which carry a bare type rather than a full
+    signature.
     """
-    return_type = signature_return_type(signature)
     if not return_type:
         return False
     parts = [p.strip() for p in return_type.split("|")]
@@ -166,6 +163,18 @@ def return_is_comparable(signature: str) -> bool:
         if part.endswith("Tier") or part.endswith("Level"):
             return True
     return False
+
+
+def return_is_comparable(signature: str) -> bool:
+    """``True`` if the signature's return type is a number worth comparing.
+
+    Used by the Condition Builder to decide whether to offer an operator +
+    value affordance (`f(...) >= 2`) instead of inserting a bare, truthy-
+    when-nonzero call. A bare call is right for a ``bool`` return, but a
+    footgun for a tier/int/float — e.g. a bare `get_effective_friendship`
+    (returns a ``FriendshipTier`` IntEnum) reads as true for enemies too.
+    """
+    return type_is_comparable(signature_return_type(signature))
 
 
 _CONTAINER_TYPE_MARKERS = ("[", "Iterable", "iterable", "list", "List", "set", "Set", "tuple", "Tuple")
@@ -449,6 +458,10 @@ class Allowlists:
     character_method_signatures: dict[str, str] = field(default_factory=dict)
     character_method_categories: dict[str, str] = field(default_factory=dict)
     character_method_notes: dict[str, str] = field(default_factory=dict)
+    character_properties: set[str] = field(default_factory=set)
+    character_property_types: dict[str, str] = field(default_factory=dict)
+    character_property_categories: dict[str, str] = field(default_factory=dict)
+    character_property_notes: dict[str, str] = field(default_factory=dict)
     traits: set[str] = field(default_factory=set)
     personalities: set[str] = field(default_factory=set)
     history_events: set[str] = field(default_factory=set)
@@ -580,6 +593,33 @@ class Allowlists:
                     if isinstance(note, str):
                         character_method_notes[item["name"]] = note.strip()
 
+        # Character-properties allowlist (hand-maintained). Read-only bare
+        # attributes usable in a condition (``Character.desire >= 0.5``). Each
+        # carries a ``type`` (int/float/...) so the Condition Builder can offer
+        # the same comparison affordance as number-returning functions.
+        character_properties_payload = _read_yaml(
+            allowlists_dir / "character_properties.yaml",
+        )
+        character_properties: set[str] = set()
+        character_property_types: dict[str, str] = {}
+        character_property_categories: dict[str, str] = {}
+        character_property_notes: dict[str, str] = {}
+        if character_properties_payload and isinstance(
+            character_properties_payload.get("properties"), list,
+        ):
+            for item in character_properties_payload["properties"]:
+                if isinstance(item, dict) and isinstance(item.get("name"), str):
+                    character_properties.add(item["name"])
+                    ptype = item.get("type")
+                    if isinstance(ptype, str):
+                        character_property_types[item["name"]] = ptype
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        character_property_categories[item["name"]] = cat
+                    note = item.get("notes")
+                    if isinstance(note, str):
+                        character_property_notes[item["name"]] = note.strip()
+
         traits = set(_values_names(_read_yaml(allowlists_dir / "traits.yaml")))
         personalities = set(_values_names(
             _read_yaml(allowlists_dir / "personalities.yaml"),
@@ -634,6 +674,10 @@ class Allowlists:
             character_method_signatures = character_method_signatures,
             character_method_categories = character_method_categories,
             character_method_notes = character_method_notes,
+            character_properties = character_properties,
+            character_property_types = character_property_types,
+            character_property_categories = character_property_categories,
+            character_property_notes = character_property_notes,
             traits = traits,
             personalities = personalities,
             history_events = history_events,
@@ -766,6 +810,11 @@ class Allowlists:
             name, list(self.character_methods), n = max_suggestions, cutoff = 0.5,
         )
 
+    def suggest_character_property(self, name: str, *, max_suggestions: int = 3) -> list[str]:
+        return difflib.get_close_matches(
+            name, list(self.character_properties), n = max_suggestions, cutoff = 0.5,
+        )
+
     # --- Multi-layer support ------------------------------------------------
 
     def merge(self, other: Allowlists) -> Allowlists:
@@ -826,6 +875,16 @@ class Allowlists:
             },
             character_method_notes={
                 **self.character_method_notes, **other.character_method_notes,
+            },
+            character_properties=self.character_properties | other.character_properties,
+            character_property_types={
+                **self.character_property_types, **other.character_property_types,
+            },
+            character_property_categories={
+                **self.character_property_categories, **other.character_property_categories,
+            },
+            character_property_notes={
+                **self.character_property_notes, **other.character_property_notes,
             },
             traits=self.traits | other.traits,
             personalities=self.personalities | other.personalities,

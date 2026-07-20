@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- New "Character property" condition type + a `character_properties.yaml`
+  allowlist (chantier B). Read-only companion `@property` accessors — `desire`,
+  `breast_size`, `ass_size`, `sex_experience`, `dirty_talk_experience`,
+  `throat_training`, `anal_training`, `toy_experience`, plus the raw `love` /
+  `trust` int values — can now be used bare in a condition
+  (`[[if JeanGrey.desire >= 0.5]]`), guided by a categorized picker that reuses
+  the comparison affordance (they're numbers). Hand-maintained (no extractor),
+  same as `character_methods.yaml`; each entry carries a `type` (drives the
+  comparison) and optional `category` / `notes`. The validator checks the
+  property *name* (like traits) and does not enforce which characters actually
+  have it (these live on companions), so the writer is responsible for using
+  them on a companion.
 - The Condition Builder now offers an inline comparison for functions/methods
   whose return value is a **number** rather than a yes/no. When the selected
   entry's signature returns an `int` / `float` / a `*Tier`/`*Level` IntEnum
@@ -117,6 +129,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Behaviour change (property validation):** a bare `Character.<attr>` in a
+  condition used to pass validation unchecked. Now, when a
+  `character_properties.yaml` is present, `<attr>` is validated against it and
+  an unregistered name is a compile error (with a suggestion). This catches
+  typos but tightens what compiles. Verified against the full 161-scene corpus
+  (zero new errors) before shipping; a project with no `character_properties.yaml`
+  keeps the old pass-through behaviour. DSL sugar (`.love >= tier`, `.mood`,
+  `.nearby`, `.has(...)`) is unaffected — it's rewritten to calls before the
+  check — and `love` / `trust` are registered so the numeric approval form
+  (`.love >= 500`) still validates.
 - The `Format:` title-page field and the `INT.`/`EXT.` slugline prefix are
   no longer stored in the AST — both parsed values were dead (never read by
   the validator or codegen). Author-facing syntax is unchanged: `Format:`

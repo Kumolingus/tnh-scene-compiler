@@ -14,6 +14,7 @@ from tnh_scene_compiler.allowlists import (
     parse_signature_params,
     return_is_comparable,
     signature_return_type,
+    type_is_comparable,
 )
 
 
@@ -344,3 +345,66 @@ class TestReturnIsComparable:
 
     def test_no_return_type_is_not_comparable(self) -> None:
         assert return_is_comparable("f(x)") is False
+
+
+class TestTypeIsComparable:
+    def test_int_and_float(self) -> None:
+        assert type_is_comparable("int") is True
+        assert type_is_comparable("float") is True
+
+    def test_bool_and_str(self) -> None:
+        assert type_is_comparable("bool") is False
+        assert type_is_comparable("str") is False
+
+    def test_empty(self) -> None:
+        assert type_is_comparable("") is False
+
+
+class TestCharacterProperties:
+    def test_property_loaded_with_type_and_category(self, tmp_path: Path) -> None:
+        _write(tmp_path / "character_properties.yaml", (
+            "properties:\n"
+            "- name: desire\n"
+            "  type: float\n"
+            "  category: Arousal\n"
+            "  notes: Global arousal.\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert "desire" in allowlists.character_properties
+        assert allowlists.character_property_types["desire"] == "float"
+        assert allowlists.character_property_categories["desire"] == "Arousal"
+        assert allowlists.character_property_notes["desire"] == "Global arousal."
+
+    def test_missing_optional_fields_tolerated(self, tmp_path: Path) -> None:
+        _write(tmp_path / "character_properties.yaml", (
+            "properties:\n"
+            "- name: breast_size\n"
+            "  type: int\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert "breast_size" in allowlists.character_properties
+        assert "breast_size" not in allowlists.character_property_categories
+        assert "breast_size" not in allowlists.character_property_notes
+
+    def test_merge_unions_properties(self) -> None:
+        base = Allowlists(
+            character_properties={"desire"},
+            character_property_types={"desire": "float"},
+        )
+        mod = Allowlists(
+            character_properties={"mymod_stat"},
+            character_property_types={"mymod_stat": "int"},
+        )
+
+        merged = base.merge(mod)
+
+        assert merged.character_properties == {"desire", "mymod_stat"}
+        assert merged.character_property_types == {"desire": "float", "mymod_stat": "int"}
+
+    def test_suggest_property(self) -> None:
+        allowlists = Allowlists(character_properties={"desire", "breast_size"})
+        assert allowlists.suggest_character_property("desrie") == ["desire"]

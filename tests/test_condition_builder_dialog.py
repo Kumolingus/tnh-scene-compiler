@@ -196,3 +196,38 @@ def test_comparison_widgets_appear_for_tier_and_vanish_for_bool(
     assert clause._compare_op_var is None
     assert clause._compare_value_var is None
     assert clause.is_valid() is True
+
+
+@pytest.fixture()
+def allow_properties() -> Allowlists:
+    return Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        character_properties={"desire", "breast_size"},
+        character_property_types={"desire": "float", "breast_size": "int"},
+        character_property_categories={"desire": "Arousal", "breast_size": "Body"},
+    )
+
+
+def test_property_type_builds_bare_attribute_comparison(
+    tk_root, allow_properties,
+) -> None:
+    dlg = _make_dialog(tk_root, allow_properties)
+    clause = dlg._clause_a
+    clause._type_var.set("Character property")
+    clause._on_type_select()
+
+    clause._vars["character"].set("JeanGrey")
+    clause._vars["property_category"].set("Arousal")
+    clause._vars["property_name"].set("desire")
+
+    # A numeric property always offers a comparison row.
+    assert clause._compare_op_var is not None
+    assert clause.is_valid() is False  # operator, no value yet
+    clause._compare_value_var.set("0.5")
+    assert clause.is_valid() is True
+    assert clause.get_condition() == "JeanGrey.desire >= 0.5"
+
+    # "(no comparison)" -> bare property access.
+    clause._compare_op_var.set("(no comparison)")
+    assert clause.get_condition() == "JeanGrey.desire"

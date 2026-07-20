@@ -22,6 +22,7 @@ from .allowlists import (
     is_character_param,
     parse_signature_params,
     return_is_comparable,
+    type_is_comparable,
 )
 
 # -- Constants ---------------------------------------------------------------
@@ -34,6 +35,7 @@ CONDITION_TYPES: list[tuple[str, str]] = [
     ("Friendship check", "friendship"),
     ("Nearby check", "nearby"),
     ("Personality check", "personality"),
+    ("Character property", "property"),
     ("Character method", "method"),
     ("Standalone function", "function"),
 ]
@@ -68,6 +70,7 @@ _REQUIRED_VARS: dict[str, list[str]] = {
     "friendship": ["character", "other_character"],
     "nearby": ["character"],
     "personality": ["character", "trait"],
+    "property": ["character", "property_name"],
     "method": ["character", "method_name"],
     "function": ["func_name"],
 }
@@ -100,6 +103,12 @@ _DESCRIPTIONS: dict[str, str] = {
         "Checks a character’s personality trait.\n"
         "Optional numeric threshold for comparison."
     ),
+    "property": (
+        "Checks a read-only character property\n"
+        "(e.g. desire, breast_size, sex_experience).\n"
+        "These return a number — pick an operator and\n"
+        "value in the Compare row."
+    ),
     "method": (
         "Checks a low-level, read-only character method\n"
         "(e.g. check_trait, get_status, History.check).\n"
@@ -131,6 +140,7 @@ def build_condition(
     func_args: str = "",
     method_path: str = "",
     method_args: str = "",
+    property_name: str = "",
     compare_op: str = "",
     compare_value: str = "",
 ) -> str:
@@ -179,6 +189,10 @@ def build_condition(
         if threshold:
             return f'{character}.personality("{trait}", {threshold})'
         return f'{character}.personality("{trait}")'
+    if kind == "property":
+        return _append_comparison(
+            f"{character}.{property_name}", compare_op, compare_value,
+        )
     if kind == "method":
         call = (
             f"{character}.{method_path}({method_args})"
@@ -462,22 +476,22 @@ class _ConditionClausePanel(ttk.Frame):
         label.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(6, 0))
         return label
 
-    def _build_comparison(self, compare_frame: ttk.Frame, signature: str) -> None:
-        """(Re)build the operator + value widgets for a comparable return.
+    def _build_comparison(self, compare_frame: ttk.Frame, is_comparable: bool) -> None:
+        """(Re)build the operator + value widgets when *is_comparable*.
 
-        Clears *compare_frame* and, when *signature* returns a comparable
-        number (see :func:`return_is_comparable`), lays out an operator combo
-        (default ``>=``) and a value entry, stored on
-        ``self._compare_op_var`` / ``self._compare_value_var``. For a
-        bool/other return it leaves both ``None`` so the call inserts bare.
-        Called from the function/method selection callbacks (the return type
-        changes with the selection).
+        Clears *compare_frame* and, when *is_comparable*, lays out an operator
+        combo (default ``>=``) and a value entry, stored on
+        ``self._compare_op_var`` / ``self._compare_value_var``. Otherwise it
+        leaves both ``None`` so the call/property inserts bare. Callers decide
+        comparability: ``return_is_comparable(signature)`` for a function/
+        method return, ``type_is_comparable(type)`` for a property. Called
+        from the selection callbacks (comparability changes with the pick).
         """
         for widget in compare_frame.winfo_children():
             widget.destroy()
         self._compare_op_var = None
         self._compare_value_var = None
-        if not return_is_comparable(signature):
+        if not is_comparable:
             return
 
         ttk.Label(compare_frame, text="Compare:").grid(
@@ -632,6 +646,51 @@ class _ConditionClausePanel(ttk.Frame):
         )
         self._add_description(parent, row, "personality")
 
+    def _params_property(self, parent: ttk.Frame) -> None:
+        row = self._add_character_field(parent, "Character", 0)
+        props = self._allow.character_properties
+        if not props:
+            row = self._add_text_field(
+                parent, "Property", row, "property_name", default="desire",
+            )
+            self._add_description(parent, row, "property")
+            return
+
+        grouped = group_by_category(props, self._allow.character_property_categories)
+        cat_names = list(grouped.keys())
+
+        row = self._add_combo_field(parent, "Category", row, "property_category", cat_names)
+        prop_row = row
+        row = self._add_combo_field(
+            parent, "Property", row, "property_name", grouped[cat_names[0]],
+        )
+        compare_frame = ttk.Frame(parent)
+        compare_frame.grid(row=row, column=0, columnspan=3, sticky=tk.W)
+        row += 1
+        note_label = self._make_note_label(parent, row)
+        row += 1
+
+        def _on_category_change(*_a: Any) -> None:
+            names = grouped.get(self._get_var("property_category"), [])
+            widget = parent.grid_slaves(row=prop_row, column=1)
+            if widget:
+                widget[0].configure(values=names)
+            if names:
+                self._vars["property_name"].set(names[0])
+
+        def _on_property_change(*_a: Any) -> None:
+            name = self._get_var("property_name")
+            note_label.configure(text=self._allow.character_property_notes.get(name, ""))
+            ptype = self._allow.character_property_types.get(name, "")
+            self._build_comparison(compare_frame, type_is_comparable(ptype))
+            self._notify_change()
+
+        self._vars["property_category"].trace_add("write", _on_category_change)
+        self._vars["property_name"].trace_add("write", _on_property_change)
+        _on_property_change()
+
+        self._add_description(parent, row, "property")
+
     def _params_method(self, parent: ttk.Frame) -> None:
         row = self._add_character_field(parent, "Character", 0)
         known_methods = sorted(self._allow.character_methods) if self._allow.character_methods else []
@@ -677,7 +736,7 @@ class _ConditionClausePanel(ttk.Frame):
             name = self._get_var("method_name")
             note_label.configure(text=self._allow.character_method_notes.get(name, ""))
             sig = self._allow.character_method_signatures.get(name, "")
-            self._build_comparison(compare_frame, sig)
+            self._build_comparison(compare_frame, return_is_comparable(sig))
             params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
                 hint = pname
@@ -750,7 +809,7 @@ class _ConditionClausePanel(ttk.Frame):
             name = self._get_var("func_name")
             note_label.configure(text=self._allow.condition_function_notes.get(name, ""))
             sig = self._allow.condition_function_signatures.get(name, "")
-            self._build_comparison(compare_frame, sig)
+            self._build_comparison(compare_frame, return_is_comparable(sig))
             params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
                 hint = pname
@@ -838,6 +897,7 @@ class _ConditionClausePanel(ttk.Frame):
             func_args=self._assemble_func_args(),
             method_path=self._resolve_method_path(),
             method_args=self._assemble_method_args(),
+            property_name=self._get_var("property_name"),
             compare_op=compare_op,
             compare_value=compare_value,
         )

@@ -166,6 +166,28 @@ class TestBuildConditionMethod:
         assert result == "JeanGrey.get_friendship(Rogue) < 0"
 
 
+class TestBuildConditionProperty:
+    def test_with_comparison(self):
+        result = build_condition(
+            "property", character="JeanGrey", property_name="desire",
+            compare_op=">=", compare_value="0.5",
+        )
+        assert result == "JeanGrey.desire >= 0.5"
+
+    def test_bare_property_no_comparison(self):
+        result = build_condition(
+            "property", character="JeanGrey", property_name="desire",
+        )
+        assert result == "JeanGrey.desire"
+
+    def test_operator_without_value_stays_bare(self):
+        result = build_condition(
+            "property", character="Rogue", property_name="breast_size",
+            compare_op=">=", compare_value="",
+        )
+        assert result == "Rogue.breast_size"
+
+
 class TestBuildConditionUnknownKind:
     def test_returns_empty(self):
         assert build_condition("nonexistent") == ""
