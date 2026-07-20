@@ -2,9 +2,18 @@
 
 Dev-only planning note (excluded from release builds, see `_DEV_ONLY_DOCS`
 in `scripts/build_release.py`). Two backlog chantiers deferred during the
-2026-07-20 condition-function audit. Neither is urgent — nothing is broken
-today. Written so a future session can pick either up without re-deriving
-the design. Companion to `docs/condition_function_audit.md`.
+2026-07-20 condition-function audit. Written so a future session can pick
+either up without re-deriving the design. Companion to
+`docs/condition_function_audit.md`.
+
+> **Status: chantier A is DONE (2026-07-20).** Implemented as planned:
+> `signature_return_type` / `return_is_comparable` in `allowlists.py`,
+> `compare_op`/`compare_value` on `build_condition` (+ `_append_comparison`),
+> a per-selection "Compare:" row in `_ConditionClausePanel`
+> (`_build_comparison` / `_current_comparison`), `is_valid` gating on a
+> value when an operator is chosen. Phase-1 value input is a plain entry (the
+> Phase-2 `value_choices` tier-name dropdown remains a possible follow-up).
+> Chantier B (below) is still open and gated on the product decision.
 
 Grounding facts checked against live source before writing:
 - The Condition Builder inserts a **bare call** for the function/method

@@ -17,9 +17,16 @@ from tnh_scene_compiler.allowlists import Allowlists
 from tnh_scene_compiler.condition_builder import ConditionBuilderDialog
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def tk_root():
-    """A withdrawn Tk root, or skip if no display is available."""
+    """A single withdrawn Tk root shared by the module, or skip if no display.
+
+    Module-scoped on purpose: creating and destroying a fresh ``tk.Tk()``
+    per test in one process intermittently fails to re-init Tcl ("Can't find
+    a usable init.tcl"), which would make these tests flaky-skip. One root
+    for the module sidesteps that; each test still builds its own dialog
+    (a Toplevel) on it.
+    """
     try:
         root = tk.Tk()
     except tk.TclError as exc:  # pragma: no cover - environment-dependent
@@ -138,3 +145,54 @@ def test_note_label_populates_for_tier_function(tk_root, allow) -> None:
         and w.cget("text") == "Returns a tier NUMBER, compare it."
     ]
     assert note_labels, "expected the tier function's note to be shown"
+
+
+@pytest.fixture()
+def allow_tier_and_bool() -> Allowlists:
+    """One tier-returning function and one bool-returning function, same category."""
+    return Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        condition_functions={"get_effective_friendship", "are_Characters_friends"},
+        condition_function_signatures={
+            "get_effective_friendship": (
+                "get_effective_friendship(A: Character, B: Character) -> FriendshipTier"
+            ),
+            "are_Characters_friends": "are_Characters_friends(Characters) -> bool",
+        },
+        condition_function_categories={
+            "get_effective_friendship": "Relationships",
+            "are_Characters_friends": "Relationships",
+        },
+    )
+
+
+def test_comparison_widgets_appear_for_tier_and_vanish_for_bool(
+    tk_root, allow_tier_and_bool,
+) -> None:
+    dlg = _make_dialog(tk_root, allow_tier_and_bool)
+    clause = dlg._clause_a
+    clause._type_var.set("Standalone function")
+    clause._on_type_select()
+
+    # Pick the tier function -> comparison widgets exist, default operator ">=".
+    clause._vars["func_name"].set("get_effective_friendship")
+    assert clause._compare_op_var is not None
+    assert clause._compare_op_var.get() == ">="
+    assert clause._compare_value_var is not None
+
+    # Fill the two character arguments (A, B).
+    clause._func_param_vars[0][2].set("JeanGrey")
+    clause._func_param_vars[1][2].set("Rogue")
+
+    # Operator set but no value -> not valid (would insert `... >= `).
+    assert clause.is_valid() is False
+    clause._compare_value_var.set("2")
+    assert clause.is_valid() is True
+    assert clause.get_condition() == "get_effective_friendship(JeanGrey, Rogue) >= 2"
+
+    # Switch to the bool function -> no comparison widgets, bare call is valid.
+    clause._vars["func_name"].set("are_Characters_friends")
+    assert clause._compare_op_var is None
+    assert clause._compare_value_var is None
+    assert clause.is_valid() is True

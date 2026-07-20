@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The Condition Builder now offers an inline comparison for functions/methods
+  whose return value is a **number** rather than a yes/no. When the selected
+  entry's signature returns an `int` / `float` / a `*Tier`/`*Level` IntEnum
+  (detected by `return_is_comparable`), a "Compare:" row appears — an operator
+  (`>=`, `<`, `==`, …, default `>=`) plus a value — producing e.g.
+  `get_effective_friendship(A, B) >= 2` instead of a bare, truthy-when-nonzero
+  call. A "(no comparison)" choice keeps the raw call for the rare deliberate
+  case. This mechanically closes the tier/int footgun the previous release only
+  warned about via a `notes:` label (the labels are now trimmed to a scale
+  reference). Bool-returning entries show no comparison row (bare is correct).
 - 6 new base-game entries in `condition_functions.yaml` / `character_methods.yaml`,
   found by a bounded audit of `core/mechanics/`/`core/definitions/` for
   read-only, dialogue-relevant functions not yet registered (see

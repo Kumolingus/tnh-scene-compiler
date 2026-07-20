@@ -12,6 +12,8 @@ from tnh_scene_compiler.allowlists import (
     group_by_category,
     is_character_param,
     parse_signature_params,
+    return_is_comparable,
+    signature_return_type,
 )
 
 
@@ -307,3 +309,38 @@ class TestIsCharacterParam:
 
     def test_list_of_characters_rejected(self) -> None:
         assert is_character_param("Characters", "list[Character]") is False
+
+
+class TestReturnType:
+    def test_signature_return_type_extracted(self) -> None:
+        assert signature_return_type("f(x) -> FriendshipTier") == "FriendshipTier"
+
+    def test_signature_return_type_union(self) -> None:
+        assert signature_return_type("f(x) -> bool | int") == "bool | int"
+
+    def test_signature_return_type_missing(self) -> None:
+        assert signature_return_type("f(x)") == ""
+
+
+class TestReturnIsComparable:
+    def test_tier_return_is_comparable(self) -> None:
+        assert return_is_comparable("get_effective_friendship(A, B) -> FriendshipTier") is True
+
+    def test_int_return_is_comparable(self) -> None:
+        assert return_is_comparable("get_friendship(other) -> int") is True
+
+    def test_float_return_is_comparable(self) -> None:
+        assert return_is_comparable("chance(x) -> float") is True
+
+    def test_bool_return_is_not_comparable(self) -> None:
+        assert return_is_comparable("are_Characters_friends(cs) -> bool") is False
+
+    def test_bool_int_union_is_comparable(self) -> None:
+        # check_approval -> bool | int: the int branch is worth comparing.
+        assert return_is_comparable("check_approval(c, f, t) -> bool | int") is True
+
+    def test_optional_object_return_is_not_comparable(self) -> None:
+        assert return_is_comparable("get_best_Friend(c, cs) -> Character | None") is False
+
+    def test_no_return_type_is_not_comparable(self) -> None:
+        assert return_is_comparable("f(x)") is False

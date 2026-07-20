@@ -112,6 +112,28 @@ class TestBuildConditionFunction:
         )
         assert result == "get_Location()"
 
+    def test_with_comparison(self):
+        result = build_condition(
+            "function", func_name="get_effective_friendship",
+            func_args="JeanGrey, Rogue", compare_op=">=", compare_value="2",
+        )
+        assert result == "get_effective_friendship(JeanGrey, Rogue) >= 2"
+
+    def test_comparison_operator_without_value_stays_bare(self):
+        # Operator chosen but value not yet typed -> no trailing comparison.
+        result = build_condition(
+            "function", func_name="get_effective_friendship",
+            func_args="JeanGrey, Rogue", compare_op=">=", compare_value="",
+        )
+        assert result == "get_effective_friendship(JeanGrey, Rogue)"
+
+    def test_empty_operator_stays_bare(self):
+        result = build_condition(
+            "function", func_name="are_Characters_friends",
+            func_args="[JeanGrey, Rogue]", compare_op="", compare_value="9",
+        )
+        assert result == "are_Characters_friends([JeanGrey, Rogue])"
+
 
 class TestBuildConditionMethod:
     def test_no_args(self):
@@ -135,6 +157,13 @@ class TestBuildConditionMethod:
             method_args='"kissed_player"',
         )
         assert result == 'Rogue.History.check("kissed_player")'
+
+    def test_with_comparison(self):
+        result = build_condition(
+            "method", character="JeanGrey", method_path="get_friendship",
+            method_args="Rogue", compare_op="<", compare_value="0",
+        )
+        assert result == "JeanGrey.get_friendship(Rogue) < 0"
 
 
 class TestBuildConditionUnknownKind:

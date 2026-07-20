@@ -129,6 +129,45 @@ def _parse_single_param(param: str) -> tuple[str, str, str]:
     return (name, type_hint, default)
 
 
+def signature_return_type(signature: str) -> str:
+    """Return the annotated return type of a signature, or ``""``.
+
+    ``"get_effective_friendship(A, B) -> FriendshipTier"`` -> ``"FriendshipTier"``.
+    ``"f(x) -> bool | int"`` -> ``"bool | int"``. No ``->`` -> ``""``.
+    """
+    if "->" not in signature:
+        return ""
+    return signature.split("->", 1)[1].strip()
+
+
+def return_is_comparable(signature: str) -> bool:
+    """``True`` if the signature's return type is a number worth comparing.
+
+    Used by the Condition Builder to decide whether to offer an operator +
+    value affordance (`f(...) >= 2`) instead of inserting a bare, truthy-
+    when-nonzero call. A bare call is right for a ``bool`` return, but a
+    footgun for a tier/int/float — e.g. a bare `get_effective_friendship`
+    (returns a ``FriendshipTier`` IntEnum) reads as true for enemies too.
+
+    Heuristic on the return type, unioned parts split on ``|`` with ``None``
+    dropped: comparable if any part is ``int`` / ``float`` or ends in
+    ``Tier`` / ``Level`` (the base game's IntEnum ladders). A pure ``bool``
+    is not comparable; ``bool | int`` is (the int branch is worth comparing).
+    """
+    return_type = signature_return_type(signature)
+    if not return_type:
+        return False
+    parts = [p.strip() for p in return_type.split("|")]
+    for part in parts:
+        if not part or part == "None":
+            continue
+        if part in ("int", "float"):
+            return True
+        if part.endswith("Tier") or part.endswith("Level"):
+            return True
+    return False
+
+
 _CONTAINER_TYPE_MARKERS = ("[", "Iterable", "iterable", "list", "List", "set", "Set", "tuple", "Tuple")
 
 

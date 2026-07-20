@@ -309,7 +309,9 @@ I guess it's okay.
 **In the editor:** the Struct. palette tab's "Condition Builder…" button opens a guided form — pick a condition type (love/trust,
 trait, history, mood, friendship, personality, a low-level character method, or a standalone function) and fill in guided fields instead
 of remembering the exact expression syntax. Standalone functions and character methods are grouped by category (e.g. Relationships,
-Location, History) to make them easier to browse than one flat alphabetical list.
+Location, History) to make them easier to browse than one flat alphabetical list. When a function or method returns a number (a
+friendship tier, a count) rather than a yes/no, a "Compare:" row appears so you can pick an operator and value (e.g. `>= 2`) — leave it
+on "(no comparison)" only if you really want the raw truthy test. You can also combine two conditions with AND/OR via "Combine with".
 
 You can change approval values with named tiers:
 

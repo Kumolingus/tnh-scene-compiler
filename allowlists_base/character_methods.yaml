@@ -49,9 +49,8 @@ methods:
     category: Relationships
     signature: "Character.get_friendship(other: Character) -> int"
     notes: |
-      Returns a raw friendship SCORE (a number), not a yes/no. Compare it,
-      e.g. `> 0`, `>= 50`. Used bare (no comparison) it is true for any
-      non-zero score, including negative (animosity) — rarely intended.
+      Returns a raw friendship score (a number, negative = animosity) —
+      use the Compare row, e.g. `> 0` or `>= 50`.
     source_file: game/core/definitions/npcs.rpy
     source_line: 375
 

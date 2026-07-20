@@ -21,6 +21,7 @@ from .allowlists import (
     group_by_category,
     is_character_param,
     parse_signature_params,
+    return_is_comparable,
 )
 
 # -- Constants ---------------------------------------------------------------
@@ -51,6 +52,13 @@ COMBINE_MODES: list[tuple[str, str]] = [
     ("AND", "and"),
     ("OR", "or"),
 ]
+
+# Operator choices shown for a comparable (tier/int/float) function or method
+# return. The first entry inserts a bare call (empty operator); the rest
+# append `<op> <value>`. Default selection is ">=" so the common case nudges
+# the writer toward a comparison rather than the truthy-when-nonzero footgun.
+COMPARE_OPS: list[str] = ["(no comparison)", ">=", ">", "<=", "<", "==", "!="]
+_BARE_COMPARE_LABEL = "(no comparison)"
 
 _REQUIRED_VARS: dict[str, list[str]] = {
     "approval": ["character", "threshold"],
@@ -123,6 +131,8 @@ def build_condition(
     func_args: str = "",
     method_path: str = "",
     method_args: str = "",
+    compare_op: str = "",
+    compare_value: str = "",
 ) -> str:
     """Return the DSL condition expression for the given parameters.
 
@@ -141,6 +151,12 @@ def build_condition(
         (see :func:`resolve_method_path`), since most methods hang
         directly off the character but a few (``History.check``) need an
         extra hop.
+    compare_op / compare_value
+        For ``function`` / ``method`` whose return value is a number worth
+        comparing (a tier/int/float — see :func:`return_is_comparable`): the
+        operator and right-hand value appended to the call, e.g.
+        ``get_effective_friendship(A, B) >= 2``. An empty ``compare_op`` (or
+        empty ``compare_value``) leaves the call bare.
 
     Returns
     -------
@@ -164,14 +180,29 @@ def build_condition(
             return f'{character}.personality("{trait}", {threshold})'
         return f'{character}.personality("{trait}")'
     if kind == "method":
-        if method_args:
-            return f"{character}.{method_path}({method_args})"
-        return f"{character}.{method_path}()"
+        call = (
+            f"{character}.{method_path}({method_args})"
+            if method_args else f"{character}.{method_path}()"
+        )
+        return _append_comparison(call, compare_op, compare_value)
     if kind == "function":
-        if func_args:
-            return f"{func_name}({func_args})"
-        return f"{func_name}()"
+        call = f"{func_name}({func_args})" if func_args else f"{func_name}()"
+        return _append_comparison(call, compare_op, compare_value)
     return ""
+
+
+def _append_comparison(expr: str, op: str, value: str) -> str:
+    """Return ``"<expr> <op> <value>"`` when both op and value are set, else ``expr``.
+
+    The bare fallback covers a boolean-returning call (no comparison
+    needed) and the in-progress state where the writer picked an operator
+    but hasn't typed a value yet.
+    """
+    op = op.strip()
+    value = value.strip()
+    if op and value:
+        return f"{expr} {op} {value}"
+    return expr
 
 
 def resolve_method_path(signature: str, method_name: str) -> str:
@@ -258,6 +289,10 @@ class _ConditionClausePanel(ttk.Frame):
         self._mood_combo_widget: ttk.Combobox | None = None
         self._func_param_vars: list[tuple[str, str, tk.StringVar]] = []
         self._method_param_vars: list[tuple[str, str, tk.StringVar]] = []
+        # Comparison affordance for a comparable function/method return
+        # (tier/int/float). Non-None only while such an entry is selected.
+        self._compare_op_var: tk.StringVar | None = None
+        self._compare_value_var: tk.StringVar | None = None
         self._current_kind: str | None = None
 
         # -- Condition type selector ------------------------------------
@@ -312,6 +347,8 @@ class _ConditionClausePanel(ttk.Frame):
         self._mood_combo_widget = None
         self._func_param_vars = []
         self._method_param_vars = []
+        self._compare_op_var = None
+        self._compare_value_var = None
 
         builder = getattr(self, f"_params_{kind}", None)
         if builder:
@@ -424,6 +461,54 @@ class _ConditionClausePanel(ttk.Frame):
         )
         label.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(6, 0))
         return label
+
+    def _build_comparison(self, compare_frame: ttk.Frame, signature: str) -> None:
+        """(Re)build the operator + value widgets for a comparable return.
+
+        Clears *compare_frame* and, when *signature* returns a comparable
+        number (see :func:`return_is_comparable`), lays out an operator combo
+        (default ``>=``) and a value entry, stored on
+        ``self._compare_op_var`` / ``self._compare_value_var``. For a
+        bool/other return it leaves both ``None`` so the call inserts bare.
+        Called from the function/method selection callbacks (the return type
+        changes with the selection).
+        """
+        for widget in compare_frame.winfo_children():
+            widget.destroy()
+        self._compare_op_var = None
+        self._compare_value_var = None
+        if not return_is_comparable(signature):
+            return
+
+        ttk.Label(compare_frame, text="Compare:").grid(
+            row=0, column=0, sticky=tk.W, pady=(4, 0), padx=(0, 8),
+        )
+        op_var = tk.StringVar(value=">=")
+        self._compare_op_var = op_var
+        ttk.Combobox(
+            compare_frame, textvariable=op_var, values=COMPARE_OPS,
+            state="readonly", width=15,
+        ).grid(row=0, column=1, sticky=tk.W, pady=(4, 0))
+        value_var = tk.StringVar(value="")
+        self._compare_value_var = value_var
+        ttk.Entry(compare_frame, textvariable=value_var, width=10).grid(
+            row=0, column=2, sticky=tk.W, pady=(4, 0), padx=(4, 0),
+        )
+        op_var.trace_add("write", lambda *_: self._notify_change())
+        value_var.trace_add("write", lambda *_: self._notify_change())
+
+    def _current_comparison(self) -> tuple[str, str]:
+        """Return the (operator, value) for the current comparison, or ("", "").
+
+        Maps the bare "(no comparison)" choice to an empty operator so the
+        call is inserted without a trailing comparison.
+        """
+        if self._compare_op_var is None or self._compare_value_var is None:
+            return ("", "")
+        op = self._compare_op_var.get()
+        if op == _BARE_COMPARE_LABEL:
+            op = ""
+        return (op, self._compare_value_var.get())
 
     # -- Character-change callback -----------------------------------------
 
@@ -570,6 +655,9 @@ class _ConditionClausePanel(ttk.Frame):
         params_frame = ttk.Frame(parent)
         params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
         row += 1
+        compare_frame = ttk.Frame(parent)
+        compare_frame.grid(row=row, column=0, columnspan=3, sticky=tk.W)
+        row += 1
         note_label = self._make_note_label(parent, row)
         row += 1
 
@@ -589,6 +677,7 @@ class _ConditionClausePanel(ttk.Frame):
             name = self._get_var("method_name")
             note_label.configure(text=self._allow.character_method_notes.get(name, ""))
             sig = self._allow.character_method_signatures.get(name, "")
+            self._build_comparison(compare_frame, sig)
             params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
                 hint = pname
@@ -639,6 +728,9 @@ class _ConditionClausePanel(ttk.Frame):
         params_frame = ttk.Frame(parent)
         params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
         row += 1
+        compare_frame = ttk.Frame(parent)
+        compare_frame.grid(row=row, column=0, columnspan=3, sticky=tk.W)
+        row += 1
         note_label = self._make_note_label(parent, row)
         row += 1
 
@@ -658,6 +750,7 @@ class _ConditionClausePanel(ttk.Frame):
             name = self._get_var("func_name")
             note_label.configure(text=self._allow.condition_function_notes.get(name, ""))
             sig = self._allow.condition_function_signatures.get(name, "")
+            self._build_comparison(compare_frame, sig)
             params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
                 hint = pname
@@ -731,6 +824,7 @@ class _ConditionClausePanel(ttk.Frame):
         """Build the condition string from the current parameter values."""
         if not self._current_kind:
             return ""
+        compare_op, compare_value = self._current_comparison()
         return build_condition(
             self._current_kind,
             character=self._get_var("character"),
@@ -744,12 +838,22 @@ class _ConditionClausePanel(ttk.Frame):
             func_args=self._assemble_func_args(),
             method_path=self._resolve_method_path(),
             method_args=self._assemble_method_args(),
+            compare_op=compare_op,
+            compare_value=compare_value,
         )
 
     def is_valid(self) -> bool:
         """``True`` once every field required by the current type is filled."""
         required = _REQUIRED_VARS.get(self._current_kind or "", [])
-        return all(self._get_var(k) for k in required)
+        if not all(self._get_var(k) for k in required):
+            return False
+        # If a comparison operator is offered and chosen (not the bare
+        # "(no comparison)" option), require the right-hand value too — an
+        # operator with no value would insert an incomplete `f(...) >= `.
+        op, value = self._current_comparison()
+        if op and not value:
+            return False
+        return True
 
 
 # -- Dialog ------------------------------------------------------------------
