@@ -69,7 +69,11 @@ def main() -> int:
         shutil.move(str(exe_src), str(release_dir / exe_name))
 
     # --- Copy docs (exclude dev-only files) ---
-    _DEV_ONLY_DOCS = {"dev_guide.md", "condition_function_audit.md"}
+    _DEV_ONLY_DOCS = {
+        "dev_guide.md",
+        "condition_function_audit.md",
+        "condition_builder_comparison_plan.md",
+    }
     docs_src = REPO_ROOT / "docs"
     if docs_src.is_dir():
         docs_dst = release_dir / "docs"
