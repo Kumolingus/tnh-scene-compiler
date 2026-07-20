@@ -48,6 +48,10 @@ methods:
   - name: get_friendship
     category: Relationships
     signature: "Character.get_friendship(other: Character) -> int"
+    notes: |
+      Returns a raw friendship SCORE (a number), not a yes/no. Compare it,
+      e.g. `> 0`, `>= 50`. Used bare (no comparison) it is true for any
+      non-zero score, including negative (animosity) — rarely intended.
     source_file: game/core/definitions/npcs.rpy
     source_line: 375
 
@@ -69,3 +73,15 @@ methods:
     signature: "Character.History.check_when(item: str, tracker: str = 'persistent') -> tuple"
     source_file: game/core/definitions/history.rpy
     source_line: 69
+
+  # -- Inventory (via Character.Inventory) ---------------------------------
+  - name: get_active
+    category: Inventory
+    signature: "Character.Inventory.get_active(string: str, filter: str | None = None, Owner: Any = False) -> bool"
+    source_file: game/core/definitions/inventory.rpy
+    source_line: 113
+  - name: get_number
+    category: Inventory
+    signature: "Character.Inventory.get_number(string: str, filter: str | None = None, Owner: Any = False) -> int"
+    source_file: game/core/definitions/inventory.rpy
+    source_line: 110

@@ -405,9 +405,11 @@ class Allowlists:
     condition_functions: set[str] = field(default_factory=set)
     condition_function_signatures: dict[str, str] = field(default_factory=dict)
     condition_function_categories: dict[str, str] = field(default_factory=dict)
+    condition_function_notes: dict[str, str] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
     character_method_signatures: dict[str, str] = field(default_factory=dict)
     character_method_categories: dict[str, str] = field(default_factory=dict)
+    character_method_notes: dict[str, str] = field(default_factory=dict)
     traits: set[str] = field(default_factory=set)
     personalities: set[str] = field(default_factory=set)
     history_events: set[str] = field(default_factory=set)
@@ -499,6 +501,7 @@ class Allowlists:
         condition_functions: set[str] = set()
         condition_function_signatures: dict[str, str] = {}
         condition_function_categories: dict[str, str] = {}
+        condition_function_notes: dict[str, str] = {}
         if condition_functions_payload and isinstance(
             condition_functions_payload.get("functions"), list,
         ):
@@ -511,6 +514,9 @@ class Allowlists:
                     cat = item.get("category")
                     if isinstance(cat, str):
                         condition_function_categories[item["name"]] = cat
+                    note = item.get("notes")
+                    if isinstance(note, str):
+                        condition_function_notes[item["name"]] = note.strip()
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
@@ -518,6 +524,7 @@ class Allowlists:
         character_methods: set[str] = set()
         character_method_signatures: dict[str, str] = {}
         character_method_categories: dict[str, str] = {}
+        character_method_notes: dict[str, str] = {}
         if character_methods_payload and isinstance(
             character_methods_payload.get("methods"), list,
         ):
@@ -530,6 +537,9 @@ class Allowlists:
                     cat = item.get("category")
                     if isinstance(cat, str):
                         character_method_categories[item["name"]] = cat
+                    note = item.get("notes")
+                    if isinstance(note, str):
+                        character_method_notes[item["name"]] = note.strip()
 
         traits = set(_values_names(_read_yaml(allowlists_dir / "traits.yaml")))
         personalities = set(_values_names(
@@ -580,9 +590,11 @@ class Allowlists:
             condition_functions = condition_functions,
             condition_function_signatures = condition_function_signatures,
             condition_function_categories = condition_function_categories,
+            condition_function_notes = condition_function_notes,
             character_methods = character_methods,
             character_method_signatures = character_method_signatures,
             character_method_categories = character_method_categories,
+            character_method_notes = character_method_notes,
             traits = traits,
             personalities = personalities,
             history_events = history_events,
@@ -763,12 +775,18 @@ class Allowlists:
                 **self.condition_function_categories,
                 **other.condition_function_categories,
             },
+            condition_function_notes={
+                **self.condition_function_notes, **other.condition_function_notes,
+            },
             character_methods=self.character_methods | other.character_methods,
             character_method_signatures={
                 **self.character_method_signatures, **other.character_method_signatures,
             },
             character_method_categories={
                 **self.character_method_categories, **other.character_method_categories,
+            },
+            character_method_notes={
+                **self.character_method_notes, **other.character_method_notes,
             },
             traits=self.traits | other.traits,
             personalities=self.personalities | other.personalities,

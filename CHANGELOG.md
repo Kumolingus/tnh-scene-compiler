@@ -8,6 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 6 new base-game entries in `condition_functions.yaml` / `character_methods.yaml`,
+  found by a bounded audit of `core/mechanics/`/`core/definitions/` for
+  read-only, dialogue-relevant functions not yet registered (see
+  `docs/condition_function_audit.md` for the full survey, including what
+  was deliberately excluded and why): `get_effective_friendship`,
+  `get_Characters_opinion`, `get_base_friendship`, `get_max_friendship`
+  (Relationships — return the real `FriendshipTier`, not just a bool like
+  the already-registered `are_Characters_friends`); `Character.Inventory.
+  get_active` / `Character.Inventory.get_number` (new Inventory category —
+  same two-level attribute-chain path as the existing `History.check`).
+- `condition_functions.yaml` / `character_methods.yaml` entries can carry an
+  optional `notes:` field (writer-facing). The Condition Builder shows it as
+  a per-selection note label that updates when the function/method changes.
+  Used to warn that the tier/int-returning friendship helpers
+  (`get_effective_friendship` & co, `get_friendship`) return a number to
+  compare (`>= 2`, `< 0`), not a yes/no — a bare `[[if get_effective_
+  friendship(A, B)]]` is truthy for enemies too, which is rarely intended.
 - The scene editor's `[[show]]` insert form now exposes all 9 attributes the
   directive grammar accepts — `stage`, `left_arm`, `right_arm`, and `fade`
   joined `mood`/`face`/`arms`/`outfit`/`look`. `stage` and the two split-arm

@@ -408,6 +408,23 @@ class _ConditionClausePanel(ttk.Frame):
             return row + 1
         return row
 
+    def _make_note_label(self, parent: ttk.Frame, row: int) -> ttk.Label:
+        """Create an empty, per-selection note label and return it.
+
+        Distinct from ``_add_description`` (static per condition-type text):
+        the returned label is updated with the currently-selected
+        function/method's ``notes:`` each time the selection changes, so a
+        writer sees e.g. the "this returns a tier, compare it" warning on
+        the tier-returning friendship functions. Warmer colour than the
+        grey description so it reads as a heads-up, not boilerplate.
+        """
+        label = ttk.Label(
+            parent, text="", foreground="#E0A030", font=("Segoe UI", 8),
+            wraplength=360, justify=tk.LEFT,
+        )
+        label.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(6, 0))
+        return label
+
     # -- Character-change callback -----------------------------------------
 
     def _on_character_changed(self) -> None:
@@ -553,6 +570,8 @@ class _ConditionClausePanel(ttk.Frame):
         params_frame = ttk.Frame(parent)
         params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
         row += 1
+        note_label = self._make_note_label(parent, row)
+        row += 1
 
         def _on_category_change(*_a: Any) -> None:
             names = grouped.get(self._get_var("method_category"), [])
@@ -568,6 +587,7 @@ class _ConditionClausePanel(ttk.Frame):
             self._method_param_vars.clear()
 
             name = self._get_var("method_name")
+            note_label.configure(text=self._allow.character_method_notes.get(name, ""))
             sig = self._allow.character_method_signatures.get(name, "")
             params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
@@ -619,6 +639,8 @@ class _ConditionClausePanel(ttk.Frame):
         params_frame = ttk.Frame(parent)
         params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
         row += 1
+        note_label = self._make_note_label(parent, row)
+        row += 1
 
         def _on_category_change(*_a: Any) -> None:
             names = grouped.get(self._get_var("func_category"), [])
@@ -634,6 +656,7 @@ class _ConditionClausePanel(ttk.Frame):
             self._func_param_vars.clear()
 
             name = self._get_var("func_name")
+            note_label.configure(text=self._allow.condition_function_notes.get(name, ""))
             sig = self._allow.condition_function_signatures.get(name, "")
             params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
@@ -853,7 +876,12 @@ class ConditionBuilderDialog(tk.Toplevel):
         mode = self._combine_label_to_key.get(self._combine_var.get(), "none")
         if mode == "none":
             if self._clause_b is not None:
-                self._clause_b.destroy()
+                # Clear the whole container, not just the panel — the
+                # separator is a separate child, so destroying only the
+                # panel would leave it behind and stack a fresh one on the
+                # next none->AND toggle.
+                for child in self._clause_b_container.winfo_children():
+                    child.destroy()
                 self._clause_b = None
             self._clause_b_container.pack_forget()
         else:

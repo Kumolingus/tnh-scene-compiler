@@ -177,6 +177,65 @@ class TestCategoryLoading:
         }
 
 
+class TestNotesLoading:
+    """The optional writer-facing `notes` field on condition functions / methods."""
+
+    def test_condition_function_note_is_captured_and_stripped(self, tmp_path: Path) -> None:
+        _write(tmp_path / "condition_functions.yaml", (
+            "functions:\n"
+            "- name: get_effective_friendship\n"
+            "  signature: \"get_effective_friendship(A, B) -> FriendshipTier\"\n"
+            "  notes: |\n"
+            "    Returns a tier NUMBER, not a yes/no. Compare it.\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        # Block-scalar trailing newline is stripped on load.
+        assert (
+            allowlists.condition_function_notes["get_effective_friendship"]
+            == "Returns a tier NUMBER, not a yes/no. Compare it."
+        )
+
+    def test_character_method_note_is_captured(self, tmp_path: Path) -> None:
+        _write(tmp_path / "character_methods.yaml", (
+            "methods:\n"
+            "- name: get_friendship\n"
+            "  signature: \"Character.get_friendship(other: Character) -> int\"\n"
+            "  notes: Returns a raw score, compare it.\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert allowlists.character_method_notes["get_friendship"] == "Returns a raw score, compare it."
+
+    def test_missing_note_is_tolerated(self, tmp_path: Path) -> None:
+        _write(tmp_path / "condition_functions.yaml", (
+            "functions:\n"
+            "- name: get_Location\n"
+            "  signature: \"get_Location() -> Location\"\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert "get_Location" in allowlists.condition_functions
+        assert "get_Location" not in allowlists.condition_function_notes
+
+    def test_merge_unions_notes(self) -> None:
+        base = Allowlists(
+            condition_function_notes={"f": "note A"},
+            character_method_notes={"m": "note B"},
+        )
+        mod = Allowlists(
+            condition_function_notes={"g": "note C"},
+        )
+
+        merged = base.merge(mod)
+
+        assert merged.condition_function_notes == {"f": "note A", "g": "note C"}
+        assert merged.character_method_notes == {"m": "note B"}
+
+
 class TestGroupByCategory:
     def test_groups_and_sorts_within_category(self) -> None:
         result = group_by_category(

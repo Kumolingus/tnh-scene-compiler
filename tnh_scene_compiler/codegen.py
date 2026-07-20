@@ -458,6 +458,15 @@ class _ConditionSpecCollector:
         if isinstance(expr, Call):
             for arg in expr.args:
                 self.visit_expr(arg)
+            return
+        if isinstance(expr, ListExpr):
+            # Keep in step with the validator's _collect_calls, which also
+            # descends into list elements. Today a ListExpr only ever holds
+            # bare character Names (built by the friends_with DSL rewrite),
+            # so nothing overridable hides here — but recursing keeps the
+            # two tree-walkers aligned if a future rewrite nests a call.
+            for element in expr.elements:
+                self.visit_expr(element)
 
     def finalize(self) -> list[dict[str, object]]:
         return [

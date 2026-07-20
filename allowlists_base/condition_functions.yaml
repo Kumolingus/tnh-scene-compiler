@@ -41,6 +41,53 @@ functions:
     signature: "get_worst_Enemy(Character, Characters) -> Character | None"
     source_file: game/core/mechanics/friendship.rpy
     source_line: 72
+  # The 4 below return a FriendshipTier (IntEnum: Enemies=-2, Rivals=-1,
+  # Acquaintances=0, Friends=1, GoodFriends=2, BestFriends=3), so a writer
+  # compares against a plain integer, e.g. get_effective_friendship(A, B)
+  # >= 2 for "at least good friends". FriendshipTier.Friends etc. can't be
+  # used as a bare name — the compiler would resolve it as scene-local state.
+  # Params are typed "A: Character, B: Character" (not the bare "Character"
+  # name run_operations.yaml uses) so the editor's per-parameter form renders
+  # a character-picker dropdown for both, not just a first bare-named one.
+  - name: get_effective_friendship
+    category: Relationships
+    signature: "get_effective_friendship(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      Returns a tier NUMBER, not a yes/no. Compare it: e.g. `>= 2` for
+      "good friends or closer", `< 0` for "rivals or enemies". Tiers:
+      enemies=-2, rivals=-1, acquaintances=0, friends=1, good friends=2,
+      best friends=3. Using it bare (no comparison) is true for ANY tier
+      except acquaintances — including enemies — which is rarely intended.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 115
+  - name: get_Characters_opinion
+    category: Relationships
+    signature: "get_Characters_opinion(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      A's opinion of B (one-directional, not symmetric). Returns a tier
+      NUMBER — compare it (`>= 2`, `< 0`, ...). Same scale as
+      get_effective_friendship: enemies=-2 ... best friends=3. Bare use
+      (no comparison) is true for every tier except acquaintances.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 102
+  - name: get_base_friendship
+    category: Relationships
+    signature: "get_base_friendship(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      Baseline tier before temporary mood swings. Returns a tier NUMBER —
+      compare it (`>= 2`, `< 0`, ...). Scale: enemies=-2 ... best friends=3.
+      Bare use is true for every tier except acquaintances.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 123
+  - name: get_max_friendship
+    category: Relationships
+    signature: "get_max_friendship(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      Highest tier the pair ever reached. Returns a tier NUMBER — compare
+      it (`>= 2`, `< 0`, ...). Scale: enemies=-2 ... best friends=3. Bare
+      use is true for every tier except acquaintances.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 131
 
   # -- Character status ---------------------------------------------------
   - name: seen_Player_recently
