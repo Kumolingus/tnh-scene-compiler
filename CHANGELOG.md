@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The Condition Builder can now combine **any number** of clauses, not just
+  two. Each clause after the first carries its own AND/OR operator; a
+  "+ Add condition" button appends clauses (the list scrolls) and each has a
+  "Remove" button. Clauses join in order via `join_conditions` (replacing the
+  pairwise `combine_conditions`); note `and` binds tighter than `or` in
+  Python, so a mixed chain follows that precedence.
 - In-app **Glossary** window (a "Glossary" button in the editor toolbar). A
   separate, non-modal reference: a searchable section list on the left, the
   selected section's prose + copyable code examples on the right (each example

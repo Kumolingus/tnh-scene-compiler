@@ -14,7 +14,7 @@ Fountain-TNH scene compiler: converts `.scene` files to Ren'Py `.rpy` scripts fo
 - **Output**: pluggable callback system (`output.set_callback`) for CLI/GUI.
 - **GUI**: Tkinter, wizard flow (Welcome → Quick/Project/Init screens), threaded compilation.
 - **DSL**: `dsl.py` transforms writer-friendly syntax to canonical Ren'Py calls. Project aliases via `aliases.yaml`.
-- **Condition Builder**: `condition_builder.py` — guided dialog for building `[[if]]` condition expressions, one or two clauses joined with and/or. Per-clause UI lives in `_ConditionClausePanel`; the dialog embeds one or two instances. Pure-logic helpers (`build_condition`, `combine_conditions`, `resolve_method_path`, `wrap_condition`) are testable without Tkinter.
+- **Condition Builder**: `condition_builder.py` — guided dialog for building `[[if]]` condition expressions from any number of clauses (each after the first joined with and/or via its own operator; "+ Add condition" / "Remove"). Per-clause UI lives in `_ConditionClausePanel`; the dialog holds a scrollable list of them. Pure-logic helpers (`build_condition`, `join_conditions`, `resolve_method_path`, `wrap_condition`) are testable without Tkinter.
 - **New Scene Dialog**: `new_scene_dialog.py` — guided form for creating scenes with setup fields (title, character, scene type, trigger, location) and 4 example templates. Pure-logic helper (`build_scene_text`) testable without Tkinter.
 - **Glossary**: `glossary.py` — a non-modal reference window (editor toolbar "Glossary" button) with a searchable section list + copyable code examples, parsed at runtime from the bundled `docs/scene_cheatsheet.md`. Pure parser (`parse_glossary`) testable without Tkinter; the cheatsheet is in the `.spec` datas.
 - **Allowlists**: two-layer (base + project), loaded in `allowlists.py`, validated in `validator.py`.
@@ -27,7 +27,7 @@ Fountain-TNH scene compiler: converts `.scene` files to Ren'Py `.rpy` scripts fo
 ## Testing
 
 - Framework: pytest
-- 535 tests in `tests/`
+- 536 tests in `tests/`
 - Run: `python -m pytest tests/ -q`
 
 ## Thumbnails

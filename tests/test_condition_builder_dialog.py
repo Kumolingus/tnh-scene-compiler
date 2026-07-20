@@ -64,83 +64,54 @@ def _make_dialog(root, allow):
     )
 
 
-def _combine_container_children(dlg):
-    return dlg._clause_b_container.winfo_children()
+def _panel(dlg, index=0):
+    """The _ConditionClausePanel of the *index*-th clause row."""
+    return dlg._clauses[index]["panel"]
 
 
-def _count_separators(dlg):
-    return sum(
-        1 for w in _combine_container_children(dlg)
-        if isinstance(w, tk.ttk.Separator)
-    )
-
-
-def test_second_clause_created_and_destroyed_on_toggle(tk_root, allow) -> None:
+def test_starts_with_one_clause_and_no_operator(tk_root, allow) -> None:
     dlg = _make_dialog(tk_root, allow)
-    assert dlg._clause_b is None
-
-    dlg._combine_var.set("AND")
-    dlg._on_combine_change()
-    assert dlg._clause_b is not None
-    # winfo_manager() == "pack" once packed, "" after pack_forget — reliable
-    # without a display, unlike winfo_ismapped() on a withdrawn root.
-    assert dlg._clause_b_container.winfo_manager() == "pack"
-
-    dlg._combine_var.set("Single condition")
-    dlg._on_combine_change()
-    assert dlg._clause_b is None
-    assert dlg._clause_b_container.winfo_manager() == ""
+    assert len(dlg._clauses) == 1
+    assert dlg._clauses[0]["op_var"] is None  # first clause has no operator
 
 
-def test_toggling_combine_does_not_accumulate_separators(tk_root, allow) -> None:
-    # Regression: destroying only the panel (not the whole container) on the
-    # "none" path used to leave the separator behind, so each none->AND cycle
-    # stacked a fresh one.
+def test_add_and_remove_clauses(tk_root, allow) -> None:
     dlg = _make_dialog(tk_root, allow)
+    dlg._add_clause()
+    dlg._add_clause()
+    assert len(dlg._clauses) == 3
+    # Every clause after the first carries an operator, defaulting to AND.
+    assert dlg._clauses[1]["op_var"].get() == "AND"
+    assert dlg._clauses[2]["op_var"].get() == "AND"
 
-    for _ in range(4):
-        dlg._combine_var.set("AND")
-        dlg._on_combine_change()
-        dlg._combine_var.set("Single condition")
-        dlg._on_combine_change()
-
-    dlg._combine_var.set("AND")
-    dlg._on_combine_change()
-
-    assert _count_separators(dlg) == 1
+    third = dlg._clauses[2]
+    dlg._remove_clause(third)
+    assert len(dlg._clauses) == 2
+    assert third not in dlg._clauses
 
 
-def test_and_or_switch_reuses_the_same_clause_b(tk_root, allow) -> None:
+def test_many_clauses_join_with_their_operators(tk_root, allow) -> None:
     dlg = _make_dialog(tk_root, allow)
-    dlg._combine_var.set("AND")
-    dlg._on_combine_change()
-    clause_b = dlg._clause_b
-
-    dlg._combine_var.set("OR")
-    dlg._on_combine_change()
-    # Switching operator between two non-none modes must not rebuild clause B.
-    assert dlg._clause_b is clause_b
-    assert _count_separators(dlg) == 1
-
-
-def test_combined_condition_uses_the_operator(tk_root, allow) -> None:
-    dlg = _make_dialog(tk_root, allow)
-    # Clause A defaults to the approval type (love/trust) — valid out of the box.
-    dlg._combine_var.set("AND")
-    dlg._on_combine_change()
+    # Clause 1 defaults to the approval type (love/trust) — valid out of the box.
+    dlg._add_clause()
+    dlg._add_clause()
+    dlg._clauses[2]["op_var"].set("OR")
     combined = dlg._build_current_condition()
-    assert " and " in combined
+    # Three approval clauses: "X.love >= 500 and X.love >= 500 or X.love >= 500".
+    assert combined.count(" and ") == 1
+    assert combined.count(" or ") == 1
 
 
 def test_note_label_populates_for_tier_function(tk_root, allow) -> None:
     dlg = _make_dialog(tk_root, allow)
-    # Switch clause A to the standalone-function type; its only function is the
-    # tier one carrying a note, which should surface in a note label.
-    dlg._clause_a._type_var.set("Standalone function")
-    dlg._clause_a._on_type_select()
+    clause = _panel(dlg, 0)
+    # Switch to the standalone-function type; its only function is the tier one
+    # carrying a note, which should surface in a note label.
+    clause._type_var.set("Standalone function")
+    clause._on_type_select()
 
     note_labels = [
-        w for w in dlg._clause_a._param_frame.winfo_children()
+        w for w in clause._param_frame.winfo_children()
         if isinstance(w, tk.ttk.Label)
         and w.cget("text") == "Returns a tier NUMBER, compare it."
     ]
@@ -171,7 +142,7 @@ def test_comparison_widgets_appear_for_tier_and_vanish_for_bool(
     tk_root, allow_tier_and_bool,
 ) -> None:
     dlg = _make_dialog(tk_root, allow_tier_and_bool)
-    clause = dlg._clause_a
+    clause = _panel(dlg, 0)
     clause._type_var.set("Standalone function")
     clause._on_type_select()
 
@@ -213,7 +184,7 @@ def test_property_type_builds_bare_attribute_comparison(
     tk_root, allow_properties,
 ) -> None:
     dlg = _make_dialog(tk_root, allow_properties)
-    clause = dlg._clause_a
+    clause = _panel(dlg, 0)
     clause._type_var.set("Character property")
     clause._on_type_select()
 

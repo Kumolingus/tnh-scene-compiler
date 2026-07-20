@@ -4,7 +4,7 @@ import pytest
 
 from tnh_scene_compiler.condition_builder import (
     build_condition,
-    combine_conditions,
+    join_conditions,
     resolve_method_path,
     wrap_condition,
 )
@@ -245,23 +245,42 @@ class TestWrapCondition:
         assert result == self.COND
 
 
-# -- combine_conditions --------------------------------------------------------
+# -- join_conditions -----------------------------------------------------------
 
 
-class TestCombineConditions:
-    def test_and(self):
-        result = combine_conditions("JeanGrey.love >= 500", "and", 'Rogue.has("shy")')
+class TestJoinConditions:
+    def test_single_clause(self):
+        # First clause's operator is ignored.
+        assert join_conditions([("", "JeanGrey.love >= 500")]) == "JeanGrey.love >= 500"
+
+    def test_two_clauses_and(self):
+        result = join_conditions([
+            ("", "JeanGrey.love >= 500"),
+            ("and", 'Rogue.has("shy")'),
+        ])
         assert result == 'JeanGrey.love >= 500 and Rogue.has("shy")'
 
-    def test_or(self):
-        result = combine_conditions("JeanGrey.nearby", "or", "Rogue.nearby")
-        assert result == "JeanGrey.nearby or Rogue.nearby"
+    def test_many_clauses_mixed_operators(self):
+        result = join_conditions([
+            ("", "A.love >= 500"),
+            ("and", "A.nearby"),
+            ("or", "B.nearby"),
+            ("and", 'A.has("shy")'),
+        ])
+        assert result == 'A.love >= 500 and A.nearby or B.nearby and A.has("shy")'
 
-    def test_none_mode_returns_first_only(self):
-        result = combine_conditions("JeanGrey.love >= 500", "none", "Rogue.nearby")
-        assert result == "JeanGrey.love >= 500"
+    def test_empty_clause_is_skipped_and_next_operator_still_used(self):
+        # A middle clause the writer hasn't filled yet is dropped; the clause
+        # after it still joins with its own operator.
+        result = join_conditions([
+            ("", "A.nearby"),
+            ("and", ""),
+            ("or", "B.nearby"),
+        ])
+        assert result == "A.nearby or B.nearby"
 
-    def test_empty_second_clause_returns_first_only(self):
-        # A combine mode is selected but clause B isn't valid/filled yet.
-        result = combine_conditions("JeanGrey.love >= 500", "and", "")
-        assert result == "JeanGrey.love >= 500"
+    def test_all_empty(self):
+        assert join_conditions([("", ""), ("and", "")]) == ""
+
+    def test_empty_list(self):
+        assert join_conditions([]) == ""

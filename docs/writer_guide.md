@@ -315,8 +315,9 @@ trait, history, mood, friendship, personality, a character property, a low-level
 guided fields instead of remembering the exact expression syntax. Standalone functions, character methods, and character properties are
 grouped by category (e.g. Relationships, Location, Arousal, Body) to make them easier to browse than one flat alphabetical list. When a
 function/method/property is a number (a friendship tier, a count, arousal) rather than a yes/no, a "Compare:" row appears so you can pick
-an operator and value (e.g. `>= 2`) — leave it on "(no comparison)" only if you really want the raw truthy test. You can also combine two
-conditions with AND/OR via "Combine with".
+an operator and value (e.g. `>= 2`) — leave it on "(no comparison)" only if you really want the raw truthy test. Use "+ Add condition" to
+combine as many conditions as you like; each one after the first picks its own AND/OR, and "Remove" drops it. (`and` binds tighter than
+`or`, as in most languages.)
 
 "Character property" checks a read-only stat on a companion (`desire`, `breast_size`, `sex_experience`, …). Only the properties the
 developer has registered are accepted — a bare `Character.<something>` that isn't on the list is now a compile error (with a "did you

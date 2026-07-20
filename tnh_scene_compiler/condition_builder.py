@@ -1,11 +1,11 @@
 """Condition builder dialog for the scene editor.
 
 Guided UI that helps writers discover and construct condition
-expressions for ``[[if]]``, ``[[elif]]``, and choice guards. Supports an
-optional second clause joined with ``and``/``or`` so two guided checks can
-be combined without hand-typing the boolean expression.
+expressions for ``[[if]]``, ``[[elif]]``, and choice guards. Any number of
+clauses can be added, each (after the first) joined with ``and``/``or``, so
+a compound condition is built without hand-typing the boolean expression.
 
-The pure-logic helpers (``build_condition``, ``combine_conditions``,
+The pure-logic helpers (``build_condition``, ``join_conditions``,
 ``wrap_condition``) are importable and testable without Tkinter.
 """
 
@@ -49,11 +49,9 @@ WRAP_MODES: list[tuple[str, str]] = [
     ("Expression only", "bare"),
 ]
 
-COMBINE_MODES: list[tuple[str, str]] = [
-    ("Single condition", "none"),
-    ("AND", "and"),
-    ("OR", "or"),
-]
+# Boolean operators offered before each clause after the first, when
+# combining several conditions into one expression.
+COMBINE_OPERATORS: list[str] = ["AND", "OR"]
 
 # Operator choices shown for a comparable (tier/int/float) function or method
 # return. The first entry inserts a bare call (empty operator); the rest
@@ -239,17 +237,25 @@ def resolve_method_path(signature: str, method_name: str) -> str:
     return method_name
 
 
-def combine_conditions(cond_a: str, op: str, cond_b: str) -> str:
-    """Join two condition expressions with a boolean operator.
+def join_conditions(clauses: list[tuple[str, str]]) -> str:
+    """Join clauses into one expression: ``[(op, cond), ...]``.
 
-    *op* is one of the ``COMBINE_MODES`` keys (``"none"``, ``"and"``,
-    ``"or"``). ``"none"`` — or a blank *cond_b* — returns *cond_a* alone,
-    so a dialog can call this unconditionally regardless of whether a
-    second clause is currently active.
+    Each clause is an ``(operator, condition)`` pair; the first clause's
+    operator is ignored (there's nothing before it). Empty conditions are
+    skipped, so an in-progress clause the writer hasn't filled yet doesn't
+    break the preview, and the operator that follows a skipped clause still
+    joins the next one. Operators (``"and"`` / ``"or"``) are inserted
+    verbatim; note ``and`` binds tighter than ``or`` in Python, so a mixed
+    chain follows that precedence.
     """
-    if op == "none" or not cond_b:
-        return cond_a
-    return f"{cond_a} {op} {cond_b}"
+    parts: list[str] = []
+    for op, cond in clauses:
+        if not cond:
+            continue
+        if parts:
+            parts.append(op or "and")
+        parts.append(cond)
+    return " ".join(parts)
 
 
 def wrap_condition(condition: str, mode: str) -> str:
@@ -919,11 +925,12 @@ class _ConditionClausePanel(ttk.Frame):
 # -- Dialog ------------------------------------------------------------------
 
 class ConditionBuilderDialog(tk.Toplevel):
-    """Modal dialog that guides writers through building a condition.
+    """Modal dialog: one or more condition clauses joined with and/or.
 
-    Always shows one :class:`_ConditionClausePanel`. Setting "Combine
-    with" to AND/OR reveals a second panel; the two clauses are then
-    joined with that operator (see :func:`combine_conditions`).
+    The first clause stands alone; each further clause (added via
+    "+ Add condition") carries its own AND/OR operator and a Remove button.
+    The clauses join in order (see :func:`join_conditions`). The clause list
+    scrolls, so an arbitrary number of conditions fits.
     """
 
     def __init__(
@@ -936,7 +943,8 @@ class ConditionBuilderDialog(tk.Toplevel):
     ) -> None:
         super().__init__(master)
         self.title("Condition Builder")
-        self.resizable(False, False)
+        self.resizable(True, True)
+        self.minsize(440, 500)
         self.grab_set()
 
         self._insert = insert_cb
@@ -944,46 +952,53 @@ class ConditionBuilderDialog(tk.Toplevel):
         self._characters = sorted(characters) if characters else (
             sorted(allow.characters) if allow.characters else []
         )
-        self._clause_b: _ConditionClausePanel | None = None
+        # Each entry: {"row": Frame, "panel": _ConditionClausePanel,
+        #              "op_var": StringVar | None}. op_var is None on the first.
+        self._clauses: list[dict[str, Any]] = []
 
         body = ttk.Frame(self, padding=12)
         body.pack(fill=tk.BOTH, expand=True)
 
-        # -- Clause A (always present) ---------------------------------------
-        self._clause_a = _ConditionClausePanel(body, allow, self._characters)
-        self._clause_a.pack(fill=tk.BOTH, expand=True)
-
-        # -- Combine mode ------------------------------------------------------
-        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
-
-        combine_frame = ttk.Frame(body)
-        combine_frame.pack(fill=tk.X)
-        ttk.Label(combine_frame, text="Combine with:").pack(side=tk.LEFT, padx=(0, 4))
-
-        combine_labels = [label for label, _ in COMBINE_MODES]
-        self._combine_label_to_key = {label: key for label, key in COMBINE_MODES}
-        self._combine_var = tk.StringVar(value=combine_labels[0])
-        combine_combo = ttk.Combobox(
-            combine_frame, textvariable=self._combine_var,
-            values=combine_labels, state="readonly", width=20,
+        # -- Scrollable clause list ------------------------------------------
+        scroll_holder = ttk.Frame(body)
+        scroll_holder.pack(fill=tk.BOTH, expand=True)
+        canvas = tk.Canvas(
+            scroll_holder, bg="#1E1E1E", highlightthickness=0, borderwidth=0,
         )
-        combine_combo.pack(side=tk.LEFT)
-        combine_combo.bind("<<ComboboxSelected>>", self._on_combine_change)
+        vbar = ttk.Scrollbar(scroll_holder, orient=tk.VERTICAL, command=canvas.yview)
+        self._clauses_container = ttk.Frame(canvas)
+        window = canvas.create_window(
+            (0, 0), window=self._clauses_container, anchor="nw",
+        )
+        self._clauses_container.bind(
+            "<Configure>",
+            lambda _e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.bind(
+            "<Configure>",
+            lambda e: canvas.itemconfigure(window, width=e.width),
+        )
+        canvas.configure(yscrollcommand=vbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.bind_all(
+            "<MouseWheel>",
+            lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
+        )
+        self._clauses_canvas = canvas
 
-        # -- Clause B (created lazily) -----------------------------------------
-        self._clause_b_container = ttk.Frame(body)
+        # -- Add-condition button --------------------------------------------
+        add_bar = ttk.Frame(body)
+        add_bar.pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(
+            add_bar, text="+ Add condition", command=self._add_clause,
+        ).pack(side=tk.LEFT)
 
         # -- Wrap mode -------------------------------------------------------
-        # Handle kept so clause B's container can be packed just above this
-        # separator (via before=) when the combine mode is turned on, instead
-        # of appending after the buttons.
-        self._pre_wrap_separator = ttk.Separator(body, orient=tk.HORIZONTAL)
-        self._pre_wrap_separator.pack(fill=tk.X, pady=8)
-
+        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
         wrap_frame = ttk.Frame(body)
         wrap_frame.pack(fill=tk.X)
         ttk.Label(wrap_frame, text="Insert as:").pack(side=tk.LEFT, padx=(0, 4))
-
         wrap_labels = [label for label, _ in WRAP_MODES]
         self._wrap_label_to_key = {label: key for label, key in WRAP_MODES}
         self._wrap_var = tk.StringVar(value=wrap_labels[0])
@@ -1012,7 +1027,7 @@ class ConditionBuilderDialog(tk.Toplevel):
         btn_frame.pack(fill=tk.X, pady=(12, 0))
         ttk.Button(
             btn_frame, text="Cancel", style="Danger.TButton",
-            command=self.destroy,
+            command=self._close,
         ).pack(side=tk.RIGHT, padx=(4, 0))
         self._insert_btn = ttk.Button(
             btn_frame, text="Insert", style="Compile.TButton",
@@ -1021,11 +1036,11 @@ class ConditionBuilderDialog(tk.Toplevel):
         self._insert_btn.pack(side=tk.RIGHT)
 
         self.bind("<Return>", lambda e: self._do_insert())
-        self.bind("<Escape>", lambda e: self.destroy())
+        self.bind("<Escape>", lambda e: self._close())
+        self.protocol("WM_DELETE_WINDOW", self._close)
 
-        # Wire the change callback now that preview/insert-button exist,
-        # then run one initial preview pass.
-        self._clause_a.set_on_change(self._update_preview)
+        # The preview/insert widgets now exist, so clause panels can notify.
+        self._add_clause()  # first clause, no operator
         self._update_preview()
 
         # Center on parent
@@ -1034,33 +1049,48 @@ class ConditionBuilderDialog(tk.Toplevel):
         y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 2
         self.geometry(f"+{max(0, x)}+{max(0, y)}")
 
-    # -- Combine mode ------------------------------------------------------
+    # -- Clause management -------------------------------------------------
 
-    def _on_combine_change(self, _event: Any = None) -> None:
-        mode = self._combine_label_to_key.get(self._combine_var.get(), "none")
-        if mode == "none":
-            if self._clause_b is not None:
-                # Clear the whole container, not just the panel — the
-                # separator is a separate child, so destroying only the
-                # panel would leave it behind and stack a fresh one on the
-                # next none->AND toggle.
-                for child in self._clause_b_container.winfo_children():
-                    child.destroy()
-                self._clause_b = None
-            self._clause_b_container.pack_forget()
-        else:
-            if self._clause_b is None:
-                ttk.Separator(
-                    self._clause_b_container, orient=tk.HORIZONTAL,
-                ).pack(fill=tk.X, pady=(0, 8))
-                self._clause_b = _ConditionClausePanel(
-                    self._clause_b_container, self._allow, self._characters,
-                )
-                self._clause_b.pack(fill=tk.BOTH, expand=True)
-                self._clause_b.set_on_change(self._update_preview)
-            self._clause_b_container.pack(
-                fill=tk.BOTH, expand=True, pady=(8, 0), before=self._pre_wrap_separator,
+    def _add_clause(self) -> None:
+        is_first = not self._clauses
+        row = ttk.Frame(self._clauses_container, padding=(0, 4))
+        row.pack(fill=tk.X, expand=True)
+
+        op_var: tk.StringVar | None = None
+        remove_btn: ttk.Button | None = None
+        if not is_first:
+            ttk.Separator(row, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(0, 6))
+            header = ttk.Frame(row)
+            header.pack(fill=tk.X)
+            op_var = tk.StringVar(value=COMBINE_OPERATORS[0])
+            ttk.Combobox(
+                header, textvariable=op_var, values=COMBINE_OPERATORS,
+                state="readonly", width=6,
+            ).pack(side=tk.LEFT)
+            op_var.trace_add("write", lambda *_: self._update_preview())
+            remove_btn = ttk.Button(
+                header, text="Remove", style="Danger.TButton", width=8,
             )
+            remove_btn.pack(side=tk.RIGHT)
+
+        panel = _ConditionClausePanel(row, self._allow, self._characters)
+        panel.pack(fill=tk.BOTH, expand=True)
+        panel.set_on_change(self._update_preview)
+
+        entry: dict[str, Any] = {"row": row, "panel": panel, "op_var": op_var}
+        if remove_btn is not None:
+            remove_btn.configure(command=lambda e=entry: self._remove_clause(e))
+        self._clauses.append(entry)
+
+        self._update_preview()
+        # Reveal the freshly added clause at the bottom of the scroll region.
+        self._clauses_canvas.update_idletasks()
+        self._clauses_canvas.yview_moveto(1.0)
+
+    def _remove_clause(self, entry: dict[str, Any]) -> None:
+        entry["row"].destroy()
+        if entry in self._clauses:
+            self._clauses.remove(entry)
         self._update_preview()
 
     # -- Preview and insertion -----------------------------------------------
@@ -1069,26 +1099,24 @@ class ConditionBuilderDialog(tk.Toplevel):
         """Return the selected wrap mode key."""
         return self._wrap_label_to_key.get(self._wrap_var.get(), "if_block")
 
-    def _get_combine_mode(self) -> str:
-        return self._combine_label_to_key.get(self._combine_var.get(), "none")
-
     def _build_current_condition(self) -> str:
-        """Build the (possibly combined) condition string."""
-        cond_a = self._clause_a.get_condition()
-        mode = self._get_combine_mode()
-        if mode == "none" or self._clause_b is None:
-            return cond_a
-        return combine_conditions(cond_a, mode, self._clause_b.get_condition())
+        """Build the combined condition string from every clause, in order."""
+        clauses: list[tuple[str, str]] = []
+        for entry in self._clauses:
+            op_var = entry["op_var"]
+            op = "" if op_var is None else op_var.get().lower()
+            clauses.append((op, entry["panel"].get_condition()))
+        return join_conditions(clauses)
 
     def _is_valid(self) -> bool:
-        if not self._clause_a.is_valid():
-            return False
-        if self._get_combine_mode() == "none":
-            return True
-        return self._clause_b is not None and self._clause_b.is_valid()
+        return bool(self._clauses) and all(
+            entry["panel"].is_valid() for entry in self._clauses
+        )
 
     def _update_preview(self, *_args: Any) -> None:
         """Refresh the preview label and the Insert button state."""
+        if not hasattr(self, "_insert_btn"):
+            return
         condition = self._build_current_condition()
         wrapped = wrap_condition(condition, self._get_wrap_mode())
         display = wrapped.replace("\n\n", " … ").replace("\n", " ")
@@ -1102,4 +1130,12 @@ class ConditionBuilderDialog(tk.Toplevel):
         condition = self._build_current_condition()
         wrapped = wrap_condition(condition, self._get_wrap_mode())
         self._insert(wrapped)
+        self._close()
+
+    def _close(self) -> None:
+        # Drop the app-wide mousewheel binding this window installed.
+        try:
+            self.unbind_all("<MouseWheel>")
+        except tk.TclError:
+            pass
         self.destroy()
