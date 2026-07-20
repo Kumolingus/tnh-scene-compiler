@@ -82,6 +82,7 @@ from .expr_parser import (
     BoolOp,
     Call,
     Compare,
+    ListExpr,
     Literal,
     Member,
     Name,
@@ -578,6 +579,11 @@ def _render_expr(
         left = _render_expr(expr.left, scene_local, allow, ctx)
         right = _render_expr(expr.right, scene_local, allow, ctx)
         return f"{left} {expr.op} {right}"
+    if isinstance(expr, ListExpr):
+        elements = ", ".join(
+            _render_expr(e, scene_local, allow, ctx) for e in expr.elements
+        )
+        return f"[{elements}]"
     # Defensive: an unknown node means the expression parser grew a kind
     # without teaching codegen about it.
     raise TypeError(f"Unsupported expression node {type(expr).__name__}")

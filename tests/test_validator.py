@@ -529,13 +529,18 @@ def _arity_allowlists() -> Allowlists:
                 "pregnancy_mod_announcement_retire_for_the_night(Character)"
             ),
         },
-        condition_functions = {"ready_for_parenthood", "announcer_was_present"},
+        condition_functions = {
+            "ready_for_parenthood", "announcer_was_present", "are_Characters_friends",
+        },
         condition_function_signatures = {
             "ready_for_parenthood": (
                 "pregnancy_mod_ready_for_parenthood(Character: CharacterClass | None) -> bool"
             ),
             "announcer_was_present": (
                 "pregnancy_mod_announcement_announcer_was_present() -> bool"
+            ),
+            "are_Characters_friends": (
+                "are_Characters_friends(Characters, level: int = 1) -> bool"
             ),
         },
     )
@@ -615,3 +620,14 @@ def test_condition_function_arity_too_many_is_rejected() -> None:
     # A zero-parameter function reads as "exactly 0", not "at most 0".
     assert "exactly 0 arguments" in errors[0].message
     assert "got 1" in errors[0].message
+
+
+def test_friends_with_sugar_transforms_to_single_list_arg_arity_ok() -> None:
+    # Regression: are_Characters_friends(Characters, level=1) requires 1
+    # arg minimum, 2 max. The DSL used to emit it as 2 separate positional
+    # args (Character, Y) instead of one list [Character, Y] — this test
+    # locks in the corrected 1-arg shape passing arity validation.
+    scene = _scene(
+        _ARITY_HEAD + "[[if JeanGrey.friends_with(Rogue)]]\nShe nods.\n[[/if]]\n",
+    )
+    assert validate(scene, _arity_allowlists()) == []

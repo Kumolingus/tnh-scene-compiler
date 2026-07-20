@@ -9,7 +9,12 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
-from .allowlists import Allowlists, parse_signature_params
+from .allowlists import (
+    Allowlists,
+    group_by_category,
+    is_character_param,
+    parse_signature_params,
+)
 from .condition_builder import ConditionBuilderDialog
 from .config import Config
 from .errors import CompileError
@@ -639,6 +644,11 @@ class _FxParamDialog(tk.Toplevel):
                         fields, textvariable=var, values=choices,
                         state="readonly", width=22,
                     ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=2)
+                elif is_character_param(pname, ptype):
+                    ttk.Combobox(
+                        fields, textvariable=var, values=sorted(allow.characters),
+                        state="readonly", width=22,
+                    ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=2)
                 else:
                     ttk.Entry(fields, textvariable=var, width=24).grid(
                         row=i, column=1, sticky=tk.W, padx=4, pady=2,
@@ -968,13 +978,27 @@ class _DirectiveDialog(tk.Toplevel):
             self._add_entry(parent, 0, "Function call", "op")
             return
 
-        row = self._add_combo(parent, 0, "Operation", "op", ops)
+        grouped = group_by_category(allow.run_operations, allow.run_operation_categories)
+        cat_names = list(grouped.keys())
+
+        row = self._add_combo(
+            parent, 0, "Category", "op_category", cat_names, default=cat_names[0],
+        )
+        op_row = row
+        row = self._add_combo(parent, row, "Operation", "op", grouped[cat_names[0]])
 
         self._run_params_frame = ttk.Frame(parent)
         self._run_params_frame.grid(
             row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0),
         )
         self._run_signatures = allow.run_operation_signatures
+
+        def _on_category_change(*_a: Any) -> None:
+            names = grouped.get(self._vars["op_category"].get(), [])
+            widget = parent.grid_slaves(row=op_row, column=1)
+            if widget:
+                widget[0].configure(values=names)
+            self._vars["op"].set("")
 
         def _on_run_change(*_a: Any) -> None:
             for widget in self._run_params_frame.winfo_children():
@@ -993,13 +1017,21 @@ class _DirectiveDialog(tk.Toplevel):
                 )
                 var = tk.StringVar(value=pdefault)
                 self._run_param_vars.append((pname, pdefault, var))
-                ttk.Entry(
-                    self._run_params_frame, textvariable=var, width=20,
-                ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
+                if is_character_param(pname, ptype):
+                    ttk.Combobox(
+                        self._run_params_frame, textvariable=var,
+                        values=sorted(allow.characters),
+                        state="readonly", width=18,
+                    ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
+                else:
+                    ttk.Entry(
+                        self._run_params_frame, textvariable=var, width=20,
+                    ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
                 var.trace_add("write", self._update_preview)
 
             self._update_preview()
 
+        self._vars["op_category"].trace_add("write", _on_category_change)
         self._vars["op"].trace_add("write", _on_run_change)
 
     def _build_run_args(self) -> str:
@@ -1701,7 +1733,7 @@ class _PaletteSidebar(ttk.Frame):
 
         ttk.Separator(inner, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=6)
         builder_btn = ttk.Button(
-            inner, text="Build condition…",
+            inner, text="Condition Builder…",
             style="Compile.TButton",
             command=self._open_condition_builder,
         )
@@ -1812,7 +1844,6 @@ class _PaletteSidebar(ttk.Frame):
         )
         self._visual_preview_name.pack(padx=4, pady=(0, 8))
         self._visual_preview_image: tk.PhotoImage | None = None
-        self._visual_preview_clear_id: str | None = None
 
         self._visual_frame: ttk.Frame | None = None
         self._refresh_visual_categories()
@@ -1836,13 +1867,19 @@ class _PaletteSidebar(ttk.Frame):
             if available_right:
                 right_arm = right_arm & available_right
 
+        # Arms/Left Arm/Right Arm precede Faces: their thumbnails are full-
+        # body pose shots, while Faces are tight crops. Writers picking a
+        # face first (Faces used to be listed above Arms) had no easy way
+        # to sanity-check the pose without switching category and losing
+        # the face preview — putting the fuller-context images first means
+        # the pose is seen before the writer zooms into an expression.
         all_cats: dict[str, set[str]] = {
             "Moods": allow.shared_moods | allow.char_moods.get(char, set()),
-            "Faces": allow.char_faces.get(char, set()),
-            "Outfits": allow.char_outfits.get(char, set()),
             "Arms": arms,
             "Left Arm": left_arm,
             "Right Arm": right_arm,
+            "Faces": allow.char_faces.get(char, set()),
+            "Outfits": allow.char_outfits.get(char, set()),
             "Looks": allow.looks,
             "Stages": allow.stages,
         }
@@ -1867,8 +1904,9 @@ class _PaletteSidebar(ttk.Frame):
         if self._visual_frame is not None:
             self._visual_frame.destroy()
         self._visual_thumb_refs.clear()
-        self._visual_preview_image = None
-        self._visual_preview_label.configure(image="")
+        # Deliberately not blanking the preview here: switching category
+        # (e.g. Faces -> Arms to sanity-check a pose) should leave the last
+        # hovered image visible until something new is hovered, not go blank.
 
         char = self._visual_char_var.get()
         category = self._visual_cat_var.get()
@@ -1935,13 +1973,13 @@ class _PaletteSidebar(ttk.Frame):
                     )
                     if img:
                         self._visual_thumb_refs.append(img)
+                        # No <Leave> binding: the preview stays on the last
+                        # hovered image instead of going blank, so switching
+                        # categories to sanity-check the pose doesn't lose
+                        # what was just being looked at.
                         btn.bind(
                             "<Enter>",
                             lambda _e, i=img, n=v: self._show_visual_preview(i, n),
-                        )
-                        btn.bind(
-                            "<Leave>",
-                            lambda _e: self._clear_visual_preview(),
                         )
 
     def _resolve_visual_thumb(
@@ -1980,17 +2018,15 @@ class _PaletteSidebar(ttk.Frame):
         self._mood_cycle_after_id = self.after(500, self._mood_cycle_step)
 
     def _stop_mood_cycle(self) -> None:
+        # Only stops the cycling timer — the preview itself is left showing
+        # the last frame rather than blanking (see _show_visual_preview).
         after_id = getattr(self, "_mood_cycle_after_id", None)
         if after_id is not None:
             self.after_cancel(after_id)
             self._mood_cycle_after_id = None
         self._mood_cycle_faces = None
-        self._clear_visual_preview()
 
     def _show_visual_preview(self, img: tk.PhotoImage, name: str) -> None:
-        if self._visual_preview_clear_id is not None:
-            self.after_cancel(self._visual_preview_clear_id)
-            self._visual_preview_clear_id = None
         w = img.width()
         factor = max(1, self._visual_preview_width // w) if w > 0 else 1
         if factor > 1:
@@ -2000,19 +2036,6 @@ class _PaletteSidebar(ttk.Frame):
         self._visual_preview_image = zoomed
         self._visual_preview_label.configure(image=zoomed)
         self._visual_preview_name.configure(text=name)
-
-    def _clear_visual_preview(self) -> None:
-        if self._visual_preview_clear_id is not None:
-            self.after_cancel(self._visual_preview_clear_id)
-        self._visual_preview_clear_id = self.after(
-            300, self._do_clear_visual_preview,
-        )
-
-    def _do_clear_visual_preview(self) -> None:
-        self._visual_preview_clear_id = None
-        self._visual_preview_image = None
-        self._visual_preview_label.configure(image="")
-        self._visual_preview_name.configure(text="")
 
     # -- Search filter ------------------------------------------------------
 

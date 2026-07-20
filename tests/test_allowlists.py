@@ -7,7 +7,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tnh_scene_compiler.allowlists import Allowlists, parse_signature_params
+from tnh_scene_compiler.allowlists import (
+    Allowlists,
+    group_by_category,
+    is_character_param,
+    parse_signature_params,
+)
 
 
 def _write(path: Path, text: str) -> None:
@@ -113,3 +118,133 @@ class TestCharacterMethodSignatures:
             "check_trait": "Character.check_trait(trait: str) -> bool",
             "pregnancy_mod_is_pregnant": "Character.pregnancy_mod_is_pregnant() -> bool",
         }
+
+
+class TestCategoryLoading:
+    """The category field on condition_functions / run_operations / character_methods."""
+
+    def test_condition_function_category_is_captured(self, tmp_path: Path) -> None:
+        _write(tmp_path / "condition_functions.yaml", (
+            "functions:\n"
+            "- name: are_Characters_friends\n"
+            "  category: Relationships\n"
+            "  signature: \"are_Characters_friends(Characters) -> bool\"\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert allowlists.condition_function_categories["are_Characters_friends"] == "Relationships"
+
+    def test_run_operation_category_is_captured(self, tmp_path: Path) -> None:
+        _write(tmp_path / "run_operations.yaml", (
+            "operations:\n"
+            "- name: mymod_record_choice\n"
+            "  category: Player choice recording\n"
+            "  signature: mymod_record_choice(value)\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert allowlists.run_operation_categories["mymod_record_choice"] == "Player choice recording"
+
+    def test_missing_category_is_tolerated(self, tmp_path: Path) -> None:
+        _write(tmp_path / "condition_functions.yaml", (
+            "functions:\n"
+            "- name: get_Location\n"
+            "  signature: \"get_Location() -> Location\"\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert "get_Location" in allowlists.condition_functions
+        assert "get_Location" not in allowlists.condition_function_categories
+
+    def test_merge_unions_categories(self) -> None:
+        base = Allowlists(
+            condition_functions={"check_approval"},
+            condition_function_categories={"check_approval": "Approval"},
+        )
+        mod = Allowlists(
+            condition_functions={"pregnancy_mod_is_pregnant"},
+            condition_function_categories={"pregnancy_mod_is_pregnant": "Mod state"},
+        )
+
+        merged = base.merge(mod)
+
+        assert merged.condition_function_categories == {
+            "check_approval": "Approval",
+            "pregnancy_mod_is_pregnant": "Mod state",
+        }
+
+
+class TestGroupByCategory:
+    def test_groups_and_sorts_within_category(self) -> None:
+        result = group_by_category(
+            {"get_worst_Enemy", "are_Characters_friends", "check_approval"},
+            {
+                "get_worst_Enemy": "Relationships",
+                "are_Characters_friends": "Relationships",
+                "check_approval": "Approval",
+            },
+        )
+        assert result == {
+            "Approval": ["check_approval"],
+            "Relationships": ["are_Characters_friends", "get_worst_Enemy"],
+        }
+
+    def test_categories_sorted_alphabetically(self) -> None:
+        result = group_by_category(
+            {"z_func", "a_func"},
+            {"z_func": "Zebra", "a_func": "Alpha"},
+        )
+        assert list(result.keys()) == ["Alpha", "Zebra"]
+
+    def test_uncategorized_falls_back_to_other_and_sorts_last(self) -> None:
+        result = group_by_category(
+            {"known_func", "mystery_func"},
+            {"known_func": "Location"},
+        )
+        assert list(result.keys()) == ["Location", "Other"]
+        assert result["Other"] == ["mystery_func"]
+
+    def test_all_uncategorized_still_produces_one_group(self) -> None:
+        result = group_by_category({"b_func", "a_func"}, {})
+        assert result == {"Other": ["a_func", "b_func"]}
+
+    def test_custom_other_label(self) -> None:
+        result = group_by_category(
+            {"mystery_func"}, {}, other_label="Uncategorized",
+        )
+        assert result == {"Uncategorized": ["mystery_func"]}
+
+    def test_empty_names_returns_empty_dict(self) -> None:
+        assert group_by_category(set(), {}) == {}
+
+
+class TestIsCharacterParam:
+    def test_bare_character_name_no_annotation(self) -> None:
+        # run_operations.yaml convention: pregnancy_mod_foo(Character, x)
+        assert is_character_param("Character", "") is True
+
+    def test_typed_character_annotation(self) -> None:
+        # character_methods.yaml: Character.get_friendship(other: Character)
+        assert is_character_param("other", "Character") is True
+
+    def test_character_class_union_none(self) -> None:
+        assert is_character_param("Character", "CharacterClass | None") is True
+
+    def test_plain_character_class(self) -> None:
+        assert is_character_param("target", "CharacterClass") is True
+
+    def test_unrelated_typed_param_rejected(self) -> None:
+        assert is_character_param("trait", "str") is False
+
+    def test_untyped_non_character_name_rejected(self) -> None:
+        assert is_character_param("preference", "") is False
+
+    def test_iterable_of_characters_rejected(self) -> None:
+        # Needs a multi-character picker, not this single-value combobox.
+        assert is_character_param("Characters", "Iterable[CharacterClass]") is False
+
+    def test_list_of_characters_rejected(self) -> None:
+        assert is_character_param("Characters", "list[Character]") is False

@@ -129,6 +129,71 @@ def _parse_single_param(param: str) -> tuple[str, str, str]:
     return (name, type_hint, default)
 
 
+_CONTAINER_TYPE_MARKERS = ("[", "Iterable", "iterable", "list", "List", "set", "Set", "tuple", "Tuple")
+
+
+def is_character_param(name: str, type_hint: str) -> bool:
+    """Return ``True`` if a parsed parameter expects a single ``Character``.
+
+    Used to render a character-picker combobox instead of a free-text
+    entry in every per-parameter GUI form (``[[fx]]``, ``[[run]]``,
+    standalone condition functions, character methods).
+
+    Matches the ``Character``-named-with-no-annotation convention used by
+    ``run_operations.yaml`` (e.g. ``pregnancy_mod_record_player_preference
+    (Character, preference)``) as well as an explicit ``Character`` /
+    ``CharacterClass`` type hint (optionally unioned with ``None``, e.g.
+    ``other: Character`` or ``Character: CharacterClass | None``).
+
+    Deliberately excludes container types (``Iterable[CharacterClass]``,
+    ``list[Character]``, ...) — those need a multi-character picker, not
+    this single-value combobox, and are left as free text.
+    """
+    if name == "Character":
+        return True
+    if not type_hint:
+        return False
+    if any(marker in type_hint for marker in _CONTAINER_TYPE_MARKERS):
+        return False
+    return "Character" in type_hint
+
+
+_OTHER_CATEGORY = "Other"
+
+
+def group_by_category(
+    names: set[str] | list[str],
+    categories: dict[str, str],
+    *,
+    other_label: str = _OTHER_CATEGORY,
+) -> dict[str, list[str]]:
+    """Group *names* by their entry in *categories*, sorted within each group.
+
+    Names with no entry in *categories* (or an empty project that never
+    added the field) fall into *other_label*, kept last so a project that
+    hasn't migrated to categories yet still gets one flat, usable group
+    instead of a confusing single-item-per-category GUI.
+
+    Returns an ordered dict: real categories sorted alphabetically first,
+    ``other_label`` last (omitted entirely if empty).
+    """
+    grouped: dict[str, list[str]] = {}
+    uncategorized: list[str] = []
+    for name in names:
+        category = categories.get(name)
+        if category:
+            grouped.setdefault(category, []).append(name)
+        else:
+            uncategorized.append(name)
+
+    result: dict[str, list[str]] = {
+        category: sorted(grouped[category]) for category in sorted(grouped)
+    }
+    if uncategorized:
+        result[other_label] = sorted(uncategorized)
+    return result
+
+
 def _read_yaml(path: Path) -> dict[str, Any] | None:
     """Return the top-level mapping of ``path`` or ``None`` if missing/empty."""
     if not path.is_file():
@@ -332,14 +397,17 @@ class Allowlists:
     sfx: set[str] = field(default_factory=set)
     run_operations: set[str] = field(default_factory=set)
     run_operation_signatures: dict[str, str] = field(default_factory=dict)
+    run_operation_categories: dict[str, str] = field(default_factory=dict)
     fx: set[str] = field(default_factory=set)
     fx_signatures: dict[str, str] = field(default_factory=dict)
     fx_param_choices: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     fx_call_modes: dict[str, str] = field(default_factory=dict)
     condition_functions: set[str] = field(default_factory=set)
     condition_function_signatures: dict[str, str] = field(default_factory=dict)
+    condition_function_categories: dict[str, str] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
     character_method_signatures: dict[str, str] = field(default_factory=dict)
+    character_method_categories: dict[str, str] = field(default_factory=dict)
     traits: set[str] = field(default_factory=set)
     personalities: set[str] = field(default_factory=set)
     history_events: set[str] = field(default_factory=set)
@@ -374,6 +442,7 @@ class Allowlists:
         run_operations_payload = _read_yaml(allowlists_dir / "run_operations.yaml")
         run_operations: set[str] = set()
         run_operation_signatures: dict[str, str] = {}
+        run_operation_categories: dict[str, str] = {}
         if run_operations_payload and isinstance(
             run_operations_payload.get("operations"), list,
         ):
@@ -383,6 +452,9 @@ class Allowlists:
                     sig = item.get("signature")
                     if isinstance(sig, str):
                         run_operation_signatures[item["name"]] = sig
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        run_operation_categories[item["name"]] = cat
 
         # Engine-effects allowlist. Two layers, merged here (same pattern as
         # locations / interpolation):
@@ -426,6 +498,7 @@ class Allowlists:
         )
         condition_functions: set[str] = set()
         condition_function_signatures: dict[str, str] = {}
+        condition_function_categories: dict[str, str] = {}
         if condition_functions_payload and isinstance(
             condition_functions_payload.get("functions"), list,
         ):
@@ -435,12 +508,16 @@ class Allowlists:
                     sig = item.get("signature")
                     if isinstance(sig, str):
                         condition_function_signatures[item["name"]] = sig
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        condition_function_categories[item["name"]] = cat
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
         )
         character_methods: set[str] = set()
         character_method_signatures: dict[str, str] = {}
+        character_method_categories: dict[str, str] = {}
         if character_methods_payload and isinstance(
             character_methods_payload.get("methods"), list,
         ):
@@ -450,6 +527,9 @@ class Allowlists:
                     sig = item.get("signature")
                     if isinstance(sig, str):
                         character_method_signatures[item["name"]] = sig
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        character_method_categories[item["name"]] = cat
 
         traits = set(_values_names(_read_yaml(allowlists_dir / "traits.yaml")))
         personalities = set(_values_names(
@@ -492,14 +572,17 @@ class Allowlists:
             sfx = sfx,
             run_operations = run_operations,
             run_operation_signatures = run_operation_signatures,
+            run_operation_categories = run_operation_categories,
             fx = fx,
             fx_signatures = fx_signatures,
             fx_param_choices = fx_param_choices,
             fx_call_modes = fx_call_modes,
             condition_functions = condition_functions,
             condition_function_signatures = condition_function_signatures,
+            condition_function_categories = condition_function_categories,
             character_methods = character_methods,
             character_method_signatures = character_method_signatures,
+            character_method_categories = character_method_categories,
             traits = traits,
             personalities = personalities,
             history_events = history_events,
@@ -664,6 +747,9 @@ class Allowlists:
             run_operation_signatures={
                 **self.run_operation_signatures, **other.run_operation_signatures,
             },
+            run_operation_categories={
+                **self.run_operation_categories, **other.run_operation_categories,
+            },
             fx=self.fx | other.fx,
             fx_signatures={**self.fx_signatures, **other.fx_signatures},
             fx_param_choices={**self.fx_param_choices, **other.fx_param_choices},
@@ -673,9 +759,16 @@ class Allowlists:
                 **self.condition_function_signatures,
                 **other.condition_function_signatures,
             },
+            condition_function_categories={
+                **self.condition_function_categories,
+                **other.condition_function_categories,
+            },
             character_methods=self.character_methods | other.character_methods,
             character_method_signatures={
                 **self.character_method_signatures, **other.character_method_signatures,
+            },
+            character_method_categories={
+                **self.character_method_categories, **other.character_method_categories,
             },
             traits=self.traits | other.traits,
             personalities=self.personalities | other.personalities,

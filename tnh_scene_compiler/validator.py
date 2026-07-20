@@ -53,7 +53,17 @@ from .ast_nodes import (
 from .dsl import transform as dsl_transform
 from .errors import CompileError
 from .paren_parser import parse_look_values
-from .expr_parser import Attribute, BoolOp, Call, Compare, Expr, Member, Name, UnaryNot
+from .expr_parser import (
+    Attribute,
+    BoolOp,
+    Call,
+    Compare,
+    Expr,
+    ListExpr,
+    Member,
+    Name,
+    UnaryNot,
+)
 
 _SCENE_ID_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -834,6 +844,11 @@ def _collect_calls(expr: Expr) -> list[Call]:
     if isinstance(expr, Member):
         result = _collect_calls(expr.left)
         result.extend(_collect_calls(expr.right))
+        return result
+    if isinstance(expr, ListExpr):
+        result = []
+        for element in expr.elements:
+            result.extend(_collect_calls(element))
         return result
     return []
 

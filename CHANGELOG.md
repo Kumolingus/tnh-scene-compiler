@@ -46,6 +46,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `change_face(..., eyes={"down", "neutral"})` set idiom, so the sprite draws a
   member each render. A single value still compiles to `eyes="down"`. Every set
   member is validated against the `looks` allowlist.
+- `condition_functions.yaml`, `run_operations.yaml`, and `character_methods.yaml`
+  entries can now carry an optional `category:` field. The Condition Builder's
+  "Standalone function" / "Character method" types and the editor's "run
+  function" form group their pick-list by category (with an "Other" fallback
+  for projects that haven't added categories yet) instead of one flat
+  alphabetical list — the base-game allowlists ship with categories filled in
+  (Approval, Relationships, Location, Time, Clothing, History, Character
+  status for condition functions; Traits, Personality, Mood and status,
+  Relationships, Features, History for character methods).
+- Every per-parameter field (`[[fx]]`, `[[run]]`, standalone condition
+  functions, character methods) now renders a character-picker dropdown
+  instead of a free-text box when the parameter's signature expects a single
+  `Character` — either a bare `Character` parameter name (the `[[run]]`
+  convention) or a `Character`/`CharacterClass` type hint. Parameters typed as
+  a collection of characters (`Iterable[CharacterClass]`, `list[Character]`, …)
+  are left as free text since they need a value the single-picker can't
+  express.
+- The Condition Builder can now combine two guided conditions with `and` /
+  `or` via a new "Combine with" selector, instead of requiring a hand-edit
+  after inserting a single condition. (Internally, the per-clause UI — type
+  selector, dynamic parameter fields, condition assembly — moved into a
+  reusable `_ConditionClausePanel`, embedded once or twice depending on the
+  combine mode.)
 
 ### Removed
 
@@ -102,6 +125,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the same face name for a character twice (e.g. LauraKinney `squint` at two
   lines). Each distinct name is kept once (first occurrence), so the generated
   `faces/<Char>.yaml` and the cheatsheet no longer list it twice.
+- **Crash fix:** the `Character.friends_with(Y)` DSL sugar compiled to
+  `are_Characters_friends(Character, Y)` — two positional arguments — but the
+  real base-game function takes one iterable:
+  `are_Characters_friends(Characters: Iterable[CharacterClass], level=1)`.
+  A lone `CharacterClass` bound to that parameter has no `__iter__`, but does
+  have a string-keyed `__getitem__` inherited from `TraitClass`; Python's
+  legacy `__getitem__`-based iteration fallback then calls it with `0`, `1`,
+  `2`, … forever, since `dict.get(int_key, default)` never raises
+  `IndexError` for a missing key — the game hangs with no error the moment
+  the condition is evaluated. Fixed by emitting a genuine list literal
+  (`are_Characters_friends([Character, Y])`); the expression grammar gained a
+  `ListExpr` node — parser-unreachable, used only by this DSL rewrite — since
+  it previously had no way to construct one. No scene in the current corpus
+  used `.friends_with()` yet, so nothing shipped was actually affected, but
+  the Condition Builder's "Friendship check" type pointed writers straight at
+  the bug.
+- The Visuals palette tab's preview panel no longer blanks when the mouse
+  leaves a thumbnail button or when switching category/character — it keeps
+  showing the last hovered image until a new one is hovered. Also reordered
+  the category list so `Arms` / `Left Arm` / `Right Arm` (full-body pose
+  shots) precede `Faces` (tight crops): checking a face used to require
+  leaving the category that shows the pose, and the old blank-on-leave
+  preview meant there was no way to see both without re-hovering each time.
 
 ## [0.1.1] - 2026-06-08
 

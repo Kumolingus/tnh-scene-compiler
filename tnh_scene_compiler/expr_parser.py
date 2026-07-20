@@ -170,7 +170,26 @@ class Member:
         return f"{self.left.to_rpy()} {self.op} {self.right.to_rpy()}"
 
 
-Expr = Literal | Name | Attribute | Call | UnaryNot | BoolOp | Compare | Member
+@dataclass(frozen=True, slots=True)
+class ListExpr:
+    """A list literal — ``[a, b]``.
+
+    Never produced by the parser (writers cannot type list literals in
+    condition text); it exists purely so the DSL transformation layer
+    (:mod:`dsl`) can construct a syntactically valid argument when a
+    writer-friendly rewrite targets a base-game function that expects an
+    iterable of characters (e.g. ``Character.friends_with(Y)`` ->
+    ``are_Characters_friends([Character, Y])``).
+    """
+
+    elements: tuple[Expr, ...]
+    col_offset: int = 0
+
+    def to_rpy(self) -> str:
+        return f"[{', '.join(e.to_rpy() for e in self.elements)}]"
+
+
+Expr = Literal | Name | Attribute | Call | UnaryNot | BoolOp | Compare | Member | ListExpr
 
 
 # --- Tokeniser ----------------------------------------------------------------

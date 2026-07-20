@@ -135,6 +135,24 @@ def test_codegen_expression_with_function_call(allowlists: Allowlists) -> None:
     assert "check_approval(JeanGrey, \"love\")" in output
 
 
+def test_codegen_friends_with_emits_list_argument(allowlists: Allowlists) -> None:
+    # Regression: are_Characters_friends() takes ONE iterable of characters,
+    # not two positional character args. The old codegen emitted
+    # are_Characters_friends(JeanGrey, Rogue) — a lone CharacterClass bound
+    # to the Iterable[CharacterClass] param, which never raises IndexError
+    # under Python's __getitem__ iteration fallback and hangs the game.
+    src = _PREFIX + (
+        "[[if JeanGrey.friends_with(Rogue)]]\n"
+        "JEANGREY\nLine.\n"
+        "[[/if]]\n"
+    )
+
+    scene = parse(src, path = "inline.scene")
+    output = generate(scene, allowlists, _CTX)
+
+    assert "are_Characters_friends([JeanGrey, Rogue])" in output
+
+
 def test_codegen_empty_branch_gets_pass(allowlists: Allowlists) -> None:
     # Comment-only branch body should still emit a ``pass`` so Ren'Py lints.
     src = _PREFIX + (

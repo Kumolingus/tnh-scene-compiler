@@ -4,6 +4,7 @@ import pytest
 
 from tnh_scene_compiler.condition_builder import (
     build_condition,
+    combine_conditions,
     resolve_method_path,
     wrap_condition,
 )
@@ -191,3 +192,25 @@ class TestWrapCondition:
     def test_unknown_mode_returns_bare(self):
         result = wrap_condition(self.COND, "unknown")
         assert result == self.COND
+
+
+# -- combine_conditions --------------------------------------------------------
+
+
+class TestCombineConditions:
+    def test_and(self):
+        result = combine_conditions("JeanGrey.love >= 500", "and", 'Rogue.has("shy")')
+        assert result == 'JeanGrey.love >= 500 and Rogue.has("shy")'
+
+    def test_or(self):
+        result = combine_conditions("JeanGrey.nearby", "or", "Rogue.nearby")
+        assert result == "JeanGrey.nearby or Rogue.nearby"
+
+    def test_none_mode_returns_first_only(self):
+        result = combine_conditions("JeanGrey.love >= 500", "none", "Rogue.nearby")
+        assert result == "JeanGrey.love >= 500"
+
+    def test_empty_second_clause_returns_first_only(self):
+        # A combine mode is selected but clause B isn't valid/filled yet.
+        result = combine_conditions("JeanGrey.love >= 500", "and", "")
+        assert result == "JeanGrey.love >= 500"

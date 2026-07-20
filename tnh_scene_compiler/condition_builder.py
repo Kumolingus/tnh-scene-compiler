@@ -1,10 +1,12 @@
 """Condition builder dialog for the scene editor.
 
 Guided UI that helps writers discover and construct condition
-expressions for ``[[if]]``, ``[[elif]]``, and choice guards.
+expressions for ``[[if]]``, ``[[elif]]``, and choice guards. Supports an
+optional second clause joined with ``and``/``or`` so two guided checks can
+be combined without hand-typing the boolean expression.
 
-The pure-logic helpers (``build_condition``, ``wrap_condition``) are
-importable and testable without Tkinter.
+The pure-logic helpers (``build_condition``, ``combine_conditions``,
+``wrap_condition``) are importable and testable without Tkinter.
 """
 
 from __future__ import annotations
@@ -14,7 +16,12 @@ from collections.abc import Callable
 from tkinter import ttk
 from typing import Any
 
-from .allowlists import Allowlists, parse_signature_params
+from .allowlists import (
+    Allowlists,
+    group_by_category,
+    is_character_param,
+    parse_signature_params,
+)
 
 # -- Constants ---------------------------------------------------------------
 
@@ -37,6 +44,12 @@ WRAP_MODES: list[tuple[str, str]] = [
     ("⟦elif …⟧", "elif"),
     ("⟦if …⟧ (no closing)", "if_open"),
     ("Expression only", "bare"),
+]
+
+COMBINE_MODES: list[tuple[str, str]] = [
+    ("Single condition", "none"),
+    ("AND", "and"),
+    ("OR", "or"),
 ]
 
 _REQUIRED_VARS: dict[str, list[str]] = {
@@ -181,6 +194,19 @@ def resolve_method_path(signature: str, method_name: str) -> str:
     return method_name
 
 
+def combine_conditions(cond_a: str, op: str, cond_b: str) -> str:
+    """Join two condition expressions with a boolean operator.
+
+    *op* is one of the ``COMBINE_MODES`` keys (``"none"``, ``"and"``,
+    ``"or"``). ``"none"`` — or a blank *cond_b* — returns *cond_a* alone,
+    so a dialog can call this unconditionally regardless of whether a
+    second clause is currently active.
+    """
+    if op == "none" or not cond_b:
+        return cond_a
+    return f"{cond_a} {op} {cond_b}"
+
+
 def wrap_condition(condition: str, mode: str) -> str:
     """Wrap a condition expression for insertion into the editor.
 
@@ -200,116 +226,73 @@ def wrap_condition(condition: str, mode: str) -> str:
     return condition
 
 
-# -- Dialog ------------------------------------------------------------------
+# -- Single-clause panel ------------------------------------------------------
 
-class ConditionBuilderDialog(tk.Toplevel):
-    """Modal dialog that guides writers through building a condition."""
+class _ConditionClausePanel(ttk.Frame):
+    """One condition's worth of guided UI: type selector + dynamic params.
+
+    Embedded once (always) or twice (when the dialog's Combine mode is
+    AND/OR) inside :class:`ConditionBuilderDialog`. Owns none of the
+    wrap-mode / insert-button / combine-mode state — that stays in the
+    dialog, which reads this panel back via :meth:`get_condition` and
+    :meth:`is_valid`.
+
+    The change callback is wired via :meth:`set_on_change` *after*
+    construction rather than passed into ``__init__`` — the panel builds
+    its own initial parameter fields as part of construction (so it opens
+    pre-populated), and at that point the dialog's own preview/insert-button
+    widgets do not exist yet to be safely notified.
+    """
 
     def __init__(
         self,
         master: tk.Widget,
         allow: Allowlists,
-        insert_cb: Callable[[str], None],
-        *,
-        characters: list[str] | None = None,
+        characters: list[str],
     ) -> None:
         super().__init__(master)
-        self.title("Condition Builder")
-        self.resizable(False, False)
-        self.grab_set()
-
-        self._insert = insert_cb
         self._allow = allow
-        self._characters = sorted(characters) if characters else (
-            sorted(allow.characters) if allow.characters else []
-        )
+        self._characters = characters
+        self._on_change: Callable[[], None] | None = None
         self._vars: dict[str, tk.StringVar] = {}
         self._mood_combo_widget: ttk.Combobox | None = None
         self._func_param_vars: list[tuple[str, str, tk.StringVar]] = []
         self._method_param_vars: list[tuple[str, str, tk.StringVar]] = []
         self._current_kind: str | None = None
 
-        body = ttk.Frame(self, padding=12)
-        body.pack(fill=tk.BOTH, expand=True)
-
-        # -- Condition type selector -----------------------------------------
+        # -- Condition type selector ------------------------------------
         ttk.Label(
-            body, text="Condition type:", font=("Segoe UI", 10, "bold"),
+            self, text="Condition type:", font=("Segoe UI", 10, "bold"),
         ).pack(anchor=tk.W)
 
         type_labels = [label for label, _ in CONDITION_TYPES]
         self._type_label_to_key = {label: key for label, key in CONDITION_TYPES}
         self._type_var = tk.StringVar(value=type_labels[0])
         type_combo = ttk.Combobox(
-            body, textvariable=self._type_var,
+            self, textvariable=self._type_var,
             values=type_labels, state="readonly", width=28,
         )
         type_combo.pack(fill=tk.X, pady=(2, 8))
         type_combo.bind("<<ComboboxSelected>>", self._on_type_select)
 
-        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(0, 8))
-
-        # -- Dynamic parameter area ------------------------------------------
-        self._param_container = ttk.Frame(body)
+        # -- Dynamic parameter area ---------------------------------------
+        self._param_container = ttk.Frame(self)
         self._param_container.pack(fill=tk.BOTH, expand=True)
         self._param_frame: ttk.Frame | None = None
 
-        # -- Wrap mode -------------------------------------------------------
-        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
-
-        wrap_frame = ttk.Frame(body)
-        wrap_frame.pack(fill=tk.X)
-        ttk.Label(wrap_frame, text="Insert as:").pack(side=tk.LEFT, padx=(0, 4))
-
-        wrap_labels = [label for label, _ in WRAP_MODES]
-        self._wrap_label_to_key = {label: key for label, key in WRAP_MODES}
-        self._wrap_var = tk.StringVar(value=wrap_labels[0])
-        wrap_combo = ttk.Combobox(
-            wrap_frame, textvariable=self._wrap_var,
-            values=wrap_labels, state="readonly", width=28,
-        )
-        wrap_combo.pack(side=tk.LEFT)
-        wrap_combo.bind("<<ComboboxSelected>>", lambda _: self._update_preview())
-
-        # -- Preview ---------------------------------------------------------
-        preview_frame = ttk.Frame(body)
-        preview_frame.pack(fill=tk.X, pady=(8, 0))
-        ttk.Label(
-            preview_frame, text="Preview:", font=("Segoe UI", 9, "bold"),
-        ).pack(anchor=tk.W)
-        self._preview_var = tk.StringVar()
-        ttk.Label(
-            preview_frame, textvariable=self._preview_var,
-            font=("Consolas", 10), foreground="#A0E8C0",
-            wraplength=450, justify=tk.LEFT,
-        ).pack(anchor=tk.W, pady=(2, 0))
-
-        # -- Buttons ---------------------------------------------------------
-        btn_frame = ttk.Frame(body)
-        btn_frame.pack(fill=tk.X, pady=(12, 0))
-        ttk.Button(
-            btn_frame, text="Cancel", style="Danger.TButton",
-            command=self.destroy,
-        ).pack(side=tk.RIGHT, padx=(4, 0))
-        self._insert_btn = ttk.Button(
-            btn_frame, text="Insert", style="Compile.TButton",
-            command=self._do_insert, state=tk.DISABLED,
-        )
-        self._insert_btn.pack(side=tk.RIGHT)
-
-        self.bind("<Return>", lambda e: self._do_insert())
-        self.bind("<Escape>", lambda e: self.destroy())
-
-        # Build initial params for the first type
+        # Build initial params for the first type (silent — no on_change
+        # wired yet; see set_on_change).
         self._on_type_select()
 
-        # Center on parent
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 2
-        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+    def set_on_change(self, callback: Callable[[], None]) -> None:
+        """Wire the change notification. Call after construction."""
+        self._on_change = callback
 
-    # -- Type selection ------------------------------------------------------
+    def _notify_change(self) -> None:
+        if self._on_change is not None:
+            self._on_change()
+
+    # -- Type selection --------------------------------------------------
 
     def _on_type_select(self, _event: Any = None) -> None:
         kind = self._type_label_to_key.get(self._type_var.get())
@@ -334,9 +317,9 @@ class ConditionBuilderDialog(tk.Toplevel):
         if builder:
             builder(self._param_frame)
 
-        self._update_preview()
+        self._notify_change()
 
-    # -- Field helpers -------------------------------------------------------
+    # -- Field helpers -----------------------------------------------------
 
     def _add_character_field(
         self,
@@ -366,7 +349,7 @@ class ConditionBuilderDialog(tk.Toplevel):
 
         widget.grid(row=row, column=1, sticky=tk.W, pady=2)
         self._vars[var_key] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         return row + 1
 
     def _add_text_field(
@@ -386,7 +369,7 @@ class ConditionBuilderDialog(tk.Toplevel):
             row=row, column=1, sticky=tk.W, pady=2,
         )
         self._vars[var_key] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         return row + 1
 
     def _add_combo_field(
@@ -408,7 +391,7 @@ class ConditionBuilderDialog(tk.Toplevel):
             state="readonly", width=20,
         ).grid(row=row, column=1, sticky=tk.W, pady=2)
         self._vars[var_key] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         return row + 1
 
     def _add_description(self, parent: ttk.Frame, row: int, kind: str) -> int:
@@ -425,7 +408,7 @@ class ConditionBuilderDialog(tk.Toplevel):
             return row + 1
         return row
 
-    # -- Character-change callback -------------------------------------------
+    # -- Character-change callback -----------------------------------------
 
     def _on_character_changed(self) -> None:
         """Refresh mood values when the character changes in mood mode."""
@@ -500,7 +483,7 @@ class ConditionBuilderDialog(tk.Toplevel):
         )
         self._mood_combo_widget.grid(row=row, column=1, sticky=tk.W, pady=2)
         self._vars["mood"] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         row += 1
 
         self._add_description(parent, row, "mood")
@@ -522,7 +505,7 @@ class ConditionBuilderDialog(tk.Toplevel):
                 row=row, column=1, sticky=tk.W, pady=2,
             )
         self._vars["other_character"] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         row += 1
 
         self._add_description(parent, row, "friendship")
@@ -557,10 +540,27 @@ class ConditionBuilderDialog(tk.Toplevel):
             self._add_description(parent, row, "method")
             return
 
-        row = self._add_combo_field(parent, "Method", row, "method_name", known_methods)
+        grouped = group_by_category(
+            self._allow.character_methods, self._allow.character_method_categories,
+        )
+        cat_names = list(grouped.keys())
+
+        row = self._add_combo_field(parent, "Category", row, "method_category", cat_names)
+        method_row = row
+        row = self._add_combo_field(
+            parent, "Method", row, "method_name", grouped[cat_names[0]],
+        )
         params_frame = ttk.Frame(parent)
         params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
         row += 1
+
+        def _on_category_change(*_a: Any) -> None:
+            names = grouped.get(self._get_var("method_category"), [])
+            widget = parent.grid_slaves(row=method_row, column=1)
+            if widget:
+                widget[0].configure(values=names)
+            if names:
+                self._vars["method_name"].set(names[0])
 
         def _on_method_change(*_a: Any) -> None:
             for widget in params_frame.winfo_children():
@@ -579,13 +579,20 @@ class ConditionBuilderDialog(tk.Toplevel):
                 )
                 var = tk.StringVar(value=pdefault)
                 self._method_param_vars.append((pname, pdefault, var))
-                ttk.Entry(params_frame, textvariable=var, width=20).grid(
-                    row=i, column=1, sticky=tk.W, pady=1,
-                )
-                var.trace_add("write", lambda *_: self._update_preview())
+                if is_character_param(pname, ptype):
+                    ttk.Combobox(
+                        params_frame, textvariable=var, values=self._characters,
+                        state="readonly", width=18,
+                    ).grid(row=i, column=1, sticky=tk.W, pady=1)
+                else:
+                    ttk.Entry(params_frame, textvariable=var, width=20).grid(
+                        row=i, column=1, sticky=tk.W, pady=1,
+                    )
+                var.trace_add("write", lambda *_: self._notify_change())
 
-            self._update_preview()
+            self._notify_change()
 
+        self._vars["method_category"].trace_add("write", _on_category_change)
         self._vars["method_name"].trace_add("write", _on_method_change)
         _on_method_change()
 
@@ -599,10 +606,27 @@ class ConditionBuilderDialog(tk.Toplevel):
             self._add_description(parent, row, "function")
             return
 
-        row = self._add_combo_field(parent, "Function", 0, "func_name", funcs)
+        grouped = group_by_category(
+            self._allow.condition_functions, self._allow.condition_function_categories,
+        )
+        cat_names = list(grouped.keys())
+
+        row = self._add_combo_field(parent, "Category", 0, "func_category", cat_names)
+        func_row = row
+        row = self._add_combo_field(
+            parent, "Function", row, "func_name", grouped[cat_names[0]],
+        )
         params_frame = ttk.Frame(parent)
         params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
         row += 1
+
+        def _on_category_change(*_a: Any) -> None:
+            names = grouped.get(self._get_var("func_category"), [])
+            widget = parent.grid_slaves(row=func_row, column=1)
+            if widget:
+                widget[0].configure(values=names)
+            if names:
+                self._vars["func_name"].set(names[0])
 
         def _on_func_change(*_a: Any) -> None:
             for widget in params_frame.winfo_children():
@@ -621,13 +645,20 @@ class ConditionBuilderDialog(tk.Toplevel):
                 )
                 var = tk.StringVar(value=pdefault)
                 self._func_param_vars.append((pname, pdefault, var))
-                ttk.Entry(params_frame, textvariable=var, width=20).grid(
-                    row=i, column=1, sticky=tk.W, pady=1,
-                )
-                var.trace_add("write", lambda *_: self._update_preview())
+                if is_character_param(pname, ptype):
+                    ttk.Combobox(
+                        params_frame, textvariable=var, values=self._characters,
+                        state="readonly", width=18,
+                    ).grid(row=i, column=1, sticky=tk.W, pady=1)
+                else:
+                    ttk.Entry(params_frame, textvariable=var, width=20).grid(
+                        row=i, column=1, sticky=tk.W, pady=1,
+                    )
+                var.trace_add("write", lambda *_: self._notify_change())
 
-            self._update_preview()
+            self._notify_change()
 
+        self._vars["func_category"].trace_add("write", _on_category_change)
         self._vars["func_name"].trace_add("write", _on_func_change)
         _on_func_change()
 
@@ -666,14 +697,14 @@ class ConditionBuilderDialog(tk.Toplevel):
         sig = self._allow.character_method_signatures.get(name, "")
         return resolve_method_path(sig, name)
 
-    # -- Preview and insertion -----------------------------------------------
+    # -- Public accessors ------------------------------------------------
 
     def _get_var(self, key: str) -> str:
         """Return the current value of a parameter variable, or ``""``."""
         var = self._vars.get(key)
         return var.get() if var else ""
 
-    def _build_current_condition(self) -> str:
+    def get_condition(self) -> str:
         """Build the condition string from the current parameter values."""
         if not self._current_kind:
             return ""
@@ -692,9 +723,177 @@ class ConditionBuilderDialog(tk.Toplevel):
             method_args=self._assemble_method_args(),
         )
 
+    def is_valid(self) -> bool:
+        """``True`` once every field required by the current type is filled."""
+        required = _REQUIRED_VARS.get(self._current_kind or "", [])
+        return all(self._get_var(k) for k in required)
+
+
+# -- Dialog ------------------------------------------------------------------
+
+class ConditionBuilderDialog(tk.Toplevel):
+    """Modal dialog that guides writers through building a condition.
+
+    Always shows one :class:`_ConditionClausePanel`. Setting "Combine
+    with" to AND/OR reveals a second panel; the two clauses are then
+    joined with that operator (see :func:`combine_conditions`).
+    """
+
+    def __init__(
+        self,
+        master: tk.Widget,
+        allow: Allowlists,
+        insert_cb: Callable[[str], None],
+        *,
+        characters: list[str] | None = None,
+    ) -> None:
+        super().__init__(master)
+        self.title("Condition Builder")
+        self.resizable(False, False)
+        self.grab_set()
+
+        self._insert = insert_cb
+        self._allow = allow
+        self._characters = sorted(characters) if characters else (
+            sorted(allow.characters) if allow.characters else []
+        )
+        self._clause_b: _ConditionClausePanel | None = None
+
+        body = ttk.Frame(self, padding=12)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        # -- Clause A (always present) ---------------------------------------
+        self._clause_a = _ConditionClausePanel(body, allow, self._characters)
+        self._clause_a.pack(fill=tk.BOTH, expand=True)
+
+        # -- Combine mode ------------------------------------------------------
+        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
+
+        combine_frame = ttk.Frame(body)
+        combine_frame.pack(fill=tk.X)
+        ttk.Label(combine_frame, text="Combine with:").pack(side=tk.LEFT, padx=(0, 4))
+
+        combine_labels = [label for label, _ in COMBINE_MODES]
+        self._combine_label_to_key = {label: key for label, key in COMBINE_MODES}
+        self._combine_var = tk.StringVar(value=combine_labels[0])
+        combine_combo = ttk.Combobox(
+            combine_frame, textvariable=self._combine_var,
+            values=combine_labels, state="readonly", width=20,
+        )
+        combine_combo.pack(side=tk.LEFT)
+        combine_combo.bind("<<ComboboxSelected>>", self._on_combine_change)
+
+        # -- Clause B (created lazily) -----------------------------------------
+        self._clause_b_container = ttk.Frame(body)
+
+        # -- Wrap mode -------------------------------------------------------
+        # Handle kept so clause B's container can be packed just above this
+        # separator (via before=) when the combine mode is turned on, instead
+        # of appending after the buttons.
+        self._pre_wrap_separator = ttk.Separator(body, orient=tk.HORIZONTAL)
+        self._pre_wrap_separator.pack(fill=tk.X, pady=8)
+
+        wrap_frame = ttk.Frame(body)
+        wrap_frame.pack(fill=tk.X)
+        ttk.Label(wrap_frame, text="Insert as:").pack(side=tk.LEFT, padx=(0, 4))
+
+        wrap_labels = [label for label, _ in WRAP_MODES]
+        self._wrap_label_to_key = {label: key for label, key in WRAP_MODES}
+        self._wrap_var = tk.StringVar(value=wrap_labels[0])
+        wrap_combo = ttk.Combobox(
+            wrap_frame, textvariable=self._wrap_var,
+            values=wrap_labels, state="readonly", width=28,
+        )
+        wrap_combo.pack(side=tk.LEFT)
+        wrap_combo.bind("<<ComboboxSelected>>", lambda _: self._update_preview())
+
+        # -- Preview ---------------------------------------------------------
+        preview_frame = ttk.Frame(body)
+        preview_frame.pack(fill=tk.X, pady=(8, 0))
+        ttk.Label(
+            preview_frame, text="Preview:", font=("Segoe UI", 9, "bold"),
+        ).pack(anchor=tk.W)
+        self._preview_var = tk.StringVar()
+        ttk.Label(
+            preview_frame, textvariable=self._preview_var,
+            font=("Consolas", 10), foreground="#A0E8C0",
+            wraplength=450, justify=tk.LEFT,
+        ).pack(anchor=tk.W, pady=(2, 0))
+
+        # -- Buttons ---------------------------------------------------------
+        btn_frame = ttk.Frame(body)
+        btn_frame.pack(fill=tk.X, pady=(12, 0))
+        ttk.Button(
+            btn_frame, text="Cancel", style="Danger.TButton",
+            command=self.destroy,
+        ).pack(side=tk.RIGHT, padx=(4, 0))
+        self._insert_btn = ttk.Button(
+            btn_frame, text="Insert", style="Compile.TButton",
+            command=self._do_insert, state=tk.DISABLED,
+        )
+        self._insert_btn.pack(side=tk.RIGHT)
+
+        self.bind("<Return>", lambda e: self._do_insert())
+        self.bind("<Escape>", lambda e: self.destroy())
+
+        # Wire the change callback now that preview/insert-button exist,
+        # then run one initial preview pass.
+        self._clause_a.set_on_change(self._update_preview)
+        self._update_preview()
+
+        # Center on parent
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    # -- Combine mode ------------------------------------------------------
+
+    def _on_combine_change(self, _event: Any = None) -> None:
+        mode = self._combine_label_to_key.get(self._combine_var.get(), "none")
+        if mode == "none":
+            if self._clause_b is not None:
+                self._clause_b.destroy()
+                self._clause_b = None
+            self._clause_b_container.pack_forget()
+        else:
+            if self._clause_b is None:
+                ttk.Separator(
+                    self._clause_b_container, orient=tk.HORIZONTAL,
+                ).pack(fill=tk.X, pady=(0, 8))
+                self._clause_b = _ConditionClausePanel(
+                    self._clause_b_container, self._allow, self._characters,
+                )
+                self._clause_b.pack(fill=tk.BOTH, expand=True)
+                self._clause_b.set_on_change(self._update_preview)
+            self._clause_b_container.pack(
+                fill=tk.BOTH, expand=True, pady=(8, 0), before=self._pre_wrap_separator,
+            )
+        self._update_preview()
+
+    # -- Preview and insertion -----------------------------------------------
+
     def _get_wrap_mode(self) -> str:
         """Return the selected wrap mode key."""
         return self._wrap_label_to_key.get(self._wrap_var.get(), "if_block")
+
+    def _get_combine_mode(self) -> str:
+        return self._combine_label_to_key.get(self._combine_var.get(), "none")
+
+    def _build_current_condition(self) -> str:
+        """Build the (possibly combined) condition string."""
+        cond_a = self._clause_a.get_condition()
+        mode = self._get_combine_mode()
+        if mode == "none" or self._clause_b is None:
+            return cond_a
+        return combine_conditions(cond_a, mode, self._clause_b.get_condition())
+
+    def _is_valid(self) -> bool:
+        if not self._clause_a.is_valid():
+            return False
+        if self._get_combine_mode() == "none":
+            return True
+        return self._clause_b is not None and self._clause_b.is_valid()
 
     def _update_preview(self, *_args: Any) -> None:
         """Refresh the preview label and the Insert button state."""
@@ -702,10 +901,7 @@ class ConditionBuilderDialog(tk.Toplevel):
         wrapped = wrap_condition(condition, self._get_wrap_mode())
         display = wrapped.replace("\n\n", " … ").replace("\n", " ")
         self._preview_var.set(display)
-
-        required = _REQUIRED_VARS.get(self._current_kind or "", [])
-        valid = all(self._get_var(k) for k in required)
-        self._insert_btn.configure(state=tk.NORMAL if valid else tk.DISABLED)
+        self._insert_btn.configure(state=tk.NORMAL if self._is_valid() else tk.DISABLED)
 
     def _do_insert(self) -> None:
         """Build the final condition, wrap it, and insert into the editor."""
