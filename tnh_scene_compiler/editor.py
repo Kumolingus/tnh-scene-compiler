@@ -2113,6 +2113,9 @@ class EditorScreen(ttk.Frame):
         )
         self._title_label.pack(side=tk.LEFT, padx=8)
 
+        ttk.Button(frm, text="Glossary", command=self._open_glossary).pack(
+            side=tk.RIGHT, padx=(4, 0),
+        )
         ttk.Button(frm, text="Settings", command=self._open_settings).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
@@ -2417,6 +2420,17 @@ class EditorScreen(ttk.Frame):
     def _open_settings(self) -> None:
         from .gui import _SettingsDialog
         _SettingsDialog(self, self._app)
+
+    def _open_glossary(self) -> None:
+        from .glossary import GlossaryDialog
+        # Re-focus an already-open glossary instead of stacking duplicates.
+        existing = getattr(self, "_glossary", None)
+        if existing is not None and existing.winfo_exists():
+            existing.deiconify()
+            existing.lift()
+            existing.focus_set()
+            return
+        self._glossary = GlossaryDialog(self)
 
     def _go_back(self) -> None:
         if self._modified:

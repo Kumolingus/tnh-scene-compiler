@@ -141,6 +141,16 @@ Hey.
 [[if JeanGrey.friends_with(Rogue)]]   Friendship check
 [[if JeanGrey.did("kissed_player")]]  History check
 [[if JeanGrey.nearby]]                Proximity check
+[[if JeanGrey.desire >= 0.5]]         Character property (a number, compare it)
+```
+
+Some helpers return a number rather than a yes/no (a friendship tier, a
+count, a stat like `desire`) — compare them instead of using them bare, e.g.
+`>= 2`, `< 0`:
+
+```
+[[if get_effective_friendship(JeanGrey, Rogue) >= 2]]
+[[if JeanGrey.sex_experience > 0]]
 ```
 
 Combine with `and`, `or`, `not`:
@@ -227,9 +237,12 @@ Tiers: `tiny_stat` (+2), `small_stat` (+5), `medium_stat` (+10), `large_stat` (+
 
 ```
 [[show JeanGrey mood=happy]]
-[[show JeanGrey mood=happy, face=smile]]
+[[show JeanGrey mood=happy face=smile]]
 [[hide JeanGrey]]
 ```
+
+Attributes are separated by spaces (not commas). Valid keys:
+`mood`, `face`, `arms`, `left_arm`, `right_arm`, `outfit`, `look`, `stage`, `fade`.
 
 ### Phone
 

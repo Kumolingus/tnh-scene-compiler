@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- In-app **Glossary** window (a "Glossary" button in the editor toolbar). A
+  separate, non-modal reference: a searchable section list on the left, the
+  selected section's prose + copyable code examples on the right (each example
+  has a "Copy" button). Content is parsed at runtime from the bundled
+  `docs/scene_cheatsheet.md`, so the glossary and the doc never drift. The
+  parser (`glossary.parse_glossary`) is pure/testable; the cheatsheet is now
+  bundled into the exe (`.spec` datas).
 - New "Character property" condition type + a `character_properties.yaml`
   allowlist (chantier B). Read-only companion `@property` accessors — `desire`,
   `breast_size`, `ass_size`, `sex_experience`, `dirty_talk_experience`,
@@ -157,6 +164,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The `scene_cheatsheet.md` Show/Hide example showed a comma between `[[show]]`
+  attributes (`mood=happy, face=smile`), which does not compile — the directive
+  grammar is space-separated. Corrected to `mood=happy face=smile` and the
+  valid attribute keys were listed. (Same root cause as the editor `[[show]]`
+  form fix.) The cheatsheet also gained character-property and number-return
+  comparison condition examples.
 - The scene editor's `[[show]]` insert form joined multiple attributes with
   `, ` (e.g. `mood=happy, face=smile`). The directive grammar expects
   space-separated `key=value` tokens; the trailing comma stayed glued to the

@@ -6,6 +6,10 @@ advanced patterns. No programming experience required.
 For the exact list of valid values (characters, moods, locations, SFX, etc.), see the Cheatsheet included
 in the docs folder, or generate one from the app's project settings. Keep that cheatsheet open alongside this guide.
 
+**In the editor:** the toolbar's "Glossary" button opens a searchable reference window with copy-paste examples for every part of the
+format (title page, dialogue, conditions, directives, …). It's the same cheatsheet content, browsable and searchable without leaving the
+app — leave it open beside the editor while you write.
+
 
 ---
 
