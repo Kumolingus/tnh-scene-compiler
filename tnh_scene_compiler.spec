@@ -22,7 +22,7 @@ a = Analysis(
         ("allowlists_base", "allowlists_base"),
         ("templates", "templates"),
         # Rendered at runtime by the in-app Glossary window.
-        ("docs/scene_cheatsheet.md", "docs"),
+        ("docs/glossary", "docs/glossary"),
     ],
     hiddenimports=["yaml"],
     hookspath=[],

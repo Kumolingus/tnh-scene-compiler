@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - The Condition Builder gained a "?" quick-access button (next to the
   Category selector) that opens the Glossary pre-filtered to the current
-  category's conditions section. The cheatsheet's Conditions section was
+  category's conditions section. The glossary's Conditions section was
   enriched with per-family explanations + examples (Relationship /
   Character-state / Story-location-time conditions, and a "Comparing numbers
   vs yes/no" note), which the Glossary surfaces as searchable sections. The
@@ -38,8 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   separate, non-modal reference: a searchable section list on the left, the
   selected section's prose + copyable code examples on the right (each example
   has a "Copy" button). Content is parsed at runtime from the bundled
-  `docs/scene_cheatsheet.md`, so the glossary and the doc never drift. The
-  parser (`glossary.parse_glossary`) is pure/testable; the cheatsheet is now
+  `docs/glossary/*.md` files (one per top-level section, numbered for order),
+  so the reference lives in the repo, not the code. The parser
+  (`glossary.parse_glossary`) is pure/testable; the glossary folder is
   bundled into the exe (`.spec` datas).
 - New "Character property" condition type + a `character_properties.yaml`
   allowlist (chantier B). Read-only companion `@property` accessors — `desire`,

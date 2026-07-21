@@ -55,7 +55,7 @@ That's it. No Ren'Py syntax to learn. The compiler handles the rest.
 | Document                                       | What's inside                                              |
 | ---------------------------------------------- | ---------------------------------------------------------- |
 | [Quick start](docs/quick_start.md)             | Write and compile your first scene in 5 minutes            |
-| [Scene cheatsheet](docs/scene_cheatsheet.md)   | One-page reference — copy-paste examples for every feature |
+| [Glossary](docs/glossary/)                     | Copy-paste reference for every part of the format (also in-app: the editor's "Glossary" button) |
 | [Writer guide](docs/writer_guide.md)           | Complete guide for scene writers                           |
 | [Integration guide](docs/integration_guide.md) | Drop compiled scenes into your mod                         |
 | [Project setup](docs/project_setup.md)         | Setting up and managing a project                          |

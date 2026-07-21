@@ -1,9 +1,10 @@
-"""In-app glossary window, rendered from the bundled scene cheatsheet.
+"""In-app glossary window, the canonical scene-format reference.
 
 A separate, non-modal reference window: a searchable section list on the
 left, the selected section's prose + copyable code examples on the right.
-Content comes from ``docs/scene_cheatsheet.md`` (single source of truth,
-already maintained), parsed at runtime so the two never drift.
+Content comes from the markdown files under ``docs/glossary/`` (one file
+per top-level section, numbered for order), read and concatenated at
+runtime so the reference lives in the repo, not in the code.
 
 The parser (:func:`parse_glossary`) is pure and importable/testable without
 Tkinter; the window (:class:`GlossaryDialog`) is the thin UI on top.
@@ -17,9 +18,9 @@ from tkinter import ttk
 
 from .config import get_data_root
 
-# Path of the cheatsheet relative to the data root (bundle ``_MEIPASS`` when
-# frozen, repo root in dev). Bundled via the ``.spec`` ``datas``.
-_CHEATSHEET_RELPATH = ("docs", "scene_cheatsheet.md")
+# Directory of the glossary markdown files relative to the data root (bundle
+# ``_MEIPASS`` when frozen, repo root in dev). Bundled via the ``.spec`` ``datas``.
+_GLOSSARY_RELDIR = ("docs", "glossary")
 
 
 # -- Pure-logic model + parser (no Tkinter) ----------------------------------
@@ -135,14 +136,26 @@ def parse_glossary(markdown: str) -> list[GlossarySection]:
 
 
 def load_glossary_sections() -> list[GlossarySection]:
-    """Load and parse the bundled cheatsheet, or ``[]`` if it is missing."""
-    path = get_data_root().joinpath(*_CHEATSHEET_RELPATH)
-    if not path.is_file():
+    """Load and parse the bundled glossary files, or ``[]`` if none are found.
+
+    The glossary is one markdown file per top-level section under
+    ``docs/glossary/`` (numbered for order). The files are read in
+    sorted-name order and concatenated, then parsed as a single document so
+    the section list keeps its authored order.
+    """
+    directory = get_data_root().joinpath(*_GLOSSARY_RELDIR)
+    if not directory.is_dir():
         return []
     try:
-        return parse_glossary(path.read_text(encoding="utf-8"))
+        parts = [
+            path.read_text(encoding="utf-8")
+            for path in sorted(directory.glob("*.md"))
+        ]
     except OSError:
         return []
+    if not parts:
+        return []
+    return parse_glossary("\n".join(parts))
 
 
 # -- Window ------------------------------------------------------------------
@@ -178,8 +191,8 @@ class GlossaryDialog(tk.Toplevel):
             ttk.Label(
                 body,
                 text=(
-                    "The scene cheatsheet could not be loaded.\n"
-                    "It should live at docs/scene_cheatsheet.md."
+                    "The glossary could not be loaded.\n"
+                    "It should live under docs/glossary/*.md."
                 ),
                 foreground="#E05252", justify=tk.LEFT,
             ).pack(anchor=tk.W, padx=8, pady=8)

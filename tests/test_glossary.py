@@ -99,17 +99,26 @@ class TestParseGlossary:
         assert sections[0].blocks == [GlossaryBlock("code", "code line")]
 
 
-# -- load_glossary_sections (real bundled cheatsheet) -------------------------
+# -- load_glossary_sections (real bundled glossary files) ---------------------
 
 
-def test_load_real_cheatsheet_has_expected_sections() -> None:
+def test_load_real_glossary_has_expected_sections() -> None:
     sections = load_glossary_sections()
-    assert sections, "the bundled scene_cheatsheet.md should load in dev"
+    assert sections, "the bundled docs/glossary/*.md files should load in dev"
     titles = {s.title for s in sections}
     assert {"Title page", "Dialogue", "Conditions", "Directives"} <= titles
 
 
-def test_real_cheatsheet_show_examples_use_spaces_not_commas() -> None:
+def test_glossary_files_load_in_declared_order() -> None:
+    # The loader concatenates docs/glossary/*.md in sorted-name order (the
+    # files are numbered), so the top-level sections keep their authored order.
+    sections = load_glossary_sections()
+    top = [s.title for s in sections if s.level == 2]
+    assert top.index("Title page") < top.index("Conditions")
+    assert top.index("Conditions") < top.index("Complete example")
+
+
+def test_real_glossary_show_examples_use_spaces_not_commas() -> None:
     # Regression: the Show/Hide example used to show a comma between attributes,
     # which does not compile (the directive grammar is space-separated).
     sections = load_glossary_sections()
