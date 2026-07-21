@@ -2,12 +2,70 @@
 
 import pytest
 
+from tnh_scene_compiler.allowlists import Allowlists
 from tnh_scene_compiler.condition_builder import (
     build_condition,
+    build_condition_catalog,
     join_conditions,
     resolve_method_path,
     wrap_condition,
 )
+
+
+# -- build_condition_catalog --------------------------------------------------
+
+
+class TestBuildConditionCatalog:
+    def _allow(self) -> Allowlists:
+        return Allowlists(
+            condition_functions={
+                "get_effective_friendship",  # Relationships -> promoted
+                "get_time_since",            # Time -> Location & time
+                "check_approval",            # sugar duplicate -> excluded
+                "mystery_fn",                # no category -> Advanced
+            },
+            condition_function_categories={
+                "get_effective_friendship": "Relationships",
+                "get_time_since": "Time",
+                "check_approval": "Approval",
+            },
+            condition_function_labels={
+                "get_effective_friendship": "Effective friendship (tier)",
+                "get_time_since": "Days since a date",
+            },
+        )
+
+    def test_builtins_land_in_their_categories(self):
+        catalog = build_condition_catalog(self._allow())
+        rel = [(e.label, e.kind) for e in catalog["Relationships"]]
+        assert ("Love / Trust check", "approval") in rel
+        assert ("Friendship check", "friendship") in rel
+        adv = [(e.label, e.kind) for e in catalog["Advanced"]]
+        assert ("Character method (any)", "method") in adv
+        assert ("Standalone function (any)", "function") in adv
+
+    def test_functions_promoted_by_category_with_labels(self):
+        catalog = build_condition_catalog(self._allow())
+        rel = {e.label: e for e in catalog["Relationships"]}
+        assert rel["Effective friendship (tier)"].kind == "function"
+        assert rel["Effective friendship (tier)"].target == "get_effective_friendship"
+        loc = {e.label: e.target for e in catalog["Location & time"]}
+        assert loc["Days since a date"] == "get_time_since"
+
+    def test_sugar_duplicate_is_excluded(self):
+        catalog = build_condition_catalog(self._allow())
+        targets = [e.target for entries in catalog.values() for e in entries]
+        assert "check_approval" not in targets
+
+    def test_uncategorized_function_falls_to_advanced(self):
+        catalog = build_condition_catalog(self._allow())
+        adv_targets = [e.target for e in catalog["Advanced"]]
+        assert "mystery_fn" in adv_targets
+
+    def test_label_defaults_to_name(self):
+        catalog = build_condition_catalog(self._allow())
+        adv_labels = [e.label for e in catalog["Advanced"]]
+        assert "mystery_fn" in adv_labels  # no label -> shows its name
 
 
 # -- build_condition ---------------------------------------------------------

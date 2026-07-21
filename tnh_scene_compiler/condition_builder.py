@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from collections.abc import Callable
+from dataclasses import dataclass
 from tkinter import ttk
 from typing import Any
 
@@ -27,17 +28,57 @@ from .allowlists import (
 
 # -- Constants ---------------------------------------------------------------
 
+# Top-level condition categories, in display order. The "Condition type"
+# selector is two-level (Category -> Condition); these group the built-in
+# checks and route allowlist functions in by their own category.
+CONDITION_CATEGORIES: list[str] = [
+    "Relationships",
+    "Character state",
+    "Story & history",
+    "Location & time",
+    "Advanced",
+]
+
+# Built-in condition types: (kind, top-level category, label). These are the
+# DSL-sugar checks (universal to TNH), hardcoded here; allowlist functions are
+# layered in on top by :func:`build_condition_catalog`.
+_BUILTIN_TYPES: list[tuple[str, str, str]] = [
+    ("approval",    "Relationships",   "Love / Trust check"),
+    ("friendship",  "Relationships",   "Friendship check"),
+    ("trait",       "Character state", "Trait check"),
+    ("mood",        "Character state", "Mood check"),
+    ("personality", "Character state", "Personality check"),
+    ("nearby",      "Character state", "Nearby check"),
+    ("property",    "Character state", "Character property"),
+    ("history",     "Story & history", "History check"),
+    ("method",      "Advanced",        "Character method (any)"),
+    ("function",    "Advanced",        "Standalone function (any)"),
+]
+
+# Allowlist function category -> top-level condition category.
+_FUNC_CATEGORY_TO_TOP: dict[str, str] = {
+    "Approval": "Relationships",
+    "Relationships": "Relationships",
+    "Character status": "Character state",
+    "Clothing": "Character state",
+    "History": "Story & history",
+    "Mod state": "Story & history",
+    "Location": "Location & time",
+    "Time": "Location & time",
+}
+
+# Functions already covered by a friendlier built-in type — not surfaced
+# individually (they'd duplicate the sugar checks).
+_SUGAR_DUPLICATE_FUNCTIONS: frozenset[str] = frozenset({
+    "check_approval",                    # Love / Trust check
+    "are_Characters_friends",            # Friendship check
+    "Character_is_in_close_proximity",   # Nearby check
+})
+
+# Kept for backward reference; the flat type list is now derived from the
+# catalog. Order matches _BUILTIN_TYPES.
 CONDITION_TYPES: list[tuple[str, str]] = [
-    ("Love / Trust check", "approval"),
-    ("Trait check", "trait"),
-    ("History check", "history"),
-    ("Mood check", "mood"),
-    ("Friendship check", "friendship"),
-    ("Nearby check", "nearby"),
-    ("Personality check", "personality"),
-    ("Character property", "property"),
-    ("Character method", "method"),
-    ("Standalone function", "function"),
+    (label, kind) for kind, _cat, label in _BUILTIN_TYPES
 ]
 
 AXES: list[str] = ["love", "trust"]
@@ -52,6 +93,55 @@ WRAP_MODES: list[tuple[str, str]] = [
 # Boolean operators offered before each clause after the first, when
 # combining several conditions into one expression.
 COMBINE_OPERATORS: list[str] = ["AND", "OR"]
+
+
+@dataclass(frozen=True)
+class ConditionEntry:
+    """One pick in the two-level "Condition type" selector.
+
+    ``kind`` is the underlying condition kind (``approval``, ``function``…).
+    ``target`` is empty for a built-in check or the generic function/method
+    pickers; for a *promoted* standalone function it holds that function's
+    name, so the panel jumps straight to its parameter form.
+    """
+
+    label: str
+    kind: str
+    target: str = ""
+
+
+def build_condition_catalog(allow: Allowlists) -> dict[str, list[ConditionEntry]]:
+    """Group condition entries by top-level category for the selector.
+
+    Built-in checks land in their assigned category; each allowlist function
+    (minus the sugar duplicates) is surfaced individually under the top-level
+    category its own ``category`` maps to, labelled by its ``label`` (or its
+    name). Categories are returned in :data:`CONDITION_CATEGORIES` order,
+    empty ones dropped; within a category the built-ins keep their order and
+    the promoted functions follow, sorted by label.
+    """
+    builtins: dict[str, list[ConditionEntry]] = {c: [] for c in CONDITION_CATEGORIES}
+    for kind, category, label in _BUILTIN_TYPES:
+        builtins[category].append(ConditionEntry(label, kind, ""))
+
+    functions: dict[str, list[ConditionEntry]] = {c: [] for c in CONDITION_CATEGORIES}
+    for name in allow.condition_functions:
+        if name in _SUGAR_DUPLICATE_FUNCTIONS:
+            continue
+        top = _FUNC_CATEGORY_TO_TOP.get(
+            allow.condition_function_categories.get(name, ""), "Advanced",
+        )
+        label = allow.condition_function_labels.get(name, name)
+        functions[top].append(ConditionEntry(label, "function", name))
+
+    catalog: dict[str, list[ConditionEntry]] = {}
+    for category in CONDITION_CATEGORIES:
+        entries = builtins[category] + sorted(
+            functions[category], key=lambda e: e.label.lower(),
+        )
+        if entries:
+            catalog[category] = entries
+    return catalog
 
 # Operator choices shown for a comparable (tier/int/float) function or method
 # return. The first entry inserts a bare call (empty operator); the rest
@@ -314,30 +404,47 @@ class _ConditionClausePanel(ttk.Frame):
         self._compare_op_var: tk.StringVar | None = None
         self._compare_value_var: tk.StringVar | None = None
         self._current_kind: str | None = None
+        # When a specific standalone function is picked from the selector,
+        # its name — so _params_function jumps straight to its param form
+        # instead of showing the generic category/function pickers.
+        self._preset_func: str = ""
 
-        # -- Condition type selector ------------------------------------
+        # -- Two-level condition-type selector (Category -> Condition) -------
+        self._catalog = build_condition_catalog(allow)
+        self._categories = list(self._catalog.keys())
+
         ttk.Label(
             self, text="Condition type:", font=("Segoe UI", 10, "bold"),
         ).pack(anchor=tk.W)
 
-        type_labels = [label for label, _ in CONDITION_TYPES]
-        self._type_label_to_key = {label: key for label, key in CONDITION_TYPES}
-        self._type_var = tk.StringVar(value=type_labels[0])
-        type_combo = ttk.Combobox(
-            self, textvariable=self._type_var,
-            values=type_labels, state="readonly", width=28,
+        selector = ttk.Frame(self)
+        selector.pack(fill=tk.X, pady=(2, 8))
+        selector.columnconfigure(1, weight=1)
+
+        ttk.Label(selector, text="Category:").grid(row=0, column=0, sticky=tk.W, padx=(0, 6))
+        self._category_var = tk.StringVar(value=self._categories[0])
+        ttk.Combobox(
+            selector, textvariable=self._category_var, values=self._categories,
+            state="readonly",
+        ).grid(row=0, column=1, sticky=tk.EW, pady=(0, 2))
+        self._category_var.trace_add("write", self._on_category_select)
+
+        ttk.Label(selector, text="Condition:").grid(row=1, column=0, sticky=tk.W, padx=(0, 6))
+        self._condition_var = tk.StringVar()
+        self._condition_combo = ttk.Combobox(
+            selector, textvariable=self._condition_var, state="readonly",
         )
-        type_combo.pack(fill=tk.X, pady=(2, 8))
-        type_combo.bind("<<ComboboxSelected>>", self._on_type_select)
+        self._condition_combo.grid(row=1, column=1, sticky=tk.EW)
+        self._condition_var.trace_add("write", self._on_condition_select)
 
         # -- Dynamic parameter area ---------------------------------------
         self._param_container = ttk.Frame(self)
         self._param_container.pack(fill=tk.BOTH, expand=True)
         self._param_frame: ttk.Frame | None = None
 
-        # Build initial params for the first type (silent — no on_change
-        # wired yet; see set_on_change).
-        self._on_type_select()
+        # Populate the first category's conditions and build the first one
+        # (silent — no on_change wired yet; see set_on_change).
+        self._refresh_condition_choices()
 
     def set_on_change(self, callback: Callable[[], None]) -> None:
         """Wire the change notification. Call after construction."""
@@ -349,12 +456,33 @@ class _ConditionClausePanel(ttk.Frame):
 
     # -- Type selection --------------------------------------------------
 
-    def _on_type_select(self, _event: Any = None) -> None:
-        kind = self._type_label_to_key.get(self._type_var.get())
-        if kind is None or kind == self._current_kind:
+    def _current_entry(self) -> ConditionEntry | None:
+        """Return the catalog entry for the current Category + Condition pick."""
+        entries = self._catalog.get(self._category_var.get(), [])
+        label = self._condition_var.get()
+        for entry in entries:
+            if entry.label == label:
+                return entry
+        return None
+
+    def _refresh_condition_choices(self) -> None:
+        """Fill the Condition combo for the selected category and pick the first."""
+        entries = self._catalog.get(self._category_var.get(), [])
+        labels = [e.label for e in entries]
+        self._condition_combo.configure(values=labels)
+        # Setting the var fires _on_condition_select (which builds the params).
+        self._condition_var.set(labels[0] if labels else "")
+
+    def _on_category_select(self, *_a: Any) -> None:
+        self._refresh_condition_choices()
+
+    def _on_condition_select(self, *_a: Any) -> None:
+        entry = self._current_entry()
+        if entry is None:
             return
-        self._current_kind = kind
-        self._build_params(kind)
+        self._current_kind = entry.kind
+        self._preset_func = entry.target if entry.kind == "function" else ""
+        self._build_params(entry.kind)
 
     def _build_params(self, kind: str) -> None:
         """Destroy old parameter widgets and build new ones for *kind*."""
@@ -772,12 +900,69 @@ class _ConditionClausePanel(ttk.Frame):
 
         self._add_description(parent, row, "method")
 
+    def _render_function_fields(
+        self,
+        name: str,
+        params_frame: ttk.Frame,
+        compare_frame: ttk.Frame,
+        note_label: ttk.Label,
+    ) -> None:
+        """(Re)build the per-parameter fields + comparison + note for *name*.
+
+        Shared by the generic function picker and the preset path (a function
+        promoted to a top-level condition entry), so both render identically.
+        The selected function's name is read back from ``_vars["func_name"]``
+        by :meth:`get_condition`; callers set it before calling this.
+        """
+        for widget in params_frame.winfo_children():
+            widget.destroy()
+        self._func_param_vars.clear()
+
+        note_label.configure(text=self._allow.condition_function_notes.get(name, ""))
+        sig = self._allow.condition_function_signatures.get(name, "")
+        self._build_comparison(compare_frame, return_is_comparable(sig))
+        for i, (pname, ptype, pdefault) in enumerate(parse_signature_params(sig)):
+            hint = pname
+            if ptype:
+                hint += f"  ({ptype})"
+            ttk.Label(params_frame, text=f"{hint}:").grid(
+                row=i, column=0, sticky=tk.W, pady=1, padx=(0, 8),
+            )
+            var = tk.StringVar(value=pdefault)
+            self._func_param_vars.append((pname, pdefault, var))
+            if is_character_param(pname, ptype):
+                ttk.Combobox(
+                    params_frame, textvariable=var, values=self._characters,
+                    state="readonly", width=18,
+                ).grid(row=i, column=1, sticky=tk.W, pady=1)
+            else:
+                ttk.Entry(params_frame, textvariable=var, width=20).grid(
+                    row=i, column=1, sticky=tk.W, pady=1,
+                )
+            var.trace_add("write", lambda *_: self._notify_change())
+        self._notify_change()
+
     def _params_function(self, parent: ttk.Frame) -> None:
         funcs = sorted(self._allow.condition_functions) if self._allow.condition_functions else []
         if not funcs:
             row = self._add_text_field(parent, "Function", 0, "func_name")
             row = self._add_text_field(parent, "Arguments", row, "func_args")
             self._add_description(parent, row, "function")
+            return
+
+        # Preset: a specific function was promoted to a top-level condition
+        # entry — skip the category/function pickers and jump to its form.
+        if self._preset_func:
+            self._vars["func_name"] = tk.StringVar(value=self._preset_func)
+            params_frame = ttk.Frame(parent)
+            params_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W)
+            compare_frame = ttk.Frame(parent)
+            compare_frame.grid(row=1, column=0, columnspan=3, sticky=tk.W)
+            note_label = self._make_note_label(parent, 2)
+            self._render_function_fields(
+                self._preset_func, params_frame, compare_frame, note_label,
+            )
+            self._add_description(parent, 3, "function")
             return
 
         grouped = group_by_category(
@@ -808,36 +993,9 @@ class _ConditionClausePanel(ttk.Frame):
                 self._vars["func_name"].set(names[0])
 
         def _on_func_change(*_a: Any) -> None:
-            for widget in params_frame.winfo_children():
-                widget.destroy()
-            self._func_param_vars.clear()
-
-            name = self._get_var("func_name")
-            note_label.configure(text=self._allow.condition_function_notes.get(name, ""))
-            sig = self._allow.condition_function_signatures.get(name, "")
-            self._build_comparison(compare_frame, return_is_comparable(sig))
-            params = parse_signature_params(sig)
-            for i, (pname, ptype, pdefault) in enumerate(params):
-                hint = pname
-                if ptype:
-                    hint += f"  ({ptype})"
-                ttk.Label(params_frame, text=f"{hint}:").grid(
-                    row=i, column=0, sticky=tk.W, pady=1, padx=(0, 8),
-                )
-                var = tk.StringVar(value=pdefault)
-                self._func_param_vars.append((pname, pdefault, var))
-                if is_character_param(pname, ptype):
-                    ttk.Combobox(
-                        params_frame, textvariable=var, values=self._characters,
-                        state="readonly", width=18,
-                    ).grid(row=i, column=1, sticky=tk.W, pady=1)
-                else:
-                    ttk.Entry(params_frame, textvariable=var, width=20).grid(
-                        row=i, column=1, sticky=tk.W, pady=1,
-                    )
-                var.trace_add("write", lambda *_: self._notify_change())
-
-            self._notify_change()
+            self._render_function_fields(
+                self._get_var("func_name"), params_frame, compare_frame, note_label,
+            )
 
         self._vars["func_category"].trace_add("write", _on_category_change)
         self._vars["func_name"].trace_add("write", _on_func_change)

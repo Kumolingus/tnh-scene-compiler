@@ -310,11 +310,11 @@ I guess it's okay.
 [[/if]]
 ```
 
-**In the editor:** the Struct. palette tab's "Condition Builder…" button opens a guided form — pick a condition type (love/trust,
-trait, history, mood, friendship, personality, a character property, a low-level character method, or a standalone function) and fill in
-guided fields instead of remembering the exact expression syntax. Standalone functions, character methods, and character properties are
-grouped by category (e.g. Relationships, Location, Arousal, Body) to make them easier to browse than one flat alphabetical list. When a
-function/method/property is a number (a friendship tier, a count, arousal) rather than a yes/no, a "Compare:" row appears so you can pick
+**In the editor:** the Struct. palette tab's "Condition Builder…" button opens a guided form. Pick a **Category** (Relationships,
+Character state, Story & history, Location & time, Advanced) then a **Condition** within it — the built-in checks (love/trust, trait,
+mood, friendship, …) sit next to ready-made checks like "In a relationship" or "Effective friendship (tier)", so you rarely need the
+generic "Standalone function (any)" / "Character method (any)" under Advanced. Fill in the guided fields instead of remembering the exact
+syntax. When a condition is a number (a friendship tier, a count, arousal) rather than a yes/no, a "Compare:" row appears so you can pick
 an operator and value (e.g. `>= 2`) — leave it on "(no comparison)" only if you really want the raw truthy test. Use "+ Add condition" to
 combine as many conditions as you like; each one after the first picks its own AND/OR, and "Remove" drops it. (`and` binds tighter than
 `or`, as in most languages.)

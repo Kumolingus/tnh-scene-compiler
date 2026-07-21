@@ -69,6 +69,16 @@ def _panel(dlg, index=0):
     return dlg._clauses[index]["panel"]
 
 
+def _select(clause, label):
+    """Pick a condition entry by its label via the two-level selector."""
+    for category, entries in clause._catalog.items():
+        if any(e.label == label for e in entries):
+            clause._category_var.set(category)
+            clause._condition_var.set(label)
+            return
+    raise AssertionError(f"no condition entry labelled {label!r}")
+
+
 def test_starts_with_one_clause_and_no_operator(tk_root, allow) -> None:
     dlg = _make_dialog(tk_root, allow)
     assert len(dlg._clauses) == 1
@@ -105,10 +115,10 @@ def test_many_clauses_join_with_their_operators(tk_root, allow) -> None:
 def test_note_label_populates_for_tier_function(tk_root, allow) -> None:
     dlg = _make_dialog(tk_root, allow)
     clause = _panel(dlg, 0)
-    # Switch to the standalone-function type; its only function is the tier one
-    # carrying a note, which should surface in a note label.
-    clause._type_var.set("Standalone function")
-    clause._on_type_select()
+    # The tier function is promoted into the Relationships category (no label
+    # in the fixture, so it shows under its name); selecting it should surface
+    # its note.
+    _select(clause, "get_effective_friendship")
 
     note_labels = [
         w for w in clause._param_frame.winfo_children()
@@ -118,22 +128,43 @@ def test_note_label_populates_for_tier_function(tk_root, allow) -> None:
     assert note_labels, "expected the tier function's note to be shown"
 
 
+def test_catalog_groups_functions_by_category(tk_root, allow) -> None:
+    dlg = _make_dialog(tk_root, allow)
+    clause = _panel(dlg, 0)
+    # The built-in checks and the promoted function share the Relationships
+    # category; the generic escape hatches live under Advanced.
+    rel = [e.label for e in clause._catalog["Relationships"]]
+    assert "Love / Trust check" in rel
+    assert "get_effective_friendship" in rel
+    adv = [e.label for e in clause._catalog["Advanced"]]
+    assert "Standalone function (any)" in adv
+    assert "Character method (any)" in adv
+
+
 @pytest.fixture()
 def allow_tier_and_bool() -> Allowlists:
-    """One tier-returning function and one bool-returning function, same category."""
+    """A tier-returning and a bool-returning function, both promotable.
+
+    (Not ``are_Characters_friends`` for the bool one — that's a sugar
+    duplicate excluded from the catalog.)
+    """
     return Allowlists(
         characters=["JeanGrey", "Rogue"],
         characters_upper={"JEANGREY", "ROGUE"},
-        condition_functions={"get_effective_friendship", "are_Characters_friends"},
+        condition_functions={"get_effective_friendship", "is_ready"},
         condition_function_signatures={
             "get_effective_friendship": (
                 "get_effective_friendship(A: Character, B: Character) -> FriendshipTier"
             ),
-            "are_Characters_friends": "are_Characters_friends(Characters) -> bool",
+            "is_ready": "is_ready(Character) -> bool",
         },
         condition_function_categories={
             "get_effective_friendship": "Relationships",
-            "are_Characters_friends": "Relationships",
+            "is_ready": "Relationships",
+        },
+        condition_function_labels={
+            "get_effective_friendship": "Effective friendship (tier)",
+            "is_ready": "Is ready",
         },
     )
 
@@ -143,11 +174,9 @@ def test_comparison_widgets_appear_for_tier_and_vanish_for_bool(
 ) -> None:
     dlg = _make_dialog(tk_root, allow_tier_and_bool)
     clause = _panel(dlg, 0)
-    clause._type_var.set("Standalone function")
-    clause._on_type_select()
 
     # Pick the tier function -> comparison widgets exist, default operator ">=".
-    clause._vars["func_name"].set("get_effective_friendship")
+    _select(clause, "Effective friendship (tier)")
     assert clause._compare_op_var is not None
     assert clause._compare_op_var.get() == ">="
     assert clause._compare_value_var is not None
@@ -163,9 +192,11 @@ def test_comparison_widgets_appear_for_tier_and_vanish_for_bool(
     assert clause.get_condition() == "get_effective_friendship(JeanGrey, Rogue) >= 2"
 
     # Switch to the bool function -> no comparison widgets, bare call is valid.
-    clause._vars["func_name"].set("are_Characters_friends")
+    _select(clause, "Is ready")
     assert clause._compare_op_var is None
     assert clause._compare_value_var is None
+    clause._func_param_vars[0][2].set("JeanGrey")
+    assert clause.get_condition() == "is_ready(JeanGrey)"
     assert clause.is_valid() is True
 
 
@@ -185,8 +216,7 @@ def test_property_type_builds_bare_attribute_comparison(
 ) -> None:
     dlg = _make_dialog(tk_root, allow_properties)
     clause = _panel(dlg, 0)
-    clause._type_var.set("Character property")
-    clause._on_type_select()
+    _select(clause, "Character property")
 
     clause._vars["character"].set("JeanGrey")
     clause._vars["property_category"].set("Arousal")

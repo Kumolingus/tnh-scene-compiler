@@ -454,6 +454,7 @@ class Allowlists:
     condition_function_signatures: dict[str, str] = field(default_factory=dict)
     condition_function_categories: dict[str, str] = field(default_factory=dict)
     condition_function_notes: dict[str, str] = field(default_factory=dict)
+    condition_function_labels: dict[str, str] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
     character_method_signatures: dict[str, str] = field(default_factory=dict)
     character_method_categories: dict[str, str] = field(default_factory=dict)
@@ -554,6 +555,7 @@ class Allowlists:
         condition_function_signatures: dict[str, str] = {}
         condition_function_categories: dict[str, str] = {}
         condition_function_notes: dict[str, str] = {}
+        condition_function_labels: dict[str, str] = {}
         if condition_functions_payload and isinstance(
             condition_functions_payload.get("functions"), list,
         ):
@@ -569,6 +571,9 @@ class Allowlists:
                     note = item.get("notes")
                     if isinstance(note, str):
                         condition_function_notes[item["name"]] = note.strip()
+                    label = item.get("label")
+                    if isinstance(label, str):
+                        condition_function_labels[item["name"]] = label.strip()
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
@@ -670,6 +675,7 @@ class Allowlists:
             condition_function_signatures = condition_function_signatures,
             condition_function_categories = condition_function_categories,
             condition_function_notes = condition_function_notes,
+            condition_function_labels = condition_function_labels,
             character_methods = character_methods,
             character_method_signatures = character_method_signatures,
             character_method_categories = character_method_categories,
@@ -865,6 +871,9 @@ class Allowlists:
             },
             condition_function_notes={
                 **self.condition_function_notes, **other.condition_function_notes,
+            },
+            condition_function_labels={
+                **self.condition_function_labels, **other.condition_function_labels,
             },
             character_methods=self.character_methods | other.character_methods,
             character_method_signatures={

@@ -138,6 +138,19 @@ class TestCategoryLoading:
 
         assert allowlists.condition_function_categories["are_Characters_friends"] == "Relationships"
 
+    def test_condition_function_label_is_captured(self, tmp_path: Path) -> None:
+        _write(tmp_path / "condition_functions.yaml", (
+            "functions:\n"
+            "- name: are_Characters_in_Partners\n"
+            "  category: Relationships\n"
+            "  label: In a relationship\n"
+            "  signature: \"are_Characters_in_Partners(Characters) -> bool\"\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert allowlists.condition_function_labels["are_Characters_in_Partners"] == "In a relationship"
+
     def test_run_operation_category_is_captured(self, tmp_path: Path) -> None:
         _write(tmp_path / "run_operations.yaml", (
             "operations:\n"

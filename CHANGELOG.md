@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The Condition Builder's "Condition type" selector is now two-level
+  (Category -> Condition). Built-in checks and the base-game/mod functions
+  are grouped into Relationships / Character state / Story & history /
+  Location & time / Advanced, so a useful function (e.g. "In a relationship",
+  "Effective friendship (tier)") is pickable directly instead of buried under
+  the generic "Standalone function". Functions route into a category by their
+  allowlist `category` and show a friendly `label` (new optional allowlist
+  field, falls back to the function name); the generic "Standalone function
+  (any)" / "Character method (any)" escape hatches remain under Advanced.
+  Sugar duplicates (`check_approval`, `are_Characters_friends`,
+  `Character_is_in_close_proximity`) aren't surfaced individually (their
+  friendly built-in check covers them).
 - The Condition Builder can now combine **any number** of clauses, not just
   two. Each clause after the first carries its own AND/OR operator; a
   "+ Add condition" button appends clauses (the list scrolls) and each has a
