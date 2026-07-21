@@ -42,6 +42,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   so the reference lives in the repo, not the code. The parser
   (`glossary.parse_glossary`) is pure/testable; the glossary folder is
   bundled into the exe (`.spec` datas).
+- The Glossary content was expanded and rewritten for non-dev writers: a new
+  **Key terms** section (allowlist, directive, condition, comparison
+  operators, how a cinematic scene gets played, cinematic variant, scene-local
+  vs persistent state), full coverage of every directive (`fade to/from
+  black`, `give_trait` / `remove_trait`, `record`, `set_personality`, `run`,
+  plus per-character `fade` and `stage` on `[[show]]`), plain-language intros
+  on the condition families, and a "Watch out" note per directive/condition
+  for the common pitfalls.
 - New "Character property" condition type + a `character_properties.yaml`
   allowlist (chantier B). Read-only companion `@property` accessors — `desire`,
   `breast_size`, `ass_size`, `sex_experience`, `dirty_talk_experience`,
@@ -191,6 +199,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The Glossary's interpolation examples used lowercase `[player.petname]` /
+  `[player.first_name]`, which don't match the interpolation allowlist
+  (`Player.*`, PascalCase) and fail validation. Corrected to `Player.*` and
+  PascalCase character names (e.g. `[JeanGrey.petname]`), matching the real
+  scene corpus. (Carried over from the old `scene_cheatsheet.md`.)
 - The `scene_cheatsheet.md` Show/Hide example showed a comma between `[[show]]`
   attributes (`mood=happy, face=smile`), which does not compile — the directive
   grammar is space-separated. Corrected to `mood=happy face=smile` and the

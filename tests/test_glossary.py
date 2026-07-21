@@ -114,6 +114,7 @@ def test_glossary_files_load_in_declared_order() -> None:
     # files are numbered), so the top-level sections keep their authored order.
     sections = load_glossary_sections()
     top = [s.title for s in sections if s.level == 2]
+    assert top.index("Key terms") < top.index("Title page")
     assert top.index("Title page") < top.index("Conditions")
     assert top.index("Conditions") < top.index("Complete example")
 

@@ -13,7 +13,7 @@ INT. KITCHEN
 The smell of coffee fills the air.
 
 JEANGREY (happy)
-Good morning, [player.petname]!
+Good morning, [Player.petname]!
 
 [[choice]]
 = Good morning, Jean!
