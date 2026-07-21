@@ -158,3 +158,15 @@ def test_dialog_copy_puts_code_on_clipboard(tk_root) -> None:
         assert tk_root.clipboard_get() == "[[pause 1.5]]"
     finally:
         dlg.destroy()
+
+
+def test_dialog_opens_pre_filtered_by_search(tk_root) -> None:
+    dlg = GlossaryDialog(tk_root, search="relationship conditions")
+    try:
+        titles = [dlg._listbox.get(i).strip() for i in range(dlg._listbox.size())]
+        assert "Relationship conditions" in titles
+        # The list is narrowed (not the full ~29 sections) and a section renders.
+        assert len(titles) < 10
+        assert dlg._content.winfo_children()
+    finally:
+        dlg.destroy()

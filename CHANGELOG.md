@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- The Condition Builder gained a "?" quick-access button (next to the
+  Category selector) that opens the Glossary pre-filtered to the current
+  category's conditions section. The cheatsheet's Conditions section was
+  enriched with per-family explanations + examples (Relationship /
+  Character-state / Story-location-time conditions, and a "Comparing numbers
+  vs yes/no" note), which the Glossary surfaces as searchable sections. The
+  Glossary window gained `search=` (open pre-filtered) and `modal=` (grab when
+  opened from the modal Condition Builder, so it's interactive) parameters.
 - The Condition Builder's "Condition type" selector is now two-level
   (Category -> Condition). Built-in checks and the base-game/mod functions
   are grouped into Relationships / Character state / Story & history /

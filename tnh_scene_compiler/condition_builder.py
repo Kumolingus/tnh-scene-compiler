@@ -75,6 +75,16 @@ _SUGAR_DUPLICATE_FUNCTIONS: frozenset[str] = frozenset({
     "Character_is_in_close_proximity",   # Nearby check
 })
 
+# Top-level category -> glossary search term for the "?" quick-access button.
+# The terms hit the enriched cheatsheet's per-family Conditions subsections.
+_GLOSSARY_SEARCH_BY_CATEGORY: dict[str, str] = {
+    "Relationships": "relationship conditions",
+    "Character state": "character-state conditions",
+    "Story & history": "story, location",
+    "Location & time": "story, location",
+    "Advanced": "conditions",
+}
+
 # Kept for backward reference; the flat type list is now derived from the
 # catalog. Order matches _BUILTIN_TYPES.
 CONDITION_TYPES: list[tuple[str, str]] = [
@@ -428,6 +438,11 @@ class _ConditionClausePanel(ttk.Frame):
             state="readonly",
         ).grid(row=0, column=1, sticky=tk.EW, pady=(0, 2))
         self._category_var.trace_add("write", self._on_category_select)
+        # Quick access to the glossary, opened on the current category's
+        # conditions section.
+        ttk.Button(
+            selector, text="?", width=2, command=self._open_glossary,
+        ).grid(row=0, column=2, rowspan=2, sticky=tk.NS, padx=(6, 0))
 
         ttk.Label(selector, text="Condition:").grid(row=1, column=0, sticky=tk.W, padx=(0, 6))
         self._condition_var = tk.StringVar()
@@ -475,6 +490,18 @@ class _ConditionClausePanel(ttk.Frame):
 
     def _on_category_select(self, *_a: Any) -> None:
         self._refresh_condition_choices()
+
+    def _open_glossary(self) -> None:
+        """Open the glossary pre-filtered to the current category's section.
+
+        Modal because the Condition Builder itself holds a grab; the grab
+        returns to the builder when the glossary closes.
+        """
+        from .glossary import GlossaryDialog
+        search = _GLOSSARY_SEARCH_BY_CATEGORY.get(
+            self._category_var.get(), "conditions",
+        )
+        GlossaryDialog(self.winfo_toplevel(), search=search, modal=True)
 
     def _on_condition_select(self, *_a: Any) -> None:
         entry = self._current_entry()

@@ -3,8 +3,9 @@
 The rest of the condition-builder suite is deliberately Tkinter-free (pure
 helpers), so these live in their own module and skip cleanly when no display
 is available (headless CI, no X server). They cover the stateful dialog
-wiring that pure-logic tests can't reach: the second-clause (AND/OR)
-lifecycle and the per-selection note label.
+wiring that pure-logic tests can't reach: the multi-clause add/remove/join,
+the two-level Category -> Condition selector, per-selection comparison/note
+widgets, and the "?" glossary quick-access.
 """
 
 from __future__ import annotations
@@ -232,3 +233,20 @@ def test_property_type_builds_bare_attribute_comparison(
     # "(no comparison)" -> bare property access.
     clause._compare_op_var.set("(no comparison)")
     assert clause.get_condition() == "JeanGrey.desire"
+
+
+def test_glossary_button_opens_filtered_glossary(tk_root, allow) -> None:
+    from tnh_scene_compiler.glossary import GlossaryDialog
+
+    dlg = _make_dialog(tk_root, allow)
+    clause = _panel(dlg, 0)
+    clause._category_var.set("Relationships")
+    clause._open_glossary()
+
+    # The glossary opens as a child of the (modal) builder, pre-filtered.
+    glossaries = [w for w in dlg.winfo_children() if isinstance(w, GlossaryDialog)]
+    assert glossaries, "the ? button should open a glossary window"
+    g = glossaries[0]
+    titles = [g._listbox.get(i).strip() for i in range(g._listbox.size())]
+    assert "Relationship conditions" in titles
+    g.destroy()

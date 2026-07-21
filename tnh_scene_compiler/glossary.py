@@ -151,13 +151,22 @@ def load_glossary_sections() -> list[GlossarySection]:
 class GlossaryDialog(tk.Toplevel):
     """Non-modal glossary window: searchable sections + copyable examples."""
 
-    def __init__(self, master: tk.Widget) -> None:
+    def __init__(
+        self, master: tk.Widget, *, search: str = "", modal: bool = False,
+    ) -> None:
         super().__init__(master)
         self.title("Glossary — scene cheatsheet")
         self.geometry("860x640")
         self.minsize(560, 400)
-        # Deliberately no grab_set(): the writer keeps it open beside the editor.
+        # From the editor toolbar it's modeless (kept open beside the editor).
+        # Opened from a modal dialog (the Condition Builder's "?"), it grabs so
+        # it's interactive; the grab returns to that dialog when it closes.
+        if modal:
+            self.grab_set()
 
+        # Optional initial search term — a caller (e.g. the Condition Builder's
+        # "?" button) can open the glossary pre-filtered to the relevant topic.
+        self._initial_search = search
         self._sections = load_glossary_sections()
         # Parallel to the listbox rows: the section shown at each visible index.
         self._visible: list[GlossarySection] = []
@@ -183,7 +192,12 @@ class GlossaryDialog(tk.Toplevel):
         self._build_sidebar(paned)
         self._build_content_pane(paned)
 
-        self._refresh_list()
+        # Applying the initial search fires the filter (via the var trace),
+        # narrowing the list before the first section is shown.
+        if self._initial_search:
+            self._search_var.set(self._initial_search)
+        else:
+            self._refresh_list()
         if self._visible:
             self._listbox.selection_set(0)
             self._render_section(self._visible[0])
