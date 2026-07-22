@@ -85,7 +85,8 @@ Others give back a **number** — a friendship tier, a count, a stat like
 `desire`. Here's the catch: a number on its own counts as "yes" whenever it
 isn't zero, and that includes *negative* numbers like the tiers for enemies
 or rivals. So a bare number check is almost never what you mean — you nearly
-always want to **compare** it with an operator (see [Key terms](#key-terms)):
+always want to **compare** it with an operator (see
+[Comparison operators](#comparison-operators)):
 
 ```
 [[if get_effective_friendship(JeanGrey, Rogue) >= 2]]   good friends or closer
@@ -120,7 +121,8 @@ How a character feels — about the player, and about other characters:
 
 What one character is like, and how she is right now:
 
-- **Trait** — `JeanGrey.has("shy")` — yes/no, does she have this trait.
+- **Trait** — `JeanGrey.has("shy")` — yes/no, does she have this trait
+  (granted by the [give_trait directive](#traits)).
 - **Mood** — `JeanGrey.mood == "normal"` (her normal mood) or another status.
 - **Personality** — `JeanGrey.personality("dominant")` gives back her score
   for that leaning (a number, compare it); add a level to get a yes/no,
@@ -139,7 +141,8 @@ What one character is like, and how she is right now:
 
 What has already happened, and where things stand in the world:
 
-- **History** — `JeanGrey.did("kissed_player")` — yes/no, has this happened.
+- **History** — `JeanGrey.did("kissed_player")` — yes/no, has this happened
+  (written by the [record directive](#history)).
 - **Location** — `get_present_Characters(...)`, `get_Room_Owner(...)` — who's
   where. Often used with `in`: `Rogue in get_present_Characters(...)`.
 - **Days since** — `get_time_since(date)` returns a number of days; compare it.
@@ -149,9 +152,9 @@ What has already happened, and where things stand in the world:
 Choices the player made earlier in this same scene, plus the game's clock
 and calendar:
 
-- **Scene flags** — a flag you set earlier in this scene with `[[set]]` is
-  read back by its bare name: `[[if asked_nicely]]`. It only exists for the
-  current scene run.
+- **Scene flags** — a flag you set earlier in this scene with the
+  [set directive](#scene-state) is read back by its bare name:
+  `[[if asked_nicely]]`. It only exists for the current scene run.
 - **Time of day** — `time_index` is `0` morning, `1` day, `2` evening,
   `3` night: `[[if time_index == 3]]`.
 - **Story progress** — `chapter`, `day`, `season`, `weekday` are numbers you

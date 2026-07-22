@@ -13,4 +13,5 @@ Time suffixes: `- MORNING`, `- DAY`, `- EVENING`, `- NIGHT`.
 
 > Watch out: the place name must match a location the project knows, with
 > exact capitalization. An unknown slugline is a compile error (with a
-> "did you mean…?" suggestion) — check the values reference for the list.
+> "did you mean…?" suggestion) — the valid places come from the
+> [allowlist](#allowlist).

@@ -23,8 +23,8 @@ ends with a `[[goto ...]]` to rejoin somewhere else.
 
 ### Conditional option (only shows if condition is met)
 
-Add a trailing `[[if ...]]` to an option to show it only when the condition
-holds:
+Add a trailing `[[if ...]]` to an option to show it only when the
+[condition](#conditions) holds:
 
 ```
 [[choice]]
@@ -40,11 +40,11 @@ holds:
 
 > Watch out: if *every* option is hidden by its condition, the menu is
 > silently skipped. Always leave one option with no condition, or guard the
-> whole `[[choice]]` with an `[[if]]`.
+> whole `[[choice]]` with an [if block](#conditions).
 
 ### Choices during a phone conversation
 
-When the phone is open, the option label is the player's *intent* (a short
+When the [phone](#phone) is open, the option label is the player's *intent* (a short
 description); the actual message goes in the branch as a `PLAYER (text)`
 line:
 

@@ -17,7 +17,8 @@ With mood and face.
 ### The parenthetical
 
 The `(...)` after the speaker sets her visual state. The positional order is
-`mood, face, arms, look, outfit, stage`:
+`mood, face, arms, look, outfit, stage`, and every value is checked against
+the [allowlist](#allowlist):
 
 ```
 JEANGREY (happy)                     mood only
@@ -41,9 +42,12 @@ You're a terrible liar, [Player.name].
 > after — `(happy, face=smirk)` works, but `(face=smirk, happy)` doesn't.
 > Don't set the same slot twice: `(happy, mood=sad)` is an error. And mind
 > the separators — a dialogue parenthetical uses **commas**, while the
-> `[[show]]` directive uses **spaces**.
+> [show directive](#show-hide-characters) uses **spaces**.
 
 ### Text messages
+
+A `(text)` line goes into the phone thread opened by the
+[phone directive](#phone):
 
 ```
 JEANGREY (text)

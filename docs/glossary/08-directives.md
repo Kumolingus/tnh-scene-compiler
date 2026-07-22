@@ -15,8 +15,9 @@ arguments inside:
 [[fx smack()]]
 ```
 
-> In cinematic scenes, the compiler auto-selects the cinematic
-> variant. Write `[[fx bamf()]]` — the compiler handles the rest, and you
+> In [cinematic scenes](#cinematic-scene), the compiler auto-selects the
+> [cinematic variant](#cinematic-variant-of-an-effect). Write
+> `[[fx bamf()]]` — the compiler handles the rest, and you
 > never write a `cinematic_` name yourself.
 
 > Watch out: the parentheses are required (`[[fx smack()]]`, not
@@ -49,8 +50,8 @@ Hold for a beat — seconds, decimal or whole:
 `[[show]]` puts a character on screen — or updates how one who's already
 there looks; `[[hide]]` takes a character off screen. Use them between
 dialogue lines, when a visual change isn't tied to a spoken line. The
-attributes are the same as a dialogue parenthetical, all written as
-`key=value`:
+attributes are the same as a [dialogue parenthetical](#the-parenthetical),
+all written as `key=value`:
 
 ```
 [[show JeanGrey mood=happy]]
@@ -110,15 +111,17 @@ Grant or revoke a character trait:
 [[remove_trait JeanGrey shy]]
 ```
 
-> Watch out: the trait name is checked against the allowlist — a typo is a
-> compile error (with a "did you mean…?" suggestion).
+> Watch out: the trait name is checked against the [allowlist](#allowlist) —
+> a typo is a compile error (with a "did you mean…?" suggestion).
 
 ### History
 
 A character's history is a permanent record of things that have happened to
 them — a first kiss, a confession, a fight. `[[record]]` writes an event
 into it, and it sticks across scenes and saved games. Later scenes react to
-the past by checking it (the History condition, `JeanGrey.did("...")`).
+the past by checking it (the
+[History condition](#story-location-time-conditions),
+`JeanGrey.did("...")`).
 
 ```
 [[record JeanGrey kissed_player]]
@@ -141,7 +144,7 @@ leaning's score (a whole number); check it later in a
 ```
 
 > Watch out: the score is a whole number, and the personality name is
-> checked against the allowlist.
+> checked against the [allowlist](#allowlist).
 
 ### Phone
 
@@ -157,8 +160,9 @@ Hey, are you free?
 
 ### Scene state
 
-Scene-local flags that live only for this one scene run. Set one, then read
-it by bare name in a condition:
+[Scene-local](#scene-local-vs-persistent-state) flags that live only for this
+one scene run. Set one, then read it by bare name in a
+[condition](#conditions):
 
 ```
 [[set asked_nicely]]
@@ -172,9 +176,10 @@ Thanks for asking nicely.
 
 > Watch out: `[[set]]` is scene-local — it's forgotten when the scene ends,
 > and you can't call a function in its value. For anything that must stick
-> across scenes and saves, use the persistent directives (`[[approval]]`,
-> `[[give_trait]]`, `[[record]]`, `[[set_personality]]`, or `[[run]]`) — not
-> `[[set]]`.
+> across scenes and saves, use the persistent directives
+> ([approval](#approval-changes), [give_trait](#traits), [record](#history),
+> [set_personality](#personality), or
+> [run](#persistent-state-advanced)) — not `[[set]]`.
 
 ### Labels and jumps
 
@@ -203,13 +208,15 @@ Want to try again?
 [[call another_scene_id]]
 ```
 
-> Watch out: the target must be a real compiled scene id in the project. To
-> reuse a shared beat, give it its own scene and call it here.
+> Watch out: the target must be a real compiled scene id in the project (the
+> `Scene Id` from its [title page](#title-page)). To reuse a shared beat,
+> give it its own scene and call it here.
 
 ### Persistent state (advanced)
 
-Most persistent changes have their own directive above — `[[approval]]`,
-`[[give_trait]]`, `[[record]]`, `[[set_personality]]`. `[[run]]` is the
+Most persistent changes have their own directive above —
+[approval](#approval-changes), [give_trait](#traits), [record](#history),
+[set_personality](#personality). `[[run]]` is the
 catch-all for the rare change that has none: it calls a ready-made operation
 your developer set up for the project. The operation names are specific to
 your project, so a real call looks like this (yours will differ):

@@ -19,7 +19,8 @@ Common paths:
 - `day`, `season`, `time_index` — world values.
 
 > Watch out: names are **case-sensitive** — it's `Player` and `JeanGrey`
-> (PascalCase), never `player` or `jeangrey`. Only allowlisted paths work; an
+> (PascalCase), never `player` or `jeangrey`. Only paths in the
+> [allowlist](#allowlist) work; an
 > unknown one is a compile error (with a suggestion). You can't put an
 > expression in the brackets — `[day + 1]` is not allowed, only a single
 > value path.
