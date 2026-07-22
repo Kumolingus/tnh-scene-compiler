@@ -50,6 +50,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   plus per-character `fade` and `stage` on `[[show]]`), plain-language intros
   on the condition families, and a "Watch out" note per directive/condition
   for the common pitfalls.
+- The Glossary now supports clickable cross-reference links: prose written
+  as `[label](#section-slug)` renders as a link (blue, underlined) that jumps
+  to that section, clearing any active search first. Prose/notes render in a
+  read-only `Text` widget (auto-sized to content) so links are individually
+  clickable; a `slugify` / `parse_inline_links` pair (pure, tested) backs it,
+  and a test asserts every shipped link resolves to a real section.
 - New "Character property" condition type + a `character_properties.yaml`
   allowlist (chantier B). Read-only companion `@property` accessors — `desire`,
   `breast_size`, `ass_size`, `sex_experience`, `dirty_talk_experience`,

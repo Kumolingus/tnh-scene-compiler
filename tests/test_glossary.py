@@ -4,6 +4,7 @@ Tkinter smoke of the window (search filter + copy)."""
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import ttk
 
 import pytest
 
@@ -12,6 +13,8 @@ from tnh_scene_compiler.glossary import (
     GlossaryDialog,
     load_glossary_sections,
     parse_glossary,
+    parse_inline_links,
+    slugify,
 )
 
 _SAMPLE = """\
@@ -130,6 +133,54 @@ def test_real_glossary_show_examples_use_spaces_not_commas() -> None:
     assert "mood=happy face=smile" in code
 
 
+# -- Inline cross-reference links ---------------------------------------------
+
+
+class TestInlineLinks:
+    def test_slugify(self) -> None:
+        assert slugify("Directives") == "directives"
+        assert slugify("Key terms") == "key-terms"
+        assert slugify("Character-state conditions") == "character-state-conditions"
+        assert slugify("Show / Hide characters") == "show-hide-characters"
+
+    def test_plain_text_is_a_single_run(self) -> None:
+        assert parse_inline_links("just text") == [("just text", None)]
+
+    def test_extracts_label_and_anchor(self) -> None:
+        assert parse_inline_links("see the [Directives](#directives) section") == [
+            ("see the ", None),
+            ("Directives", "directives"),
+            (" section", None),
+        ]
+
+    def test_multiple_links(self) -> None:
+        assert parse_inline_links("[A](#a) and [B](#b)") == [
+            ("A", "a"),
+            (" and ", None),
+            ("B", "b"),
+        ]
+
+    def test_empty_text(self) -> None:
+        assert parse_inline_links("") == [("", None)]
+
+
+def test_real_glossary_links_resolve_to_existing_sections() -> None:
+    # Every [label](#anchor) in the shipped glossary must point at a real
+    # section slug, or the click would go nowhere.
+    sections = load_glossary_sections()
+    slugs = {slugify(s.title) for s in sections}
+    anchors = [
+        anchor
+        for section in sections
+        for block in section.blocks
+        for _text, anchor in parse_inline_links(block.text)
+        if anchor is not None
+    ]
+    assert anchors, "the glossary should ship at least one cross-reference link"
+    dangling = [a for a in anchors if a not in slugs]
+    assert not dangling, f"links point at missing sections: {dangling}"
+
+
 # -- GlossaryDialog (guarded Tkinter) -----------------------------------------
 
 
@@ -178,5 +229,36 @@ def test_dialog_opens_pre_filtered_by_search(tk_root) -> None:
         # The list is narrowed (not the full ~29 sections) and a section renders.
         assert len(titles) < 10
         assert dlg._content.winfo_children()
+    finally:
+        dlg.destroy()
+
+
+def _content_headings(dlg: GlossaryDialog) -> list[str]:
+    return [
+        w.cget("text")
+        for w in dlg._content.winfo_children()
+        if isinstance(w, ttk.Label)
+    ]
+
+
+def test_dialog_link_navigates_to_target_section(tk_root) -> None:
+    dlg = GlossaryDialog(tk_root, search="key terms")
+    try:
+        # A link click resolves an anchor slug to its section and renders it,
+        # even when the current search would otherwise hide the target.
+        dlg._navigate_to("directives")
+        assert any("Directives" in h for h in _content_headings(dlg))
+        # The filter was cleared so the row is selectable again.
+        assert not dlg._search_var.get()
+    finally:
+        dlg.destroy()
+
+
+def test_dialog_navigate_ignores_unknown_anchor(tk_root) -> None:
+    dlg = GlossaryDialog(tk_root)
+    try:
+        before = _content_headings(dlg)
+        dlg._navigate_to("no-such-section")
+        assert _content_headings(dlg) == before
     finally:
         dlg.destroy()

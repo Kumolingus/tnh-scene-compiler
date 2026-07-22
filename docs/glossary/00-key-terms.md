@@ -8,13 +8,13 @@ reference.
 An instruction in double square brackets on its own line, like
 `[[show JeanGrey]]` or `[[pause 1]]`. Directives do the things a plain
 dialogue or narration line can't — put a character on screen, play a sound,
-branch, change a relationship. The full list is in the Directives section.
+branch, change a relationship. The full list is in the [Directives](#directives) section.
 
 ### Condition
 
 A yes/no test on the current game state. Conditions decide whether an
 `[[if]]` block plays or a choice option appears — for example
-`[[if JeanGrey.love >= 500]]`. See the Conditions section.
+`[[if JeanGrey.love >= 500]]`. See the [Conditions](#conditions) section.
 
 ### Allowlist
 
@@ -51,13 +51,13 @@ A cinematic scene registers itself as an event. At the moment named by its
 `Trigger` (going to sleep, waking up, travelling…), the game gathers every
 scene whose `Conditions` are currently met and plays the one with the
 highest `Priority`. A scene only fires again if it's marked `Repeatable`.
-That's why the title-page fields matter — together they decide when your
-scene shows up.
+That's why the [title-page](#title-page) fields matter — together they
+decide when your scene shows up.
 
 ### Cinematic variant (of an effect)
 
-Some `[[fx]]` effects have a special full-screen version used inside
-cinematic scenes. You always write the plain name (`[[fx bamf()]]`); the
+Some `[[fx]]` [effects](#effects) have a special full-screen version used
+inside cinematic scenes. You always write the plain name (`[[fx bamf()]]`); the
 compiler automatically swaps in the cinematic version when the scene is
 cinematic. You never write a `cinematic_` name yourself.
 
@@ -65,7 +65,8 @@ cinematic. You never write a `cinematic_` name yourself.
 
 **Scene-local** state is a flag that lives only for the current run of one
 scene. You make it with `[[set]]` and read it by bare name in a condition,
-and it's forgotten the moment the scene ends. **Persistent** state — love
+and it's forgotten the moment the scene ends (see [Scene state](#scene-state)).
+**Persistent** state — love
 and trust, traits, history, personality — survives across scenes and saved
 games; you change it with `[[approval]]`, `[[give_trait]]`, `[[record]]`,
 `[[set_personality]]`, or `[[run]]`.

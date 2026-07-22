@@ -85,7 +85,7 @@ Others give back a **number** — a friendship tier, a count, a stat like
 `desire`. Here's the catch: a number on its own counts as "yes" whenever it
 isn't zero, and that includes *negative* numbers like the tiers for enemies
 or rivals. So a bare number check is almost never what you mean — you nearly
-always want to **compare** it with an operator (see Key terms):
+always want to **compare** it with an operator (see [Key terms](#key-terms)):
 
 ```
 [[if get_effective_friendship(JeanGrey, Rogue) >= 2]]   good friends or closer
@@ -124,8 +124,8 @@ What one character is like, and how she is right now:
 - **Mood** — `JeanGrey.mood == "normal"` (her normal mood) or another status.
 - **Personality** — `JeanGrey.personality("dominant")` gives back her score
   for that leaning (a number, compare it); add a level to get a yes/no,
-  `JeanGrey.personality("dominant", 1)`. See the Personality directive for
-  what personalities are.
+  `JeanGrey.personality("dominant", 1)`. See the [Personality directive](#personality)
+  for what personalities are.
 - **Nearby** — `JeanGrey.nearby` — yes/no, is she close to the player.
 - **Character property** — a read-only stat on a companion, always a number:
   `desire`, `breast_size`, `sex_experience`, … Compare it.

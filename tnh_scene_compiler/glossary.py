@@ -12,6 +12,7 @@ Tkinter; the window (:class:`GlossaryDialog`) is the thin UI on top.
 
 from __future__ import annotations
 
+import re
 import tkinter as tk
 from dataclasses import dataclass, field
 from tkinter import ttk
@@ -22,8 +23,37 @@ from .config import get_data_root
 # ``_MEIPASS`` when frozen, repo root in dev). Bundled via the ``.spec`` ``datas``.
 _GLOSSARY_RELDIR = ("docs", "glossary")
 
+# Inline cross-reference links inside prose/notes: ``[label](#section-slug)``.
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(#([a-z0-9][a-z0-9-]*)\)")
+
 
 # -- Pure-logic model + parser (no Tkinter) ----------------------------------
+
+
+def slugify(title: str) -> str:
+    """Turn a section title into its link anchor (lowercase, hyphenated)."""
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+
+
+def parse_inline_links(text: str) -> list[tuple[str, str | None]]:
+    """Split *text* into runs of ``(text, anchor_or_None)``.
+
+    A run whose anchor is a string came from a ``[label](#anchor)`` link (its
+    text is the label); a run whose anchor is ``None`` is plain text. Text
+    with no links returns a single plain run.
+    """
+    runs: list[tuple[str, str | None]] = []
+    pos = 0
+    for match in _LINK_RE.finditer(text):
+        if match.start() > pos:
+            runs.append((text[pos:match.start()], None))
+        runs.append((match.group(1), match.group(2)))
+        pos = match.end()
+    if pos < len(text):
+        runs.append((text[pos:], None))
+    if not runs:
+        runs.append((text, None))
+    return runs
 
 
 @dataclass
@@ -181,6 +211,10 @@ class GlossaryDialog(tk.Toplevel):
         # "?" button) can open the glossary pre-filtered to the relevant topic.
         self._initial_search = search
         self._sections = load_glossary_sections()
+        # slug -> section, resolving [label](#slug) cross-reference links.
+        self._anchors: dict[str, GlossarySection] = {}
+        for section in self._sections:
+            self._anchors.setdefault(slugify(section.title), section)
         # Parallel to the listbox rows: the section shown at each visible index.
         self._visible: list[GlossarySection] = []
 
@@ -315,16 +349,84 @@ class GlossaryDialog(tk.Toplevel):
         for block in section.blocks:
             if block.kind == "code":
                 self._render_code_block(block.text)
-            elif block.kind == "note":
-                ttk.Label(
-                    self._content, text=block.text, foreground="#E0A030",
-                    font=("Segoe UI", 9), wraplength=560, justify=tk.LEFT,
-                ).pack(anchor=tk.W, padx=8, pady=(0, 8))
             else:
-                ttk.Label(
-                    self._content, text=block.text, foreground="#C8C8C8",
-                    font=("Segoe UI", 9), wraplength=560, justify=tk.LEFT,
-                ).pack(anchor=tk.W, padx=8, pady=(0, 8))
+                self._render_text_block(block.text, block.kind)
+
+    def _render_text_block(self, text: str, kind: str) -> None:
+        # Prose and notes render in a read-only Text so inline
+        # ``[label](#anchor)`` links can be individually clickable. Notes keep
+        # the orange warning colour; plain prose the muted grey.
+        colour = "#E0A030" if kind == "note" else "#C8C8C8"
+        widget = tk.Text(
+            self._content, wrap=tk.WORD, font=("Segoe UI", 9),
+            bg="#1E1E1E", fg=colour, relief=tk.FLAT, borderwidth=0,
+            highlightthickness=0, padx=0, pady=0, height=1,
+            cursor="arrow", takefocus=0,
+        )
+        widget.tag_configure("link", foreground="#4EA1F0", underline=True)
+        for run_text, anchor in parse_inline_links(text):
+            if anchor is None:
+                widget.insert(tk.END, run_text)
+            else:
+                widget.insert(tk.END, run_text, ("link", f"anchor::{anchor}"))
+        widget.tag_bind("link", "<Button-1>", self._on_link_click)
+        widget.tag_bind(
+            "link", "<Enter>", lambda _e: widget.configure(cursor="hand2"),
+        )
+        widget.tag_bind(
+            "link", "<Leave>", lambda _e: widget.configure(cursor="arrow"),
+        )
+        widget.configure(state=tk.DISABLED)
+        widget.pack(fill=tk.X, padx=8, pady=(0, 8))
+        self._bind_wheel(widget)
+        self._fit_text_height(widget)
+
+    def _on_link_click(self, event: tk.Event) -> str:
+        widget = event.widget
+        index = widget.index(f"@{event.x},{event.y}")
+        for tag in widget.tag_names(index):
+            if tag.startswith("anchor::"):
+                self._navigate_to(tag[len("anchor::"):])
+                break
+        return "break"
+
+    def _navigate_to(self, anchor: str) -> None:
+        target = self._anchors.get(anchor)
+        if target is None:
+            return
+        # Drop any active filter so the target row is guaranteed visible.
+        if self._search_var.get():
+            self._search_var.set("")  # fires the trace -> _refresh_list
+        else:
+            self._refresh_list()
+        for idx, section in enumerate(self._visible):
+            if section is target:
+                self._listbox.selection_clear(0, tk.END)
+                self._listbox.selection_set(idx)
+                self._listbox.see(idx)
+                break
+        self._render_section(target)
+
+    def _fit_text_height(self, widget: tk.Text) -> None:
+        # Size the Text to its wrapped content: recount display lines whenever
+        # the width changes (the content pane reflows on window resize).
+        def fit(_event: object = None) -> None:
+            try:
+                counted = widget.count("1.0", "end-1c", "displaylines")
+            except tk.TclError:
+                counted = None
+            lines = counted[0] if counted else 1
+            widget.configure(height=max(1, lines))
+        widget.bind("<Configure>", fit)
+        widget.after_idle(fit)
+
+    def _bind_wheel(self, widget: tk.Widget) -> None:
+        # Forward the wheel to the outer canvas so hovering a Text block still
+        # scrolls the page (and stop the Text from consuming the event).
+        def scroll(event: tk.Event) -> str:
+            self._content_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            return "break"
+        widget.bind("<MouseWheel>", scroll)
 
     def _render_code_block(self, code: str) -> None:
         frame = ttk.Frame(self._content)
@@ -347,6 +449,7 @@ class GlossaryDialog(tk.Toplevel):
         text.insert("1.0", code)
         text.configure(state=tk.DISABLED)
         text.pack(fill=tk.X)
+        self._bind_wheel(text)
 
     def _copy(self, text: str) -> None:
         self.clipboard_clear()

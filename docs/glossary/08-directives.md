@@ -133,8 +133,8 @@ A character's personality is a set of named leanings — `dominant`,
 `submissive`, `protective`, `neurotic`, … — each held as a small number. The
 game uses them to vary how a character behaves and which lines she gets, so
 nudging one shapes who she becomes over time. `[[set_personality]]` sets a
-leaning's score (a whole number); check it later with the Personality
-condition (`JeanGrey.personality("dominant")`).
+leaning's score (a whole number); check it later in a
+[condition](#conditions) (`JeanGrey.personality("dominant")`).
 
 ```
 [[set_personality JeanGrey dominant 3]]
