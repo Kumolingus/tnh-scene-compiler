@@ -271,3 +271,59 @@ def load(allowlists_dir: Path) -> CheatsheetData:
     _load_per_character(allowlists_dir, data)
     _load_meta(allowlists_dir, data)
     return data
+
+
+def load_layered(allowlists_dirs: list[Path]) -> CheatsheetData:
+    """Load several allowlist layers and merge them into one snapshot.
+
+    The compiler validates against ``base + project``, so the cheatsheet — the
+    document telling a writer what they may type — has to describe the same
+    set. A project whose own allowlists hold only its additions still gets a
+    cheatsheet covering the whole game.
+
+    Layers are merged in order, later ones winning on a name collision, which
+    matches :meth:`Allowlists.merge`. A single directory behaves exactly like
+    :func:`load`.
+    """
+    merged = CheatsheetData()
+    for directory in allowlists_dirs:
+        _merge_into(merged, load(directory))
+    return merged
+
+
+_FLAT_LISTS = (
+    "characters", "stages", "locations", "sfx", "looks", "shared_moods",
+    "interpolation", "condition_functions",
+)
+_CHARACTER_LISTS = ("moods", "faces", "arms", "arms_left", "arms_right", "outfits")
+
+
+def _dedupe(base: list[Entry], overlay: list[Entry]) -> list[Entry]:
+    """Concatenate two entry lists, the overlay winning on a repeated name."""
+    replaced = {entry.name: entry for entry in overlay}
+    kept = [replaced.pop(e.name, e) for e in base]
+    seen = {e.name for e in kept}
+    return kept + [e for e in overlay if e.name not in seen]
+
+
+def _merge_into(target: CheatsheetData, overlay: CheatsheetData) -> None:
+    """Fold *overlay* into *target* in place."""
+    for name in _FLAT_LISTS:
+        setattr(target, name, _dedupe(getattr(target, name), getattr(overlay, name)))
+    for char_name, overlay_char in overlay.per_character.items():
+        target_char = target.per_character.get(char_name)
+        if target_char is None:
+            target.per_character[char_name] = overlay_char
+            continue
+        for list_name in _CHARACTER_LISTS:
+            setattr(
+                target_char, list_name,
+                _dedupe(getattr(target_char, list_name), getattr(overlay_char, list_name)),
+            )
+    # The later layer names the run, so its timestamp wins. The source label
+    # does the opposite: the base layer's ("TNH + Mod") describes what the
+    # merged document actually covers, while the project layer alone would
+    # label a game-wide cheatsheet "Mod".
+    target.generated_at = overlay.generated_at or target.generated_at
+    target.source_label = target.source_label or overlay.source_label
+    target.warnings.extend(overlay.warnings)

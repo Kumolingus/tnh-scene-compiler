@@ -221,6 +221,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **The cheatsheet now describes every allowlist layer, not just one.**
+  `tnh_generate_cheatsheet` read a single directory, so a project whose own
+  allowlists hold only its additions would have produced a cheatsheet with
+  none of the game's values — the document a writer relies on to know what
+  they may type. New `loader.load_layered()` merges layers in order (later
+  wins on a name collision, matching `Allowlists.merge`), and the CLI prepends
+  the bundled base layer unless `--no-base-allowlists` is passed. `load()` is
+  unchanged for single-layer callers. The merged document keeps the *base*
+  layer's source label, since the project's alone would label a game-wide
+  cheatsheet "Mod".
 - The Glossary's "Cinematic scene" and "How a cinematic scene gets played"
   key terms merged into a single "Cinematic scene" section — the second was
   the second half of the first's definition, and splitting them put the
