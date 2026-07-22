@@ -926,6 +926,26 @@ class QuickScreen(_WorkspaceBase):
         validate_btn.pack(side=tk.LEFT)
         self._action_buttons.append(validate_btn)
 
+        # Quick mode compiles against the base game alone, which is exactly when
+        # "what does the game already accept?" is the open question.
+        ttk.Button(
+            frm, text="Allowlists", command=self._open_allowlists,
+        ).pack(side=tk.LEFT, padx=(8, 0))
+
+    def _open_allowlists(self) -> None:
+        from .allowlist_browser import AllowlistBrowserDialog, default_base_dir
+
+        existing = getattr(self, "_allowlist_browser", None)
+        if existing is not None and existing.winfo_exists():
+            existing.deiconify()
+            existing.lift()
+            existing.focus_set()
+            return
+        # No project layer here, so the browser is read-only throughout.
+        self._allowlist_browser = AllowlistBrowserDialog(
+            self, base_dir=default_base_dir(), project_dir=None,
+        )
+
     # -- File management ----------------------------------------------------
 
     def _add_files(self, paths: list[str | Path]) -> None:
@@ -1496,6 +1516,10 @@ class ProjectScreen(_WorkspaceBase):
             btn_frame, text="Edit scene", style="Edit.TButton", command=self._edit_selected,
         ).pack(side=tk.LEFT, padx=4)
 
+        ttk.Button(
+            btn_frame, text="Allowlists", command=self._open_allowlists,
+        ).pack(side=tk.LEFT, padx=4)
+
         self._scene_count_var = tk.StringVar()
         ttk.Label(
             btn_frame, textvariable=self._scene_count_var, foreground="gray",
@@ -1549,6 +1573,21 @@ class ProjectScreen(_WorkspaceBase):
 
     def _new_scene(self) -> None:
         self._open_editor(None)
+
+    def _open_allowlists(self) -> None:
+        from .allowlist_browser import AllowlistBrowserDialog
+
+        existing = getattr(self, "_allowlist_browser", None)
+        if existing is not None and existing.winfo_exists():
+            existing.deiconify()
+            existing.lift()
+            existing.focus_set()
+            return
+        self._allowlist_browser = AllowlistBrowserDialog(
+            self,
+            base_dir=self._cfg.base_allowlists_dir,
+            project_dir=self._cfg.project_allowlists,
+        )
 
     def _open_editor(self, file_path: Path | None) -> None:
         from .editor import EditorContext

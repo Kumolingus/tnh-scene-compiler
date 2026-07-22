@@ -2116,6 +2116,9 @@ class EditorScreen(ttk.Frame):
         ttk.Button(frm, text="Glossary", command=self._open_glossary).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
+        ttk.Button(frm, text="Allowlists", command=self._open_allowlists).pack(
+            side=tk.RIGHT, padx=(4, 0),
+        )
         ttk.Button(frm, text="Settings", command=self._open_settings).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
@@ -2431,6 +2434,24 @@ class EditorScreen(ttk.Frame):
             existing.focus_set()
             return
         self._glossary = GlossaryDialog(self)
+
+    def _open_allowlists(self) -> None:
+        from .allowlist_browser import AllowlistBrowserDialog, default_base_dir
+        # Re-focus an already-open browser instead of stacking duplicates.
+        existing = getattr(self, "_allowlist_browser", None)
+        if existing is not None and existing.winfo_exists():
+            existing.deiconify()
+            existing.lift()
+            existing.focus_set()
+            return
+        # Quick mode has no Config: fall back to the bundled base layer rather
+        # than opening the browser on nothing.
+        cfg = self._ctx.cfg
+        self._allowlist_browser = AllowlistBrowserDialog(
+            self,
+            base_dir=cfg.base_allowlists_dir if cfg else default_base_dir(),
+            project_dir=cfg.project_allowlists if cfg else None,
+        )
 
     def _go_back(self) -> None:
         if self._modified:

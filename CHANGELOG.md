@@ -8,6 +8,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Every allowlist is editable on the project side**, not just the five the
+  refresh preserves. Locking the generated ones assumed our workflow is
+  everyone's: `tnh_refresh_allowlists` needs an extracted base game, and a
+  project that cannot run it (or that writes its allowlists by hand) had no
+  other way to fill a list. The clobber risk only exists for projects that do
+  run the refresh, so it is surfaced where it bites instead of pre-empted — an
+  inline warning in the editor, and a one-per-list confirmation on save. Files
+  the refresh leaves alone save silently. This also covers
+  `character_methods.yaml` / `character_properties.yaml`, which have no
+  extractor and no scaffold: `Allowlists.merge` carries them, so a project may
+  legitimately ship its own.
+- The Allowlists browser splits every list in two — **Core game** and
+  **Project** — by where each *value* comes from, not by which file holds it.
+  A refresh run with `--include-tnh` scans the game and the mod into the same
+  `traits.yaml`, so the split is per entry: it reads each entry's
+  `source_file` against the `base_game_root` / `project_root` recorded in
+  `_meta.yaml` (with `<builtin>` counting as the game, and an entry with no
+  recorded source counting as the project's). A list with values on both sides
+  is listed under both headings and never shown merged. Core is always
+  read-only; only the project side of a hand-maintained file is editable. A
+  project that never runs the refresh against the game still sees its own
+  values under Project, and the game's under Core, which is the point.
+- In-app **Allowlists** browser (an "Allowlists" button on the project screen,
+  on the quick-compile screen, and in the editor toolbar). It lists all 21
+  allowlists — characters, moods, faces, arm
+  poses, outfits, looks, stages, locations, traits, personalities, history
+  events, sfx, fx, interpolation paths, condition functions, run operations,
+  character methods/properties — with each value tagged by the layer it comes
+  from (`game`, `project`, or both), the fields that matter next to it
+  (signature, type, location_id, notes…), and a per-character picker for the
+  per-character ones. Search matches a list's name *or* any value inside it,
+  across every character, so typing `shy` finds Traits.
+  Answers "what can I actually write here, and what does the base game
+  already have?" without leaving the app or regenerating the cheatsheet.
+- The browser also **edits** the five allowlists the refresh preserves
+  (`locations_overrides`, `fx_custom`, `interpolation_custom`,
+  `condition_functions`, `run_operations`), in the project layer only. The
+  other files are read-only on purpose: `tnh_refresh_allowlists` rewrites
+  them wholesale, so an edit there would be silently lost — the window says
+  which regime each file is under. Editing is raw YAML with a schema check on
+  save (valid YAML, expected top-level key, every entry named); a
+  `safe_load`/`safe_dump` round-trip would have deleted the hand-written
+  header comments that document each file.
+
 - The Condition Builder gained a "?" quick-access button (next to the
   Category selector) that opens the Glossary pre-filtered to the current
   category's conditions section. The glossary's Conditions section was
@@ -177,6 +221,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The Glossary's "Cinematic scene" and "How a cinematic scene gets played"
+  key terms merged into a single "Cinematic scene" section — the second was
+  the second half of the first's definition, and splitting them put the
+  answer one click away from the question.
+- The Glossary gained the cross-reference links it was missing: every mention
+  of the allowlist, of a directive that a condition reads back
+  (`give_trait` / `record` / `set`), of the persistent-state directives, and
+  of the title-page fields is now clickable. The "compare it with an
+  operator" link in Conditions pointed at the near-empty "Key terms" intro
+  instead of "Comparison operators".
 - **Behaviour change (property validation):** a bare `Character.<attr>` in a
   condition used to pass validation unchecked. Now, when a
   `character_properties.yaml` is present, `<attr>` is validated against it and
@@ -205,6 +259,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The Glossary clipped the **last line of every multi-line paragraph**. The
+  height fit used Tk's `count -displaylines` raw, but that returns the number
+  of display-line *breaks* (one less than the number of lines), so a 3-line
+  block was rendered 2 lines tall. Text simply stopped mid-sentence (the
+  "Condition" term ended at "— for example"). Single-line blocks were correct
+  by accident, which is why the truncation looked sporadic.
 - The Glossary's interpolation examples used lowercase `[player.petname]` /
   `[player.first_name]`, which don't match the interpolation allowlist
   (`Player.*`, PascalCase) and fail validation. Corrected to `Player.*` and
