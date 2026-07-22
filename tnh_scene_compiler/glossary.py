@@ -415,7 +415,10 @@ class GlossaryDialog(tk.Toplevel):
                 counted = widget.count("1.0", "end-1c", "displaylines")
             except tk.TclError:
                 counted = None
-            lines = counted[0] if counted else 1
+            # ``count -displaylines`` returns the number of display-line *breaks*
+            # between the two indices, i.e. one less than the number of lines.
+            # Without the +1 the last line of every multi-line block is clipped.
+            lines = (counted[0] if counted else 0) + 1
             widget.configure(height=max(1, lines))
         widget.bind("<Configure>", fit)
         widget.after_idle(fit)

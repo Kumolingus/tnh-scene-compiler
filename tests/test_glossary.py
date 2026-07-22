@@ -254,6 +254,27 @@ def test_dialog_link_navigates_to_target_section(tk_root) -> None:
         dlg.destroy()
 
 
+def test_dialog_text_blocks_are_tall_enough_for_their_content(tk_root) -> None:
+    # Regression: the height fit used ``count -displaylines`` raw, but Tk returns
+    # the number of display-line *breaks* (one less than the number of lines), so
+    # the last line of every multi-line paragraph was clipped off.
+    dlg = GlossaryDialog(tk_root, search="key terms")
+    try:
+        dlg._navigate_to("cinematic-scene")
+        dlg.update()
+        blocks = [w for w in dlg._content.winfo_children() if isinstance(w, tk.Text)]
+        assert blocks, "the section should render at least one prose block"
+        multiline = False
+        for widget in blocks:
+            counted = widget.count("1.0", "end-1c", "displaylines")
+            display_lines = (counted[0] if counted else 0) + 1
+            multiline = multiline or display_lines > 1
+            assert int(widget.cget("height")) >= display_lines
+        assert multiline, "the section should exercise a multi-line block"
+    finally:
+        dlg.destroy()
+
+
 def test_dialog_navigate_ignores_unknown_anchor(tk_root) -> None:
     dlg = GlossaryDialog(tk_root)
     try:
