@@ -1,0 +1,16 @@
+character: CeciliaReyes
+source: TNH + Mod
+generated_at: '2026-07-22'
+values:
+- name: Casual 1
+  source_file: game/characters/CeciliaReyes/clothing/outfits.rpy
+  source_line: 8
+- name: Nude
+  source_file: game/characters/CeciliaReyes/clothing/outfits.rpy
+  source_line: 66
+- name: Physician 1
+  source_file: game/characters/CeciliaReyes/clothing/outfits.rpy
+  source_line: 28
+- name: Physician 2
+  source_file: game/characters/CeciliaReyes/clothing/outfits.rpy
+  source_line: 48

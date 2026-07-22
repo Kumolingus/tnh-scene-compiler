@@ -1,5 +1,5 @@
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-07-22'
 values:
 - name: AlexanderSummers.name
   source_file: <builtin>
@@ -8,6 +8,15 @@ values:
   source_file: <builtin>
   source_line: 0
 - name: AlexanderSummers.Player_petname
+  source_file: <builtin>
+  source_line: 0
+- name: AlisonBlaire.name
+  source_file: <builtin>
+  source_line: 0
+- name: AlisonBlaire.petname
+  source_file: <builtin>
+  source_line: 0
+- name: AlisonBlaire.Player_petname
   source_file: <builtin>
   source_line: 0
 - name: AmahlFarouk.name
@@ -44,6 +53,15 @@ values:
   source_file: <builtin>
   source_line: 0
 - name: ArmandoMunoz.Player_petname
+  source_file: <builtin>
+  source_line: 0
+- name: Balrog.name
+  source_file: <builtin>
+  source_line: 0
+- name: Balrog.petname
+  source_file: <builtin>
+  source_line: 0
+- name: Balrog.Player_petname
   source_file: <builtin>
   source_line: 0
 - name: CainMarko.name
@@ -100,6 +118,15 @@ values:
 - name: DerpNibbles.Player_petname
   source_file: <builtin>
   source_line: 0
+- name: EmmaFrost.name
+  source_file: <builtin>
+  source_line: 0
+- name: EmmaFrost.petname
+  source_file: <builtin>
+  source_line: 0
+- name: EmmaFrost.Player_petname
+  source_file: <builtin>
+  source_line: 0
 - name: EvanDaniels.name
   source_file: <builtin>
   source_line: 0
@@ -109,6 +136,15 @@ values:
 - name: EvanDaniels.Player_petname
   source_file: <builtin>
   source_line: 0
+- name: Floogle.name
+  source_file: <builtin>
+  source_line: 0
+- name: Floogle.petname
+  source_file: <builtin>
+  source_line: 0
+- name: Floogle.Player_petname
+  source_file: <builtin>
+  source_line: 0
 - name: Gaspka.name
   source_file: <builtin>
   source_line: 0
@@ -116,6 +152,15 @@ values:
   source_file: <builtin>
   source_line: 0
 - name: Gaspka.Player_petname
+  source_file: <builtin>
+  source_line: 0
+- name: Ghostjumperfam.name
+  source_file: <builtin>
+  source_line: 0
+- name: Ghostjumperfam.petname
+  source_file: <builtin>
+  source_line: 0
+- name: Ghostjumperfam.Player_petname
   source_file: <builtin>
   source_line: 0
 - name: HankMcCoy.name
@@ -188,6 +233,15 @@ values:
   source_file: <builtin>
   source_line: 0
 - name: NegaNexus.Player_petname
+  source_file: <builtin>
+  source_line: 0
+- name: Nexu.name
+  source_file: <builtin>
+  source_line: 0
+- name: Nexu.petname
+  source_file: <builtin>
+  source_line: 0
+- name: Nexu.Player_petname
   source_file: <builtin>
   source_line: 0
 - name: OroroMunroe.name
@@ -268,9 +322,45 @@ values:
 - name: Sentinel.Player_petname
   source_file: <builtin>
   source_line: 0
+- name: SliferTheSkyDragon.name
+  source_file: <builtin>
+  source_line: 0
+- name: SliferTheSkyDragon.petname
+  source_file: <builtin>
+  source_line: 0
+- name: SliferTheSkyDragon.Player_petname
+  source_file: <builtin>
+  source_line: 0
+- name: Spinosaurus.name
+  source_file: <builtin>
+  source_line: 0
+- name: Spinosaurus.petname
+  source_file: <builtin>
+  source_line: 0
+- name: Spinosaurus.Player_petname
+  source_file: <builtin>
+  source_line: 0
 - name: time_index
   source_file: <builtin>
   source_line: 0
 - name: weekday
+  source_file: <builtin>
+  source_line: 0
+- name: XenomorphDrone.name
+  source_file: <builtin>
+  source_line: 0
+- name: XenomorphDrone.petname
+  source_file: <builtin>
+  source_line: 0
+- name: XenomorphDrone.Player_petname
+  source_file: <builtin>
+  source_line: 0
+- name: XenomorphKing.name
+  source_file: <builtin>
+  source_line: 0
+- name: XenomorphKing.petname
+  source_file: <builtin>
+  source_line: 0
+- name: XenomorphKing.Player_petname
   source_file: <builtin>
   source_line: 0

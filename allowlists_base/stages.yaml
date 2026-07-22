@@ -1,12 +1,12 @@
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-07-22'
 values:
 - name: stage_center
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 73
+  source_file: game/core/definitions/definitions.rpy
+  source_line: 81
 - name: stage_left
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 72
+  source_file: game/core/definitions/definitions.rpy
+  source_line: 80
 - name: stage_right
-  source_file: TheNullHypothesis/game/core/definitions/definitions.rpy
-  source_line: 74
+  source_file: game/core/definitions/definitions.rpy
+  source_line: 82

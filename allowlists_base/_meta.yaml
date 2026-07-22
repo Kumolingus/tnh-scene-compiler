@@ -1,52 +1,46 @@
-generated_at: '2026-05-14'
+generated_at: '2026-07-22'
 tool_version: 1.0.0
-base_game_root: TheNullHypothesis
-project_root: C:/Users/flori/AppData/Local/Temp/tnh_empty_mod
+base_game_root: .
+project_root: C:/Users/flori/AppData/Local/Temp/claude/D--Projets-Development-NullHypothesisPregnancyMod/0e6acb9d-67a6-4aa6-9591-76bae5940051/scratchpad/empty_mod
 include_tnh: true
 stats:
-  characters: 30
-  stages: 8
+  characters: 40
+  stages: 3
   sfx: 10
+  fx: 29
   locations: 31
   looks: 8
-  interpolation: 91
+  interpolation: 121
   condition_functions: 0
-  traits: 303
+  traits: 310
   personalities: 8
-  history_events: 99
+  history_events: 105
   faces:
+    AlisonBlaire: 49
     AmahlFarouk: 10
+    CeciliaReyes: 49
     CharlesXavier: 35
+    EmmaFrost: 49
     JeanGrey: 59
     KittyPryde: 59
     KurtWagner: 49
-    LauraKinney: 61
+    LauraKinney: 60
     OroroMunroe: 59
     Rogue: 59
-  poses:
-    AmahlFarouk: 2
-    CharlesXavier: 1
-    JeanGrey: 7
-    KittyPryde: 1
-    KurtWagner: 1
-    LauraKinney: 7
-    OroroMunroe: 1
-    Rogue: 7
-    Dek8000: 1
-    DerpNibbles: 1
-    Gaspka: 1
-    NegaNexus: 1
-    PurePazaak: 1
   arms:
+    AlisonBlaire: 15
     AmahlFarouk: 13
+    CeciliaReyes: 34
     CharlesXavier: 1
-    JeanGrey: 52
+    EmmaFrost: 37
+    JeanGrey: 38
     KittyPryde: 34
     KurtWagner: 22
-    LauraKinney: 52
+    LauraKinney: 38
     OroroMunroe: 38
-    Rogue: 46
+    Rogue: 32
   outfits:
+    CeciliaReyes: 4
     JeanGrey: 14
     KittyPryde: 1
     KurtWagner: 2
