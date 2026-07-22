@@ -269,6 +269,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The Allowlists browser warned about the allowlist refresh overwriting an
+  edit even where the refresh does not exist. It ships with the source
+  checkout, not with the packaged application — whose users therefore had no
+  way to act on the warning, and nothing that could overwrite their work. The
+  warning, and the confirmation on save, are now gated on
+  `refresh_tool_available()`, which probes for the module instead of assuming
+  it is there.
+- The browser's edit view announced game values inside project files that hold
+  none — 15 arm poses for a file that no longer exists, 3 stage positions, 310
+  traits. It counted the *merged* view's core-origin values, so it was
+  reporting the base layer, which lives in an entirely different file. It now
+  counts only what the file being edited actually contains. Its wording was
+  wrong too: it blamed "this project's refresh scanning the game into the same
+  file", which stopped happening once the project layer was trimmed to the
+  mod's own values. What remains are engine builtins (`Player`, `Narrator`,
+  `day`, the looks) that every project's allowlist repeats — on the real
+  corpus, 3 lists out of 21 rather than nearly all of them.
 - The Glossary clipped the **last line of every multi-line paragraph**. The
   height fit used Tk's `count -displaylines` raw, but that returns the number
   of display-line *breaks* (one less than the number of lines), so a 3-line

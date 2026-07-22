@@ -21,6 +21,7 @@ from tnh_scene_compiler.allowlist_browser import (
     LayerMeta,
     classify_origin,
     default_base_dir,
+    refresh_tool_available,
     load_topic,
     read_layer,
     read_layer_meta,
@@ -164,7 +165,27 @@ class TestCatalogue:
         topic = topic_by_key("character_properties")
         assert topic.maintenance == MAINTENANCE_DEVELOPER
         assert topic.survives_refresh
-        assert "never rewrites" in topic.blurb(ORIGIN_PROJECT)
+        assert "Yours to edit. What you put here stays." in topic.blurb(ORIGIN_PROJECT)
+
+    def test_no_refresh_warning_where_the_refresh_cannot_be_run(self) -> None:
+        # The packaged app ships the GUI alone, so its users have no way to
+        # regenerate an allowlist and nothing can overwrite their edit.
+        topic = topic_by_key("traits")
+        assert topic.maintenance == MAINTENANCE_GENERATED
+        with_tool = topic.blurb(ORIGIN_PROJECT, refresh_available=True)
+        without = topic.blurb(ORIGIN_PROJECT, refresh_available=False)
+        assert "would be lost" in with_tool
+        assert "would be lost" not in without
+        assert "Yours to edit" in without
+
+    def test_refresh_availability_is_probed_not_assumed(self) -> None:
+        # Truthful in both contexts: importable from a source checkout, absent
+        # from the frozen build (which bundles run_gui.py's import graph only).
+        import importlib.util
+
+        assert refresh_tool_available() == (
+            importlib.util.find_spec("tnh_refresh_allowlists") is not None
+        )
 
     def test_keys_are_unique(self) -> None:
         keys = [t.key for t in ALLOWLIST_TOPICS]
@@ -711,7 +732,7 @@ def test_editor_says_when_the_file_also_holds_game_values(tk_root, layers) -> No
         dlg._start_edit()
         dlg.update()
         # project/traits.yaml holds shy+brave (game) alongside pregnant (mod).
-        assert "also holds 2 values that came from the game" in _all_label_texts(
+        assert "2 of the entries below came with the game" in _all_label_texts(
             dlg._content,
         )
     finally:
@@ -727,7 +748,52 @@ def test_editor_stays_quiet_when_the_file_is_the_project_s_alone(
         dlg._select_topic(topic_by_key("run_operations"), ORIGIN_PROJECT)
         dlg._start_edit()
         dlg.update()
-        assert "came from the game" not in _all_label_texts(dlg._content)
+        assert "came with the game" not in _all_label_texts(dlg._content)
+    finally:
+        dlg.destroy()
+
+
+def test_editor_counts_only_the_edited_file_not_the_base_layer(
+    tk_root, layers,
+) -> None:
+    # Regression: the count came from the merged view, so it included the base
+    # layer — a different file entirely. It announced game values inside project
+    # files that hold none, and even inside one that does not exist.
+    base, project = layers
+    assert (base / "character_properties.yaml").is_file()
+    assert not (project / "character_properties.yaml").is_file()
+
+    dlg = AllowlistBrowserDialog(tk_root, base_dir=base, project_dir=project)
+    try:
+        dlg._select_topic(topic_by_key("character_properties"), ORIGIN_PROJECT)
+        dlg._start_edit()
+        dlg.update()
+        assert "came with the game" not in _all_label_texts(dlg._content)
+    finally:
+        dlg.destroy()
+
+
+def test_editor_counts_builtins_the_project_file_really_repeats(
+    tk_root, layers,
+) -> None:
+    # The mod-only refresh still writes engine builtins into the project's own
+    # interpolation.yaml, so the note is right there — and says how many.
+    base, project = layers
+    (project / "interpolation.yaml").write_text(
+        "values:\n"
+        "- name: day\n  source_file: <builtin>\n"
+        "- name: Player.name\n  source_file: <builtin>\n"
+        f"- name: JeanGrey.bump\n  source_file: {_MOD}/game/state.rpy\n",
+        encoding="utf-8",
+    )
+    dlg = AllowlistBrowserDialog(tk_root, base_dir=base, project_dir=project)
+    try:
+        dlg._select_topic(topic_by_key("interpolation"), ORIGIN_PROJECT)
+        dlg._start_edit()
+        dlg.update()
+        assert "2 of the entries below came with the game" in _all_label_texts(
+            dlg._content,
+        )
     finally:
         dlg.destroy()
 

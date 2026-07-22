@@ -43,13 +43,13 @@ two:
 A list with values on both sides is shown on both, never merged — so you can
 always tell a mood the game ships from one the project invented.
 
-One caveat when you save. Some projects fill their allowlists with a **refresh**
-tool that re-reads the game and the project and rewrites most of these files. If
-yours does, an edit you make here to one of those files is undone the next time
-it runs — add the value at the source instead. The window says which files are
-affected and asks before saving one. If your project doesn't use the refresh —
-you write your allowlists by hand — none of that applies and every list is
-simply yours.
+One caveat, and only for some setups. A project can fill its allowlists with a
+**refresh** tool that re-reads the game and the project and rewrites most of
+these files; an edit made here to one of those is undone the next time it runs,
+so the value belongs at the source instead. That tool ships with the developer
+build, not with this application — when it isn't there, nothing can overwrite
+what you save and the window says nothing about it. When it is, the window
+names the affected files and asks before saving one.
 
 ### Comparison operators
 

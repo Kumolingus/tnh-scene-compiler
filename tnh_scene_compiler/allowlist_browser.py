@@ -26,6 +26,7 @@ UI on top.
 
 from __future__ import annotations
 
+import importlib.util
 import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
@@ -145,24 +146,30 @@ class AllowlistTopic:
         """
         return origin == ORIGIN_PROJECT
 
-    def blurb(self, origin: str) -> str:
-        """Return what the reader may do with this list, on one side of the split."""
+    def blurb(self, origin: str, *, refresh_available: bool = True) -> str:
+        """Return what the reader may do with this list, on one side of the split.
+
+        Args:
+            origin: which side of the split is being shown.
+            refresh_available: whether the allowlist refresh can be run from
+                this install. When it cannot — the packaged app ships the GUI
+                alone — there is nothing that could overwrite an edit, so the
+                warning is dropped rather than shown to someone who has no way
+                to act on it.
+        """
         if origin == ORIGIN_CORE:
             return (
                 "These values come with The Null Hypothesis. Read-only — they are "
                 "read from the game's own files, so a value you need that is "
                 "missing has to exist in the game first."
             )
-        if self.survives_refresh:
-            return (
-                "Yours to edit. The allowlist refresh never rewrites this file, so "
-                "what you put here stays."
-            )
+        if self.survives_refresh or not refresh_available:
+            return "Yours to edit. What you put here stays."
         return (
-            "Yours to edit — but this file is one the allowlist refresh rewrites "
-            "from your project's source. If you use the refresh, add the value at "
-            "the source instead; an edit made here would be lost the next time it "
-            "runs. If you don't use the refresh, edit away."
+            "Yours to edit — but this is one of the files the allowlist refresh "
+            "rewrites from your project's source. Since this install can run the "
+            "refresh, add the value at the source instead; an edit made here "
+            "would be lost the next time it runs."
         )
 
 
@@ -389,6 +396,20 @@ _DETAIL_HIDDEN = frozenset({"name", "source_file", "source_line", "param_choices
 def topic_by_key(key: str) -> AllowlistTopic | None:
     """Return the topic registered under *key*, or ``None``."""
     return _TOPICS_BY_KEY.get(key)
+
+
+def refresh_tool_available() -> bool:
+    """Whether ``tnh_refresh_allowlists`` can be run from this install.
+
+    It ships with the source checkout but not with the packaged application —
+    the frozen build is the GUI alone. Someone using the app therefore has no
+    way to regenerate an allowlist, so warning them that a refresh would
+    overwrite their edit describes a tool they do not have.
+    """
+    try:
+        return importlib.util.find_spec("tnh_refresh_allowlists") is not None
+    except (ImportError, ValueError):  # pragma: no cover - defensive
+        return False
 
 
 def default_base_dir() -> Path | None:
@@ -947,7 +968,11 @@ class AllowlistBrowserDialog(tk.Toplevel):
                 picker.pack(side=tk.RIGHT, padx=(0, 8))
 
         self._paragraph(self._header, topic.summary, "#C8C8C8")
-        self._paragraph(self._header, topic.blurb(origin), "#E0A030")
+        self._paragraph(
+            self._header,
+            topic.blurb(origin, refresh_available=refresh_tool_available()),
+            "#E0A030",
+        )
 
     def _render_values(self, topic: AllowlistTopic, origin: str) -> None:
         groups = self._groups(topic, self._character, origin)
@@ -1044,26 +1069,35 @@ class AllowlistBrowserDialog(tk.Toplevel):
         )
         # The list above is filtered to one side; the file is not. Say so rather
         # than let the editor look like it opened "the project's values".
+        #
+        # Count only what *this file* holds. Asking the merged view for its core
+        # values counts the base layer too, which lives in an entirely different
+        # file — it reported 15 game arm poses for a project file that no longer
+        # exists.
         core_count = sum(
-            len(group.values)
-            for group in self._groups(topic, self._character, ORIGIN_CORE)
+            1
+            for values in read_layer(
+                topic, self._project_dir, self._character, layer="project",
+            ).values()
+            for value in values
+            if value.origin == ORIGIN_CORE
         )
         if core_count:
             self._paragraph(
                 self._content,
-                f"Note: this file also holds {core_count} value"
-                f"{'s' if core_count != 1 else ''} that came from the game — this "
-                "project's refresh scans the game into the same file, so the two "
-                "are mixed here even though the list above showed only yours. "
-                "Leave the game's entries alone.",
+                f"Note: {core_count} of the entries below came with the game "
+                "rather than from this project — engine values such as Player, "
+                "Narrator or day, which every project's allowlist repeats. They "
+                "are listed under Core game, not here, so the list above is "
+                "shorter than the file. Leave them as they are.",
                 "#E0A030",
             )
-        if not topic.survives_refresh:
+        if not topic.survives_refresh and refresh_tool_available():
             self._paragraph(
                 self._content,
-                "Heads up: the allowlist refresh rewrites this file. If your "
-                "project uses it, add the value at the source instead — what you "
-                "save here would be lost on the next run.",
+                "Heads up: the allowlist refresh rewrites this file, and this "
+                "install can run it. Add the value at your project's source "
+                "instead — what you save here would be lost on the next run.",
                 "#E0A030",
             )
         frame = ttk.Frame(self._content)
@@ -1118,17 +1152,22 @@ class AllowlistBrowserDialog(tk.Toplevel):
         if error is not None:
             messagebox.showerror("Not saved", error, parent=self)
             return
-        # Confirm once per session for the files the refresh rewrites: the edit
-        # is legitimate (not every project runs the refresh), but someone who
-        # does run it should not learn about the overwrite from a broken build.
-        if not topic.survives_refresh and topic.key not in self._warned_keys:
+        # Confirm once per session for the files the refresh rewrites — but only
+        # where the refresh actually exists. The packaged app ships the GUI
+        # alone, so asking its users about a tool they cannot run would be a
+        # prompt with no possible action behind it.
+        if (
+            not topic.survives_refresh
+            and refresh_tool_available()
+            and topic.key not in self._warned_keys
+        ):
             proceed = messagebox.askokcancel(
                 "This file is regenerated",
-                f"{topic.filename} is rewritten by the allowlist refresh.\n\n"
-                "If your project runs it, this edit will be lost on the next run "
-                "— add the value at the source instead.\n\n"
-                "If your project does not run the refresh, saving here is the "
-                "right thing to do.",
+                f"{topic.filename} is rewritten by the allowlist refresh, and "
+                "this install can run it.\n\n"
+                "Add the value at your project's source instead — an edit saved "
+                "here will be lost the next time the refresh runs.\n\n"
+                "Save anyway?",
                 parent=self,
             )
             if not proceed:
