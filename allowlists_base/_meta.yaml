@@ -1,4 +1,4 @@
-generated_at: '2026-07-22'
+generated_at: '2026-07-23'
 tool_version: 1.0.0
 base_game_root: .
 project_root: C:/Users/flori/AppData/Local/Temp/claude/D--Projets-Development-NullHypothesisPregnancyMod/0e6acb9d-67a6-4aa6-9591-76bae5940051/scratchpad/empty_mod
@@ -8,7 +8,7 @@ stats:
   stages: 3
   sfx: 10
   fx: 29
-  locations: 31
+  locations: 30
   looks: 8
   interpolation: 121
   condition_functions: 0
@@ -53,6 +53,9 @@ stats:
     LauraKinney: 34
     OroroMunroe: 5
 warnings:
+- Location loc_PlayerShower declares the same name as loc_PlayerRoom, so both derive
+  the slugline "[PLAYER.FIRST_NAME]'S ROOM". loc_PlayerRoom keeps it. Give loc_PlayerShower
+  its own slugline in locations_overrides.yaml if a scene needs to open there.
 - Location loc_MuirIsland_Facility2 is declared via .copy() and is not resolved in
   V1; add it manually to locations_overrides.yaml if needed
 - Location loc_XavierSchool_CharlesXavierRoom is declared via .copy() and is not resolved
