@@ -269,6 +269,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `INT. [PLAYER.FIRST_NAME]'S ROOM` opened the shower. TNH declares
+  `loc_PlayerShower` with the bedroom's `name`, so both derived the same
+  slugline, both were emitted, and `_build_location_map` kept whichever was
+  read last — the shower. The refresh now emits a slugline once: the first
+  declaration keeps it and the collision is reported as a warning naming both
+  ids. `allowlists_base` ships an override giving the shower a slugline of its
+  own (`[PLAYER.FIRST_NAME]'S SHOWER`), so it stays reachable instead of
+  becoming unaddressable.
+- A mod-only refresh (`--no-include-tnh`) copied the engine builtins into the
+  project's own allowlists: `Player` and `Narrator`, the eight look
+  directions, and the Player/world interpolation paths — all of them already
+  in `allowlists_base`, and all of them showing up on the project side of the
+  browser as values that came with the game. The flag now gates them, so a
+  project's files hold only what the project adds. Nothing is lost to a
+  writer: every consumer merges the base layer in, which is where these
+  belong.
+- Per-character interpolation paths (`<Tag>.name`, `.petname`,
+  `.Player_petname`) reported `<builtin>` as their source instead of the
+  `characters/<Tag>/` folder they were discovered in. Since the browser
+  classifies an entry as game- or project-owned from its `source_file`, a
+  project that ships its own characters saw their interpolation paths filed
+  under the game — and therefore read-only.
 - The Allowlists browser warned about the allowlist refresh overwriting an
   edit even where the refresh does not exist. It ships with the source
   checkout, not with the packaged application — whose users therefore had no
