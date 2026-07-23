@@ -102,11 +102,16 @@ def extract(context: ScanContext) -> ExtractionResult:
                 ),
             )
 
-    # Explicit additions.
-    for synthetic in ("Player", "Narrator"):
-        if not any(entry.name == synthetic for entry in result.entries):
-            result.entries.append(
-                AllowlistEntry(name = synthetic, source_file = "<builtin>", source_line = 0),
-            )
+    # Explicit additions. These two speakers exist in every TNH build, so they
+    # belong to the layer generated with ``include_tnh`` (the one that produces
+    # ``allowlists_base``). A mod-only run leaves them out: consumers merge the
+    # base layer in anyway, and emitting them here would copy game values into
+    # the project's own file.
+    if context.include_tnh:
+        for synthetic in ("Player", "Narrator"):
+            if not any(entry.name == synthetic for entry in result.entries):
+                result.entries.append(
+                    AllowlistEntry(name = synthetic, source_file = "<builtin>", source_line = 0),
+                )
 
     return result

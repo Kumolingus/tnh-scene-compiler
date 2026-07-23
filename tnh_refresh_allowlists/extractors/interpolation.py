@@ -47,8 +47,16 @@ _WORLD_PATHS: tuple[str, ...] = (
 )
 
 
-def _discover_character_tags(context: ScanContext) -> list[str]:
-    """Return the PascalCase character tags visible from TNH plus the mod.
+def _discover_character_tags(context: ScanContext) -> list[tuple[str, str]]:
+    """Return ``(tag, source_file)`` for every character visible from TNH plus the mod.
+
+    The tag is the PascalCase character name; ``source_file`` is the
+    repo-relative path of the ``characters/<Tag>/`` folder it was found in.
+    The path matters beyond documentation: the allowlist browser classifies
+    an entry as game-owned or project-owned by comparing its ``source_file``
+    against the roots recorded in ``_meta.yaml``. Reporting these as
+    ``<builtin>`` would file a project's own characters under the game, and
+    the browser would then show them read-only.
 
     ``Player`` lives under ``characters/Player/`` but is already covered
     explicitly by ``_PLAYER_PATHS`` (which includes ``first_name`` —
@@ -57,14 +65,14 @@ def _discover_character_tags(context: ScanContext) -> list[str]:
     duplicate ``Player.name`` / ``Player.petname`` entries from both
     sources.
     """
-    tags: list[str] = []
+    tags: list[tuple[str, str]] = []
     seen: set[str] = {"Player"}
 
     if context.include_tnh:
         tnh_chars = context.base_game_root / "game" / "characters"
         for folder in list_character_folders(tnh_chars):
             if folder.name not in seen:
-                tags.append(folder.name)
+                tags.append((folder.name, context.relative(folder)))
                 seen.add(folder.name)
 
     game_dir = context.project_root / "game"
@@ -77,22 +85,29 @@ def _discover_character_tags(context: ScanContext) -> list[str]:
                 continue
             for folder in list_character_folders(characters_dir):
                 if folder.name not in seen:
-                    tags.append(folder.name)
+                    tags.append((folder.name, context.relative(folder)))
                     seen.add(folder.name)
 
     return tags
 
 
 def extract(context: ScanContext) -> ExtractionResult:
-    """Return an :class:`ExtractionResult` listing every hardcoded path."""
+    """Return an :class:`ExtractionResult` listing every hardcoded path.
+
+    The Player and world paths are engine/base-game facts, so they belong to
+    the layer generated with ``include_tnh`` — the run that produces
+    ``allowlists_base``. A mod-only run emits only the paths its own
+    characters bring, since every consumer merges the base layer in.
+    """
     result = ExtractionResult(category = "interpolation")
 
-    for path in _PLAYER_PATHS:
-        result.entries.append(
-            AllowlistEntry(name = path, source_file = "<builtin>", source_line = 0),
-        )
+    if context.include_tnh:
+        for path in _PLAYER_PATHS:
+            result.entries.append(
+                AllowlistEntry(name = path, source_file = "<builtin>", source_line = 0),
+            )
 
-    for tag in _discover_character_tags(context):
+    for tag, source_file in _discover_character_tags(context):
         # Character tags are PascalCase and match the store variable name
         # exactly (``JeanGrey``, ``Rogue``, ``LauraKinney``) — that's what
         # Ren'Py's ``[...]`` interpolation resolves against at runtime.
@@ -104,12 +119,13 @@ def extract(context: ScanContext) -> ExtractionResult:
         for suffix in _CHARACTER_PATH_SUFFIXES:
             path = f"{tag}.{suffix}"
             result.entries.append(
-                AllowlistEntry(name = path, source_file = "<builtin>", source_line = 0),
+                AllowlistEntry(name = path, source_file = source_file, source_line = 1),
             )
 
-    for path in _WORLD_PATHS:
-        result.entries.append(
-            AllowlistEntry(name = path, source_file = "<builtin>", source_line = 0),
-        )
+    if context.include_tnh:
+        for path in _WORLD_PATHS:
+            result.entries.append(
+                AllowlistEntry(name = path, source_file = "<builtin>", source_line = 0),
+            )
 
     return result

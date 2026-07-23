@@ -30,8 +30,18 @@ _HARDCODED_LOOKS: tuple[str, ...] = (
 
 
 def extract(context: ScanContext) -> ExtractionResult:
-    """Return an :class:`ExtractionResult` containing the hardcoded look baseline."""
+    """Return an :class:`ExtractionResult` containing the hardcoded look baseline.
+
+    The baseline belongs to the layer generated with ``include_tnh`` — the
+    same run that produces ``allowlists_base``. A mod-only run emits nothing
+    here: every consumer merges the base layer in, so re-emitting the
+    baseline would only copy the game's values into the project's own file
+    and make the browser report them as game values on the project side.
+    """
     result = ExtractionResult(category = "looks")
+    if not context.include_tnh:
+        return result
+
     for name in _HARDCODED_LOOKS:
         result.entries.append(
             AllowlistEntry(name = name, source_file = "<builtin>", source_line = 0),

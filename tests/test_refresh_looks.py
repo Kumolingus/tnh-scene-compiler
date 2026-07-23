@@ -17,6 +17,13 @@ def test_entries_are_builtin_sourced(mini_context):
         assert entry.source_file == "<builtin>"
 
 
+def test_baseline_is_omitted_when_flag_off(mini_mod_only_context):
+    # The baseline is a game value carried by the base layer; a mod-only run
+    # emitting it would copy it into the project's own file.
+    result = looks.extract(mini_mod_only_context)
+    assert result.entries == []
+
+
 def test_no_per_character_output(mini_context):
     """V1 looks is flat; no per-character partitioning yet."""
     result = looks.extract(mini_context)
