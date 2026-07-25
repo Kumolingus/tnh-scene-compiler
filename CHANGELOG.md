@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Condition Builder could insert a call with an empty argument.**
+  `is_valid` only checked the condition type's own fields, never the ones
+  derived from a signature, so a guided form left partly blank still enabled
+  Insert and wrote `get_effective_friendship(, ) >= 500` into the scene — a
+  syntax error that surfaced only at compile time. Two changes: a `Character`
+  parameter now pre-selects the first character instead of opening blank
+  (matching the built-in checks and the location widget), and Insert stays
+  disabled while any signature field is still empty.
+
+### Added
+
+- **"Love / trust (combined or by tier)" and "Friends (a group, at a tier)"**
+  join the Relationships category. `check_approval` and
+  `are_Characters_friends` had been treated as duplicates of the Love / Trust
+  and Friendship built-in checks, but each built-in only reaches part of them:
+  the simple check tests one axis against a plain number, while
+  `check_approval` also tests love and trust *added together* and accepts a
+  named relationship threshold ("friendship", "dating", …) that compares both
+  axes against that tier's own pair; the `.friends_with` sugar hardcodes two
+  characters and never emits `level`, while the function takes a whole group
+  at any tier. Both now offer dropdowns for those values.
+  `check_approval`'s declared signature also gains the `= None` defaults it
+  was missing — without them the builder emitted `check_approval(A, , )`.
+
 ### Removed
 
 - **The Condition Builder's "Standalone function (any)" entry under Advanced.**

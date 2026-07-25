@@ -504,6 +504,47 @@ def test_property_type_builds_bare_attribute_comparison(
     assert clause.get_condition() == "JeanGrey.desire"
 
 
+def test_character_param_prefills_instead_of_opening_blank(tk_root, allow) -> None:
+    # A Character parameter rarely declares a default; left blank, its readonly
+    # picker would splice an empty argument into the call.
+    dlg = _make_dialog(tk_root, allow)
+    clause = _panel(dlg, 0)
+    _select(clause, "get_effective_friendship")
+
+    assert [f.value() for f in clause._func_params] == ["JeanGrey", "JeanGrey"]
+    assert clause.get_condition().startswith("get_effective_friendship(JeanGrey, JeanGrey)")
+
+
+@pytest.fixture()
+def allow_untyped_param() -> Allowlists:
+    """A function whose second parameter has neither a type nor a default."""
+    return Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        condition_functions={"needs_a_tag"},
+        condition_function_signatures={
+            "needs_a_tag": "needs_a_tag(Character, tag) -> bool",
+        },
+        condition_function_categories={"needs_a_tag": "Relationships"},
+    )
+
+
+def test_empty_signature_field_blocks_insertion(tk_root, allow_untyped_param) -> None:
+    # Without this guard the writer inserts `needs_a_tag(JeanGrey, )`, a syntax
+    # error that only surfaces when the scene is compiled.
+    dlg = _make_dialog(tk_root, allow_untyped_param)
+    clause = _panel(dlg, 0)
+    _select(clause, "needs_a_tag")
+
+    assert clause.get_condition() == "needs_a_tag(JeanGrey, )"
+    assert clause.is_valid() is False
+
+    tag_field = next(f for f in clause._func_params if f.name == "tag")
+    tag_field.var.set('"greeting"')
+    assert clause.get_condition() == 'needs_a_tag(JeanGrey, "greeting")'
+    assert clause.is_valid() is True
+
+
 def test_glossary_button_opens_filtered_glossary(tk_root, allow) -> None:
     from tnh_scene_compiler.glossary import GlossaryDialog
 

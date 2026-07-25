@@ -75,12 +75,18 @@ _FUNC_CATEGORY_TO_TOP: dict[str, str] = {
     "Time": "Location & time",
 }
 
-# Functions already covered by a friendlier built-in type — not surfaced
-# individually (they'd duplicate the sugar checks).
+# Functions a friendlier built-in type covers *entirely* — not surfaced
+# individually, since the entry would duplicate the sugar check.
+#
+# Only an exact duplicate belongs here. check_approval and
+# are_Characters_friends were listed too, but each built-in reaches a strict
+# subset: "Love / Trust check" emits one axis against a literal number, while
+# check_approval also does combined love+trust and named thresholds; the
+# "Friendship check" sugar hardcodes two characters and never emits `level`,
+# while the function takes any number at any tier. Both are promoted instead,
+# under labels that say what they add.
 _SUGAR_DUPLICATE_FUNCTIONS: frozenset[str] = frozenset({
-    "check_approval",                    # Love / Trust check
-    "are_Characters_friends",            # Friendship check
-    "Character_is_in_close_proximity",   # Nearby check
+    "Character_is_in_close_proximity",   # Nearby check — same single argument
 })
 
 # Top-level category -> glossary search term for the "?" quick-access button.
@@ -1146,6 +1152,13 @@ class _ConditionClausePanel(ttk.Frame):
         if kind == PARAM_WIDGET_DATE:
             return self._build_date_widget(parent, row, pname, pdefault)
 
+        # A Character parameter rarely declares a default, which would leave its
+        # readonly picker blank until the writer notices it. Pre-select the
+        # first character instead, matching the built-in checks' own character
+        # row and the location widget's pre-selected slugline.
+        if kind == PARAM_WIDGET_CHARACTER and not pdefault and self._characters:
+            pdefault = self._characters[0]
+
         var = tk.StringVar(value=pdefault)
         if kind == PARAM_WIDGET_CHOICES:
             ttk.Combobox(
@@ -1393,12 +1406,21 @@ class _ConditionClausePanel(ttk.Frame):
             and field.current_var.get()
         )
 
-    def _join_args(self, fields: list[_ParamField]) -> str:
-        """Join the fields' arguments, dropping trailing omitted-location args."""
+    def _rendered_args(self, fields: list[_ParamField]) -> list[str]:
+        """Return each field's argument text, dropping trailing omitted locations.
+
+        Shared by :meth:`_join_args` (which splices them into the call) and
+        :meth:`is_valid` (which refuses to insert while one is still empty), so
+        the two can never disagree on what the call is about to contain.
+        """
         rendered = [(f, self._arg_from_field(f)) for f in fields]
         while rendered and self._is_omitted_location(rendered[-1][0]):
             rendered.pop()
-        return ", ".join(val for _f, val in rendered)
+        return [val for _f, val in rendered]
+
+    def _join_args(self, fields: list[_ParamField]) -> str:
+        """Join the fields' arguments, dropping trailing omitted-location args."""
+        return ", ".join(self._rendered_args(fields))
 
     def _assemble_func_args(self) -> str:
         """Return the comma-joined argument list for the "function" kind.
@@ -1464,6 +1486,13 @@ class _ConditionClausePanel(ttk.Frame):
         op, value = self._current_comparison()
         if op and not value:
             return False
+        # A signature-derived field left empty splices a hole into the call —
+        # `get_effective_friendship(, ) >= 500`, which is a syntax error in the
+        # writer's scene. _REQUIRED_VARS only covers the type's own vars (the
+        # function name, the character of a built-in check), never these.
+        for fields in (self._func_params, self._method_params):
+            if any(not arg.strip() for arg in self._rendered_args(fields)):
+                return False
         return True
 
 

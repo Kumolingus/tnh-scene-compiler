@@ -19,16 +19,55 @@ source: TNH base game
 generated_at: '2026-05-13'
 functions:
   # -- Approval -------------------------------------------------------------
+  # The real function takes three more parameters (extra_condition, multiplier,
+  # default) that are deliberately not declared here: every declared parameter
+  # is emitted into the call, so exposing them would write
+  # `check_approval(A, None, 500, None, 1.0, (0, 0))` for no gain. The defaults
+  # below are load-bearing for the same reason — without them the builder emits
+  # an empty argument (`check_approval(A, , )`) when a field is left untouched.
   - name: check_approval
     category: Approval
-    signature: "check_approval(Character, flavor: str | None, threshold: str | int | None) -> bool | int"
+    label: "Love / trust (combined or by tier)"
+    signature: "check_approval(Character, flavor: str | None = None, threshold: str | int | None = None) -> bool | int | float"
+    notes: |
+      The full approval check, for what the simple Love / Trust check cannot
+      say. Leave flavor at None to test love and trust ADDED TOGETHER; set it
+      to "love" or "trust" for one axis alone. threshold takes either a plain
+      number, or the name of one of the character's relationship thresholds
+      ("friendship", "dating", "relationship", "love") — the named form checks
+      love AND trust against that tier's own pair of values, which is how the
+      game gates its own content. Left at None it returns the raw number
+      instead, so use the Compare row.
+    param_choices:
+      flavor:
+        - "None"
+        - '"love"'
+        - '"trust"'
+      threshold:
+        - "None"
+        - '"warm"'
+        - '"friendship"'
+        - '"dating"'
+        - '"relationship"'
+        - '"love"'
     source_file: game/core/mechanics/approval.rpy
     source_line: 16
 
   # -- Relationships ----------------------------------------------------------
   - name: are_Characters_friends
     category: Relationships
+    label: "Friends (a group, at a tier)"
     signature: "are_Characters_friends(Characters, level: int = 1) -> bool"
+    notes: |
+      True when EVERY pair in the group is friends at least at `level`. The
+      simple Friendship check is this function with two characters at level 1;
+      use this one to check a whole group, or to demand more than plain
+      friendship. Scale: 1 friends, 2 good friends, 3 best friends.
+    param_choices:
+      level:
+        - "1"
+        - "2"
+        - "3"
     source_file: game/core/mechanics/friendship.rpy
     source_line: 15
   - name: are_Characters_in_Partners

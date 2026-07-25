@@ -38,15 +38,15 @@ class TestBuildConditionCatalog:
     def _allow(self) -> Allowlists:
         return Allowlists(
             condition_functions={
-                "get_effective_friendship",  # Relationships -> promoted
-                "get_time_since",            # Time -> Location & time
-                "check_approval",            # sugar duplicate -> excluded
-                "mystery_fn",                # no category -> Advanced
+                "get_effective_friendship",         # Relationships -> promoted
+                "get_time_since",                   # Time -> Location & time
+                "Character_is_in_close_proximity",  # sugar duplicate -> excluded
+                "mystery_fn",                       # no category -> Advanced
             },
             condition_function_categories={
                 "get_effective_friendship": "Relationships",
                 "get_time_since": "Time",
-                "check_approval": "Approval",
+                "Character_is_in_close_proximity": "Character status",
             },
             condition_function_labels={
                 "get_effective_friendship": "Effective friendship (tier)",
@@ -81,9 +81,12 @@ class TestBuildConditionCatalog:
         assert loc["Days since a date"] == "get_time_since"
 
     def test_sugar_duplicate_is_excluded(self):
+        # Only an *exact* duplicate is excluded: the Nearby check takes the
+        # same single Character. check_approval and are_Characters_friends are
+        # promoted, because the built-ins reach a strict subset of them.
         catalog = build_condition_catalog(self._allow())
         targets = [e.target for entries in catalog.values() for e in entries]
-        assert "check_approval" not in targets
+        assert "Character_is_in_close_proximity" not in targets
 
     def test_uncategorized_function_falls_to_advanced(self):
         catalog = build_condition_catalog(self._allow())
