@@ -22,6 +22,7 @@ from .extractors import (
     characters,
     condition_functions,
     faces,
+    features,
     fx,
     history_events,
     interpolation,
@@ -59,6 +60,7 @@ _PER_CHARACTER_EXTRACTORS: tuple[_Extractor, ...] = (
     arms.extract,
     outfits.extract,
     moods.extract,
+    features.extract,
 )
 
 

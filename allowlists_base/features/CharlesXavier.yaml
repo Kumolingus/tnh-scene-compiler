@@ -1,0 +1,10 @@
+character: CharlesXavier
+source: TNH + Mod
+generated_at: '2026-07-25'
+values:
+- name: chatting
+  source_file: game/characters/CharlesXavier/definitions/features.rpy
+  source_line: 4
+- name: trivia_classroom_ask
+  source_file: game/characters/CharlesXavier/definitions/features.rpy
+  source_line: 5

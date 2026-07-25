@@ -52,6 +52,17 @@ stats:
     KurtWagner: 4
     LauraKinney: 34
     OroroMunroe: 5
+  # Added 2026-07-25 by a features-only run; the counts above are from the
+  # 2026-07-23 full refresh and were not regenerated.
+  features:
+    AlisonBlaire: 3
+    CharlesXavier: 2
+    JeanGrey: 22
+    KittyPryde: 3
+    KurtWagner: 8
+    LauraKinney: 23
+    OroroMunroe: 3
+    Rogue: 23
 warnings:
 - Location loc_PlayerShower declares the same name as loc_PlayerRoom, so both derive
   the slugline "[PLAYER.FIRST_NAME]'S ROOM". loc_PlayerRoom keeps it. Give loc_PlayerShower

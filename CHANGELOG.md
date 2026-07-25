@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A `features` allowlist, extracted per character.** `tnh_refresh_allowlists`
+  gains a `features` extractor reading each `<Character>_supported_features`
+  set, emitting `features/<Character>.yaml` like faces and outfits do, and the
+  browser lists it as its own topic. `Character.feature_enabled("...")` is fed
+  by it and is the first `param_choices` source that **varies by character**:
+  the dropdown re-populates from the character selected in the same form, the
+  way the built-in mood check already does. The sets justify it — they run
+  from 2 entries (CharlesXavier) to 23 (Rogue) and share no single common
+  value, so one flat list would have suggested `date` for a character who has
+  no date. With no character picked, or one carrying no declared set, the
+  union of every known set is offered rather than an empty dropdown. The
+  writer cheatsheet grows a per-character **Features** subsection to match.
+
 - **Dropdowns on the last character methods that were still free text**:
   `check_trait` and `get_trait` suggest the known traits, `check_personality`
   the 8 personality traits, and the two inventory checks (`get_active`,

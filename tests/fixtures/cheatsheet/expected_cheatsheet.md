@@ -173,6 +173,13 @@ table have no authoring surface of their own.
 | `casual` |
 | `uniform` |
 
+#### Features
+
+| Value |
+|---|
+| `date` |
+| `texting` |
+
 ### Rogue
 
 #### Faces

@@ -545,6 +545,71 @@ def test_empty_signature_field_blocks_insertion(tk_root, allow_untyped_param) ->
     assert clause.is_valid() is True
 
 
+@pytest.fixture()
+def allow_features() -> Allowlists:
+    """Two methods, one of them fed by a per-character source."""
+    return Allowlists(
+        characters=["JeanGrey", "CharlesXavier"],
+        characters_upper={"JEANGREY", "CHARLESXAVIER"},
+        traits={"shy"},
+        char_features={
+            "JeanGrey": {"date", "flirt"},
+            "CharlesXavier": {"chatting"},
+        },
+        character_methods={"feature_enabled", "check_trait"},
+        character_method_signatures={
+            "feature_enabled": "Character.feature_enabled(feature_name: str) -> bool",
+            "check_trait": "Character.check_trait(trait: str) -> bool",
+        },
+        character_method_categories={
+            "feature_enabled": "Features", "check_trait": "Traits",
+        },
+        character_method_param_choices={
+            "feature_enabled": {"feature_name": {"source": "features", "quote": True}},
+            "check_trait": {"trait": {"source": "traits", "quote": True}},
+        },
+    )
+
+
+def _feature_options(clause):
+    combo, _spec = clause._per_char_choice_widgets[0]
+    return list(combo.cget("values"))
+
+
+def test_per_character_choices_follow_the_character(tk_root, allow_features) -> None:
+    dlg = _make_dialog(tk_root, allow_features)
+    clause = _panel(dlg, 0)
+    _select(clause, "Character method (any)")
+    clause._vars["method_category"].set("Features")
+    clause._vars["method_name"].set("feature_enabled")
+
+    clause._vars["character"].set("JeanGrey")
+    clause._on_character_changed()
+    assert _feature_options(clause) == ['"date"', '"flirt"']
+
+    clause._vars["character"].set("CharlesXavier")
+    clause._on_character_changed()
+    assert _feature_options(clause) == ['"chatting"']
+
+
+def test_switching_method_drops_the_destroyed_combo(tk_root, allow_features) -> None:
+    # The per-character combos are rebuilt on every method change; a stale one
+    # left registered would be reconfigured after Tk destroyed it (TclError).
+    dlg = _make_dialog(tk_root, allow_features)
+    clause = _panel(dlg, 0)
+    _select(clause, "Character method (any)")
+    clause._vars["method_category"].set("Features")
+    clause._vars["method_name"].set("feature_enabled")
+    assert len(clause._per_char_choice_widgets) == 1
+
+    clause._vars["method_category"].set("Traits")
+    clause._vars["method_name"].set("check_trait")
+    assert clause._per_char_choice_widgets == []
+
+    clause._vars["character"].set("CharlesXavier")
+    clause._on_character_changed()  # must not raise
+
+
 def test_glossary_button_opens_filtered_glossary(tk_root, allow) -> None:
     from tnh_scene_compiler.glossary import GlossaryDialog
 

@@ -243,6 +243,15 @@ ALLOWLIST_TOPICS: tuple[AllowlistTopic, ...] = (
         summary="Outfit values for the outfit= slot, one set per character.",
     ),
     AllowlistTopic(
+        key="features", title="Features",
+        filename="features", item_key="values",
+        per_character=True, has_shared=False, maintenance=MAINTENANCE_GENERATED,
+        summary=(
+            "Feature names for the Character.feature_enabled(\"...\") condition, "
+            "one set per character — they share no common value."
+        ),
+    ),
+    AllowlistTopic(
         key="looks", title="Looks",
         filename="looks.yaml", item_key="values",
         per_character=False, has_shared=False, maintenance=MAINTENANCE_GENERATED,

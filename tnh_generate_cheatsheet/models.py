@@ -42,6 +42,9 @@ class CharacterData:
         arms_left: Left-arm values (YAML ``left_arm`` subgroup).
         arms_right: Right-arm values (YAML ``right_arm`` subgroup).
         outfits: All outfit values for this character.
+        features: Feature names this character supports, for the
+            ``Character.feature_enabled("...")`` condition. Unlike the others
+            these vary widely between characters and share no common value.
     """
 
     name: str
@@ -51,6 +54,7 @@ class CharacterData:
     arms_left: list[Entry] = field(default_factory = list)
     arms_right: list[Entry] = field(default_factory = list)
     outfits: list[Entry] = field(default_factory = list)
+    features: list[Entry] = field(default_factory = list)
 
     def has_any(self) -> bool:
         """Return ``True`` if this character has at least one authoring value."""
@@ -60,7 +64,8 @@ class CharacterData:
             or self.arms
             or self.arms_left
             or self.arms_right
-            or self.outfits,
+            or self.outfits
+            or self.features,
         )
 
 

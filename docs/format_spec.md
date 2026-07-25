@@ -942,9 +942,13 @@ Each parameter picks its input widget automatically:
   whitelist), so a project whose allowlist does not cover a value can still type it. A parameter maps to either a **fixed list** (same schema
   as `fx.yaml`; a **string** value must include its quotes, e.g. `'"love"'`, because it is spliced in verbatim) **or** a **dynamic source**
   mapping resolved against the live allowlists at render time: `{source: <allowlist>, quote: <bool>, suffix: <str>}`. `source` is one of
-  `history_events`, `traits`, `personalities`, `characters`, `locations`, `looks`, `stages`, `sfx`; `quote` wraps each value in double
-  quotes (for a string argument); `suffix` is appended to each (e.g. `.History`). This keeps the suggestions in sync with the data instead of
-  copying it into the entry — e.g. a history-event `Item` parameter offers every known event, quoted.
+  `history_events`, `traits`, `personalities`, `characters`, `locations`, `looks`, `stages`, `sfx`, `features`; `quote` wraps each value in
+  double quotes (for a string argument); `suffix` is appended to each (e.g. `.History`). This keeps the suggestions in sync with the data
+  instead of copying it into the entry — e.g. a history-event `Item` parameter offers every known event, quoted.
+- **`features` is per character.** Its values come from `features/<Character>.yaml`, and the dropdown is re-populated from the character
+  selected in the same form — the sets vary from 2 entries to 23 and share no common value, so a flat list would suggest `date` for a
+  character who does not support it. With no character selected, or one that has no declared set (a project may add its own), the union of
+  every known set is offered rather than an empty dropdown. Every other source is the same list for everyone.
 - a single **`Character`** parameter → a character picker; a **`Character` collection** (a `Characters` / `*_Characters` name, or a container
   type such as `Iterable[Character]` / `set[Character]`) → a multi-select that assembles a set literal (`{JeanGrey, Rogue}`).
 - a single **location** parameter (a bare `Location` / `location` name, or a `Location` type) → a **"Current location?"** toggle. Ticked (the

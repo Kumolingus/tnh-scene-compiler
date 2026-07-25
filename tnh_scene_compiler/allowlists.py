@@ -490,6 +490,10 @@ class Allowlists:
         shared_moods: Global shared mood set (from ``moods/_shared.yaml``).
         char_moods: Per-character mood additions (not including the shared).
         char_faces / char_outfits: one set per character.
+        char_features: per-character feature names for
+            ``Character.feature_enabled("...")``. Genuinely per-character —
+            the sets share no common value — so a consumer must resolve them
+            against a selected character rather than flattening them.
         char_arms / char_left_arm / char_right_arm: three sets per character
             matching the YAML subgroups in ``arms/<Character>.yaml``.
         looks: Global look values (``looks.yaml``). Same list for every
@@ -506,6 +510,7 @@ class Allowlists:
     mood_faces: dict[str, list[str]] = field(default_factory=dict)
     char_faces: dict[str, set[str]] = field(default_factory=dict)
     char_outfits: dict[str, set[str]] = field(default_factory=dict)
+    char_features: dict[str, set[str]] = field(default_factory=dict)
     char_arms: dict[str, set[str]] = field(default_factory=dict)
     char_left_arm: dict[str, set[str]] = field(default_factory=dict)
     char_right_arm: dict[str, set[str]] = field(default_factory=dict)
@@ -556,6 +561,7 @@ class Allowlists:
         shared_moods, char_moods, mood_faces = _load_moods_with_shared(allowlists_dir / "moods")
         char_faces = _load_per_char_simple(allowlists_dir / "faces")
         char_outfits = _load_per_char_simple(allowlists_dir / "outfits")
+        char_features = _load_per_char_simple(allowlists_dir / "features")
         char_arms, char_left_arm, char_right_arm = _load_per_char_arms(
             allowlists_dir / "arms",
         )
@@ -737,6 +743,7 @@ class Allowlists:
             mood_faces = mood_faces,
             char_faces = char_faces,
             char_outfits = char_outfits,
+            char_features = char_features,
             char_arms = char_arms,
             char_left_arm = char_left_arm,
             char_right_arm = char_right_arm,
@@ -924,6 +931,7 @@ class Allowlists:
             mood_faces={**self.mood_faces, **other.mood_faces},
             char_faces=_merge_char_sets(self.char_faces, other.char_faces),
             char_outfits=_merge_char_sets(self.char_outfits, other.char_outfits),
+            char_features=_merge_char_sets(self.char_features, other.char_features),
             char_arms=_merge_char_sets(self.char_arms, other.char_arms),
             char_left_arm=_merge_char_sets(self.char_left_arm, other.char_left_arm),
             char_right_arm=_merge_char_sets(self.char_right_arm, other.char_right_arm),

@@ -1,0 +1,13 @@
+character: OroroMunroe
+source: TNH + Mod
+generated_at: '2026-07-25'
+values:
+- name: love
+  source_file: game/characters/OroroMunroe/definitions/features.rpy
+  source_line: 4
+- name: mediation
+  source_file: game/characters/OroroMunroe/definitions/features.rpy
+  source_line: 5
+- name: trust
+  source_file: game/characters/OroroMunroe/definitions/features.rpy
+  source_line: 6

@@ -12,7 +12,9 @@
 # ``{source: <allowlist set>, quote: true}`` resolved at render time so the
 # suggestions track the game/mod data instead of being copied here.
 # Sources: history_events, traits, personalities, characters, locations,
-# looks, stages, sfx.
+# looks, stages, sfx, features. All are the same list for every character
+# except ``features``, which is narrowed to the character selected in the
+# form (see features/<Character>.yaml).
 #
 # Some methods here are what a friendlier built-in check compiles to:
 # check_trait / check_personality / get_status / is_in_normal_mood are the
@@ -110,9 +112,14 @@ methods:
     signature: "Character.feature_enabled(feature_name: str) -> bool"
     notes: |
       True when the character supports a named feature (e.g. "date", "flirt",
-      "texting", "sleepover"). The set is per character — it comes from that
-      character's supported_features, plus any trait of the same name. No
-      dropdown yet: the values are not extracted into an allowlist.
+      "texting", "sleepover"). The list is that character's own — the sets vary
+      a lot, from 2 entries to 23, and share no common value — so it changes
+      when you change the character above. A trait of the same name also
+      counts, which is why the list is a suggestion and stays editable.
+    param_choices:
+      feature_name:
+        source: features
+        quote: true
     source_file: game/core/definitions/npcs.rpy
     source_line: 443
 

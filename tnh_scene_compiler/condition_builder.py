@@ -500,21 +500,54 @@ def flow_text(text: str) -> str:
     return "\n\n".join(" ".join(p.split()) for p in paragraphs)
 
 
-# Named allowlist sets a dynamic ``param_choices`` source can pull from.
-_CHOICE_SOURCES: dict[str, Callable[[Allowlists], list[str]]] = {
-    "history_events": lambda a: sorted(a.history_events),
-    "traits": lambda a: sorted(a.traits),
-    "personalities": lambda a: sorted(a.personalities),
-    "characters": lambda a: list(a.characters),
-    "locations": lambda a: sorted(a.locations),
-    "looks": lambda a: sorted(a.looks),
-    "stages": lambda a: sorted(a.stages),
-    "sfx": lambda a: sorted(a.sfx),
+# Named allowlist sets a dynamic ``param_choices`` source can pull from. Each
+# takes the allowlists and the clause's currently-selected character; a source
+# whose values are the same for everyone ignores the second argument.
+_CHOICE_SOURCES: dict[str, Callable[[Allowlists, str], list[str]]] = {
+    "history_events": lambda a, _c: sorted(a.history_events),
+    "traits": lambda a, _c: sorted(a.traits),
+    "personalities": lambda a, _c: sorted(a.personalities),
+    "characters": lambda a, _c: list(a.characters),
+    "locations": lambda a, _c: sorted(a.locations),
+    "looks": lambda a, _c: sorted(a.looks),
+    "stages": lambda a, _c: sorted(a.stages),
+    "sfx": lambda a, _c: sorted(a.sfx),
+    "features": lambda a, c: character_features(a, c),
 }
+
+# Sources whose values change with the selected character. A field fed by one
+# of these is re-populated when the character row changes, the way the
+# built-in mood check re-populates its own combo.
+_PER_CHARACTER_SOURCES: frozenset[str] = frozenset({"features"})
+
+
+def character_features(allow: Allowlists, character: str) -> list[str]:
+    """Return *character*'s supported features, else every known feature.
+
+    The per-character sets overlap only partly and share no common value at
+    all, so flattening them would offer "date" for a character who does not
+    support it. When the character is unknown, though — nothing picked yet, or
+    a project character absent from the allowlists — the union is a more
+    useful answer than an empty dropdown, and the combo stays editable either
+    way.
+    """
+    if character in allow.char_features:
+        return sorted(allow.char_features[character])
+    if not allow.char_features:
+        return []
+    return sorted(set().union(*allow.char_features.values()))
+
+
+def param_choices_is_per_character(spec: list[str] | dict[str, Any]) -> bool:
+    """Return ``True`` if a declared ``param_choices`` value varies by character."""
+    return (
+        isinstance(spec, dict)
+        and str(spec.get("source", "")) in _PER_CHARACTER_SOURCES
+    )
 
 
 def resolve_param_choices(
-    spec: list[str] | dict[str, Any], allow: Allowlists,
+    spec: list[str] | dict[str, Any], allow: Allowlists, character: str = "",
 ) -> list[str]:
     """Resolve a declared ``param_choices`` value into the dropdown options.
 
@@ -525,12 +558,17 @@ def resolve_param_choices(
     parameter suggests every known event as a valid quoted string literal, kept
     in sync with the data instead of copied into the allowlist entry. An
     unknown source resolves to no options (the combo stays free text).
+
+    *character* narrows a per-character source (see
+    :func:`param_choices_is_per_character`) to the clause's selected character;
+    the flat sources ignore it.
     """
     if isinstance(spec, list):
         return list(spec)
     if not isinstance(spec, dict):
         return []
-    values = _CHOICE_SOURCES.get(str(spec.get("source", "")), lambda _a: [])(allow)
+    source = _CHOICE_SOURCES.get(str(spec.get("source", "")), lambda _a, _c: [])
+    values = source(allow, character)
     suffix = str(spec.get("suffix", ""))
     quote = bool(spec.get("quote", False))
     return [f'"{v}{suffix}"' if quote else f"{v}{suffix}" for v in values]
@@ -610,6 +648,9 @@ class _ConditionClausePanel(ttk.Frame):
         self._mood_combo_widget: ttk.Combobox | None = None
         self._func_params: list[_ParamField] = []
         self._method_params: list[_ParamField] = []
+        # Dropdowns fed by a per-character source, re-populated when the
+        # character row changes: (combo, declared spec).
+        self._per_char_choice_widgets: list[tuple[ttk.Combobox, Any]] = []
         # Comparison affordance for a comparable function/method return
         # (tier/int/float). Non-None only while such an entry is selected.
         self._compare_op_var: tk.StringVar | None = None
@@ -724,6 +765,7 @@ class _ConditionClausePanel(ttk.Frame):
         self._mood_combo_widget = None
         self._func_params = []
         self._method_params = []
+        self._per_char_choice_widgets = []
         self._compare_op_var = None
         self._compare_value_var = None
 
@@ -890,10 +932,30 @@ class _ConditionClausePanel(ttk.Frame):
 
     # -- Character-change callback -----------------------------------------
 
+    def _current_character(self) -> str:
+        """The clause's selected character, or ``""`` when the form has no character row."""
+        return self._get_var("character")
+
     def _on_character_changed(self) -> None:
-        """Refresh mood values when the character changes in mood mode."""
+        """Refresh whatever depends on the selected character."""
         if self._current_kind == "mood":
             self._refresh_mood_values()
+        self._refresh_per_character_choices()
+
+    def _refresh_per_character_choices(self) -> None:
+        """Re-populate the dropdowns whose values depend on the character.
+
+        Only the *options* change. The current value is left alone even when
+        the new character does not offer it: these combos are editable
+        suggestion lists, so a writer may legitimately have typed a value the
+        allowlists do not carry, and silently rewriting their input would be
+        worse than showing a value the dropdown no longer suggests. (The
+        built-in mood combo does reset, but it is ``readonly`` — there the
+        value can only ever come from the list.)
+        """
+        character = self._current_character()
+        for combo, spec in self._per_char_choice_widgets:
+            combo.configure(values=resolve_param_choices(spec, self._allow, character))
 
     def _refresh_mood_values(self) -> None:
         """Update the mood combo with values for the selected character."""
@@ -1096,6 +1158,9 @@ class _ConditionClausePanel(ttk.Frame):
             for widget in params_frame.winfo_children():
                 widget.destroy()
             self._method_params.clear()
+            # The combos just destroyed must go with them, or the next
+            # character change reconfigures a dead widget.
+            self._per_char_choice_widgets.clear()
 
             name = self._get_var("method_name")
             note_label.configure(text=flow_text(self._allow.character_method_notes.get(name, "")))
@@ -1161,11 +1226,15 @@ class _ConditionClausePanel(ttk.Frame):
 
         var = tk.StringVar(value=pdefault)
         if kind == PARAM_WIDGET_CHOICES:
-            ttk.Combobox(
+            spec = choices or []
+            combo = ttk.Combobox(
                 parent, textvariable=var,
-                values=resolve_param_choices(choices or [], self._allow),
+                values=resolve_param_choices(spec, self._allow, self._current_character()),
                 state="normal", width=20,
-            ).grid(row=row, column=1, sticky=tk.W, pady=1)
+            )
+            combo.grid(row=row, column=1, sticky=tk.W, pady=1)
+            if param_choices_is_per_character(spec):
+                self._per_char_choice_widgets.append((combo, spec))
         elif kind == PARAM_WIDGET_CHARACTER:
             ttk.Combobox(
                 parent, textvariable=var, values=self._characters,
@@ -1346,6 +1415,9 @@ class _ConditionClausePanel(ttk.Frame):
         for widget in params_frame.winfo_children():
             widget.destroy()
         self._func_params.clear()
+        # Same as the method path: a destroyed combo must not stay registered
+        # for the next per-character refresh.
+        self._per_char_choice_widgets.clear()
 
         note_label.configure(text=flow_text(self._allow.condition_function_notes.get(name, "")))
         sig = self._allow.condition_function_signatures.get(name, "")

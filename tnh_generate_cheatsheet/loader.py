@@ -28,7 +28,7 @@ import yaml
 
 from .models import CharacterData, CheatsheetData, Entry
 
-_PER_CHARACTER_CATEGORIES = ("moods", "faces", "arms", "outfits")
+_PER_CHARACTER_CATEGORIES = ("moods", "faces", "arms", "outfits", "features")
 
 
 def _read_yaml(path: Path) -> dict[str, Any] | None:
@@ -201,7 +201,7 @@ def _load_per_character(allowlists: Path, data: CheatsheetData) -> None:
     """Scan each per-character YAML directory and populate ``data.per_character``.
 
     A character is added to :attr:`CheatsheetData.per_character` only when it
-    contributes at least one entry across the five categories. This keeps the
+    contributes at least one entry across the categories. This keeps the
     "Per-character authoring values" section from listing speakers that have
     no authoring surface.
     """
@@ -237,6 +237,8 @@ def _populate_category(char: CharacterData, category: str, payload: dict[str, An
         char.faces = _entries_from_values(payload.get("values"))
     elif category == "outfits":
         char.outfits = _entries_from_values(payload.get("values"))
+    elif category == "features":
+        char.features = _entries_from_values(payload.get("values"))
     elif category == "arms":
         char.arms = _entries_from_values(payload.get("arms"))
         char.arms_left = _entries_from_values(payload.get("left_arm"))
@@ -295,7 +297,9 @@ _FLAT_LISTS = (
     "characters", "stages", "locations", "sfx", "looks", "shared_moods",
     "interpolation", "condition_functions",
 )
-_CHARACTER_LISTS = ("moods", "faces", "arms", "arms_left", "arms_right", "outfits")
+_CHARACTER_LISTS = (
+    "moods", "faces", "arms", "arms_left", "arms_right", "outfits", "features",
+)
 
 
 def _dedupe(base: list[Entry], overlay: list[Entry]) -> list[Entry]:

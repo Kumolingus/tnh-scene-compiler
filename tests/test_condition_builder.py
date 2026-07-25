@@ -19,11 +19,13 @@ from tnh_scene_compiler.condition_builder import (
     PARAM_WIDGET_TEXT,
     build_condition,
     build_condition_catalog,
+    character_features,
     flow_text,
     format_character_set,
     is_bool_param,
     is_date_tuple_param,
     join_conditions,
+    param_choices_is_per_character,
     param_widget_kind,
     resolve_method_path,
     resolve_param_choices,
@@ -523,6 +525,54 @@ class TestFormatCharacterSet:
 
     def test_blank_entries_are_dropped(self):
         assert format_character_set(["", "Rogue", ""]) == "{Rogue}"
+
+
+class TestPerCharacterChoices:
+    def _allow(self) -> Allowlists:
+        return Allowlists(
+            characters=["JeanGrey", "CharlesXavier", "Newcomer"],
+            char_features={
+                "JeanGrey": {"date", "flirt", "texting"},
+                "CharlesXavier": {"chatting"},
+            },
+        )
+
+    def test_features_are_narrowed_to_the_character(self):
+        allow = self._allow()
+        spec = {"source": "features", "quote": True}
+        assert resolve_param_choices(spec, allow, "JeanGrey") == [
+            '"date"', '"flirt"', '"texting"',
+        ]
+        assert resolve_param_choices(spec, allow, "CharlesXavier") == ['"chatting"']
+
+    def test_unknown_character_falls_back_to_the_union(self):
+        # Nothing picked yet, or a project character with no declared set —
+        # the union beats an empty dropdown, and the combo stays editable.
+        allow = self._allow()
+        spec = {"source": "features"}
+        assert resolve_param_choices(spec, allow, "Newcomer") == [
+            "chatting", "date", "flirt", "texting",
+        ]
+        assert resolve_param_choices(spec, allow, "") == [
+            "chatting", "date", "flirt", "texting",
+        ]
+
+    def test_no_features_at_all_resolves_empty(self):
+        assert character_features(Allowlists(), "JeanGrey") == []
+
+    def test_only_declared_per_character_sources_are_flagged(self):
+        assert param_choices_is_per_character({"source": "features"}) is True
+        assert param_choices_is_per_character({"source": "traits"}) is False
+        assert param_choices_is_per_character(["a", "b"]) is False
+
+    def test_flat_sources_ignore_the_character(self):
+        allow = Allowlists(traits={"shy", "bold"})
+        spec = {"source": "traits"}
+        assert (
+            resolve_param_choices(spec, allow, "JeanGrey")
+            == resolve_param_choices(spec, allow, "Rogue")
+            == ["bold", "shy"]
+        )
 
 
 class TestShippedParamChoices:

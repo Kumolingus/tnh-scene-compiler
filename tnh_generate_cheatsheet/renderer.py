@@ -147,6 +147,7 @@ def _render_character(char: CharacterData) -> str:
     lines.extend(_render_character_subsection("Left arm", char.arms_left))
     lines.extend(_render_character_subsection("Right arm", char.arms_right))
     lines.extend(_render_character_subsection("Outfits", char.outfits))
+    lines.extend(_render_character_subsection("Features", char.features))
 
     # Trim trailing blank line left by the last sub-section for tidy output.
     while lines and lines[-1] == "":
