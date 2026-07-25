@@ -311,10 +311,13 @@ I guess it's okay.
 ```
 
 **In the editor:** the Struct. palette tab's "Condition Builder…" button opens a guided form. Pick a **Category** (Relationships,
-Character state, Story & history, Location & time, Advanced) then a **Condition** within it — the built-in checks (love/trust, trait,
-mood, friendship, …) sit next to ready-made checks like "In a relationship" or "Effective friendship (tier)", so you rarely need the
-generic "Standalone function (any)" / "Character method (any)" under Advanced. Fill in the guided fields instead of remembering the exact
-syntax. When a condition is a number (a friendship tier, a count, arousal) rather than a yes/no, a "Compare:" row appears so you can pick
+Character state, Story & history, Location & time, Advanced) then a **Condition** within it — every check is listed there under a plain
+name, the built-ins (love/trust, trait, mood, friendship, …) next to ready-made ones like "In a relationship" or "Effective friendship
+(tier)". Fill in the guided fields instead of remembering the exact syntax. Advanced holds a single "Character method (any)" entry, for the
+low-level calls that have no friendlier form; it earns its keep when a built-in can't say what you mean — the History check answers "has she
+ever", but the `History.check` method under Advanced gives you the **count** (compare it, `>= 2` for "at least twice") and a **tracker**
+dropdown to narrow the window to this season, chapter, week or day; `History.check_when` gives you *when* it last happened, which "Periods
+since a date" turns into an age. When a condition is a number (a friendship tier, a count, arousal) rather than a yes/no, a "Compare:" row appears so you can pick
 an operator and value (e.g. `>= 2`) — leave it on "(no comparison)" only if you really want the raw truthy test. Use "+ Add condition" to
 combine as many conditions as you like; each one after the first picks its own AND/OR, and "Remove" drops it. (`and` binds tighter than
 `or`, as in most languages.) The "?" button next to the Category selector opens the Glossary on that category's conditions, with

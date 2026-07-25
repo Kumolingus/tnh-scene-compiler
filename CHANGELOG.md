@@ -6,8 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- **The Condition Builder's "Standalone function (any)" entry under Advanced.**
+  It had become a pure duplicate: every allowlist function is promoted to its
+  own named entry in the selector (an uncategorised one lands under Advanced),
+  so of the 23 functions it listed, 20 were already one click away under a
+  readable label — and the remaining 3 are the raw form of the Love / Trust,
+  Friendship and Nearby built-in checks. Worse, it grouped them by the raw
+  allowlist `category` field, a second taxonomy that put the same function
+  under "Approval" there and "Relationships" in the main selector. Nothing
+  became unreachable. Advanced now holds only "Character method (any)", which
+  is not a duplicate — character methods are never promoted individually.
+
 ### Fixed
 
+- **`Character.get_friendship()` was documented as a raw score.** It delegates
+  straight to `get_Characters_opinion`, so it returns a `FriendshipTier`
+  (-2 enemies … 3 best friends). The old note suggested comparisons like
+  `>= 50`, which can never be true. The signature, the parameter name and the
+  note now match the base game, and the note points at the friendlier
+  "Opinion of another (tier)" condition that does the same thing.
+- Every `source_line` in `character_methods.yaml` now matches the base game
+  again — 9 of the 12 had drifted (`feature_enabled` was 39 lines off). The
+  file is hand-maintained, with no extractor to catch this.
 - Condition Builder help text (the grey type descriptions and the per-entry
   notes) now reflows to the panel width instead of keeping the hand-wrapped
   source line breaks, which had left ragged, oddly-broken lines.
@@ -22,6 +44,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **The pre-filled parameter values now reach the character methods too.**
+  `History.check` and `History.check_when` offer a dropdown of the known
+  history events and one of the 11 history trackers (`'persistent'`,
+  `'season'`, `'chapter'`, …) instead of two free-text fields, and `get_trait`
+  suggests the known traits. Both History methods also gained a note: the
+  count check explains what a tracker window is, and `check_when` explains
+  that a never-recorded event answers `(-1, -1, -1.0)` — which reads as "very
+  long ago" if you feed it to "Periods since a date" unguarded.
+  `check_trait`, `check_personality`, `get_status` and `is_in_normal_mood` are
+  deliberately left bare: they are what the Trait, Personality and Mood checks
+  already compile to, so the guided form belongs on those, not on the raw
+  method. `feature_enabled` documents its values in prose — they are per
+  character and not extracted into any allowlist, so there is no list to offer.
+- Three regression tests over every `param_choices` declared in the shipped
+  base allowlists: each resolves to a non-empty option list (a mistyped
+  dynamic `source` silently degrades to free text), each targets a parameter
+  the signature actually has, and each fixed list contains the parameter's own
+  default (or the dropdown opens on a value absent from itself).
 - **Condition Builder pre-fills parameter values instead of always asking the
   writer to type them.** A function or method parameter now picks its widget
   from the signature: a declared `param_choices` list (same schema as

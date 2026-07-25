@@ -7,10 +7,12 @@
 # methods like JeanGrey.is_in_normal_mood() are accessed via attribute
 # syntax and validated separately.
 #
-# ``category`` groups entries in the editor's Condition Builder. It also
-# routes the function into a top-level condition category (Relationships,
-# Location & time, …) so it is pickable directly from the "Condition type"
-# selector, not only under "Standalone function".
+# ``category`` routes the function into a top-level condition category of
+# the editor's Condition Builder (Relationships, Location & time, …), where
+# it becomes an entry of its own in the "Condition type" selector. Every
+# function is promoted this way — one with no ``category`` lands under
+# "Advanced" — so this is the *only* place a writer picks it from; there is
+# no generic "any function" list behind it.
 # ``label`` is the friendly display name shown there (falls back to the
 # function name). Both optional.
 source: TNH base game

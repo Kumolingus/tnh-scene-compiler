@@ -54,8 +54,14 @@ _BUILTIN_TYPES: list[tuple[str, str, str]] = [
     ("property",    "Character state", "Character property"),
     ("history",     "Story & history", "History check"),
     ("method",      "Advanced",        "Character method (any)"),
-    ("function",    "Advanced",        "Standalone function (any)"),
 ]
+# There is deliberately no generic "Standalone function (any)" entry here.
+# :func:`build_condition_catalog` promotes *every* allowlist function to its own
+# entry (an uncategorised one falls to "Advanced"), so a generic picker reached
+# nothing that was not already one click away — under raw names, and grouped by
+# the raw allowlist ``category`` field, which put the same function under a
+# second, conflicting taxonomy ("Approval" vs "Relationships", …). Character
+# methods still need their generic picker: they are never promoted individually.
 
 # Allowlist function category -> top-level condition category.
 _FUNC_CATEGORY_TO_TOP: dict[str, str] = {
@@ -224,10 +230,9 @@ _DESCRIPTIONS: dict[str, str] = {
         "once you pick one."
     ),
     "function": (
-        "Standalone functions from the\n"
-        "condition_functions allowlist.\n"
-        "Arguments are pre-filled from the function's signature\n"
-        "once you pick one."
+        "A ready-made check the game provides as a\n"
+        "standalone function. Its arguments are pre-filled\n"
+        "from the signature the allowlist declares for it."
     ),
 }
 
@@ -604,9 +609,10 @@ class _ConditionClausePanel(ttk.Frame):
         self._compare_op_var: tk.StringVar | None = None
         self._compare_value_var: tk.StringVar | None = None
         self._current_kind: str | None = None
-        # When a specific standalone function is picked from the selector,
-        # its name — so _params_function jumps straight to its param form
-        # instead of showing the generic category/function pickers.
+        # The selected standalone function's name. Every allowlist function is
+        # promoted to its own selector entry, so this is always set while the
+        # kind is "function" — _params_function has no generic picker to fall
+        # back on.
         self._preset_func: str = ""
 
         # -- Two-level condition-type selector (Category -> Condition) -------
@@ -1341,65 +1347,23 @@ class _ConditionClausePanel(ttk.Frame):
         self._notify_change()
 
     def _params_function(self, parent: ttk.Frame) -> None:
-        funcs = sorted(self._allow.condition_functions) if self._allow.condition_functions else []
-        if not funcs:
-            row = self._add_text_field(parent, "Function", 0, "func_name")
-            row = self._add_text_field(parent, "Arguments", row, "func_args")
-            self._add_description(parent, row, "function")
-            return
+        """Build the parameter form for the selected standalone function.
 
-        # Preset: a specific function was promoted to a top-level condition
-        # entry — skip the category/function pickers and jump to its form.
-        if self._preset_func:
-            self._vars["func_name"] = tk.StringVar(value=self._preset_func)
-            params_frame = ttk.Frame(parent)
-            params_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W)
-            compare_frame = ttk.Frame(parent)
-            compare_frame.grid(row=1, column=0, columnspan=3, sticky=tk.W)
-            note_label = self._make_note_label(parent, 2)
-            self._render_function_fields(
-                self._preset_func, params_frame, compare_frame, note_label,
-            )
-            self._add_description(parent, 3, "function")
-            return
-
-        grouped = group_by_category(
-            self._allow.condition_functions, self._allow.condition_function_categories,
-        )
-        cat_names = list(grouped.keys())
-
-        row = self._add_combo_field(parent, "Category", 0, "func_category", cat_names)
-        func_row = row
-        row = self._add_combo_field(
-            parent, "Function", row, "func_name", grouped[cat_names[0]],
-        )
+        The function is always already known: the selector promotes each
+        allowlist function to its own entry, which carries the name in
+        ``_preset_func``. So this jumps straight to the per-parameter form —
+        there is no "now pick a function" step (see :data:`_BUILTIN_TYPES`).
+        """
+        self._vars["func_name"] = tk.StringVar(value=self._preset_func)
         params_frame = ttk.Frame(parent)
-        params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
-        row += 1
+        params_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W)
         compare_frame = ttk.Frame(parent)
-        compare_frame.grid(row=row, column=0, columnspan=3, sticky=tk.W)
-        row += 1
-        note_label = self._make_note_label(parent, row)
-        row += 1
-
-        def _on_category_change(*_a: Any) -> None:
-            names = grouped.get(self._get_var("func_category"), [])
-            widget = parent.grid_slaves(row=func_row, column=1)
-            if widget:
-                widget[0].configure(values=names)
-            if names:
-                self._vars["func_name"].set(names[0])
-
-        def _on_func_change(*_a: Any) -> None:
-            self._render_function_fields(
-                self._get_var("func_name"), params_frame, compare_frame, note_label,
-            )
-
-        self._vars["func_category"].trace_add("write", _on_category_change)
-        self._vars["func_name"].trace_add("write", _on_func_change)
-        _on_func_change()
-
-        self._add_description(parent, row, "function")
+        compare_frame.grid(row=1, column=0, columnspan=3, sticky=tk.W)
+        note_label = self._make_note_label(parent, 2)
+        self._render_function_fields(
+            self._preset_func, params_frame, compare_frame, note_label,
+        )
+        self._add_description(parent, 3, "function")
 
     # -- Signature-derived argument assembly ----------------------------------
 

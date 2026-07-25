@@ -2,10 +2,12 @@
 
 import pytest
 
+from tnh_scene_compiler.allowlist_browser import default_base_dir
 from tnh_scene_compiler.allowlists import (
     Allowlists,
     is_character_collection_param,
     is_location_param,
+    parse_signature_params,
 )
 from tnh_scene_compiler.condition_builder import (
     PARAM_WIDGET_BOOL,
@@ -59,7 +61,16 @@ class TestBuildConditionCatalog:
         assert ("Friendship check", "friendship") in rel
         adv = [(e.label, e.kind) for e in catalog["Advanced"]]
         assert ("Character method (any)", "method") in adv
-        assert ("Standalone function (any)", "function") in adv
+
+    def test_no_generic_function_picker(self):
+        # Every function is promoted to its own entry, so a generic
+        # "pick any function" escape hatch would only duplicate them.
+        catalog = build_condition_catalog(self._allow())
+        generic = [
+            e for entries in catalog.values() for e in entries
+            if e.kind == "function" and not e.target
+        ]
+        assert generic == []
 
     def test_functions_promoted_by_category_with_labels(self):
         catalog = build_condition_catalog(self._allow())
@@ -509,3 +520,68 @@ class TestFormatCharacterSet:
 
     def test_blank_entries_are_dropped(self):
         assert format_character_set(["", "Rogue", ""]) == "{Rogue}"
+
+
+class TestShippedParamChoices:
+    """Invariants over every ``param_choices`` in the bundled base layer.
+
+    Both failure modes below degrade silently — the form still renders, just
+    without the guidance the entry meant to give — so they are worth locking
+    rather than left to review.
+    """
+
+    def _base_allowlists(self) -> Allowlists:
+        base = default_base_dir()
+        if base is None:  # pragma: no cover - dev checkout without data
+            pytest.skip("no bundled allowlists_base")
+        return Allowlists.load(base)
+
+    def _declared(self, allow: Allowlists):
+        """Yield ``(entry, param, spec, signature)`` for every declared choice."""
+        pairs = (
+            (allow.condition_function_param_choices, allow.condition_function_signatures),
+            (allow.character_method_param_choices, allow.character_method_signatures),
+        )
+        for choices_by_entry, signatures in pairs:
+            for entry, choices in choices_by_entry.items():
+                for param, spec in choices.items():
+                    yield entry, param, spec, signatures.get(entry, "")
+
+    def test_every_declared_choice_resolves_to_options(self) -> None:
+        # A dynamic source whose name does not exist resolves to [], which
+        # leaves the writer with a free-text combo instead of the intended list.
+        allow = self._base_allowlists()
+        empty = [
+            f"{entry}.{param}"
+            for entry, param, spec, _sig in self._declared(allow)
+            if not resolve_param_choices(spec, allow)
+        ]
+        assert empty == []
+
+    def test_every_declared_choice_targets_a_real_parameter(self) -> None:
+        # A param_choices key that no longer matches a signature parameter
+        # (renamed upstream, or a typo) is never looked up at render time.
+        allow = self._base_allowlists()
+        orphans = [
+            f"{entry}.{param}"
+            for entry, param, _spec, sig in self._declared(allow)
+            if param not in {name for name, _t, _d in parse_signature_params(sig)}
+        ]
+        assert orphans == []
+
+    def test_fixed_list_contains_the_parameter_default(self) -> None:
+        # The form prefills a parameter with its signature default; if the
+        # fixed list quotes its values differently the combo opens on a value
+        # absent from its own dropdown.
+        allow = self._base_allowlists()
+        mismatched = []
+        for entry, param, spec, sig in self._declared(allow):
+            if not isinstance(spec, list):
+                continue
+            defaults = {
+                name: default for name, _t, default in parse_signature_params(sig)
+            }
+            default = defaults.get(param, "")
+            if default and default not in spec:
+                mismatched.append(f"{entry}.{param} default {default!r} not in {spec}")
+        assert mismatched == []

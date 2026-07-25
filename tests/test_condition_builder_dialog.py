@@ -133,13 +133,13 @@ def test_catalog_groups_functions_by_category(tk_root, allow) -> None:
     dlg = _make_dialog(tk_root, allow)
     clause = _panel(dlg, 0)
     # The built-in checks and the promoted function share the Relationships
-    # category; the generic escape hatches live under Advanced.
+    # category; Advanced keeps only the character-method escape hatch, since
+    # methods are the ones never promoted individually.
     rel = [e.label for e in clause._catalog["Relationships"]]
     assert "Love / Trust check" in rel
     assert "get_effective_friendship" in rel
     adv = [e.label for e in clause._catalog["Advanced"]]
-    assert "Standalone function (any)" in adv
-    assert "Character method (any)" in adv
+    assert adv == ["Character method (any)"]
 
 
 @pytest.fixture()
