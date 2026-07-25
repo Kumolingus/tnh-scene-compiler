@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Dropdowns on the last character methods that were still free text**:
+  `check_trait` and `get_trait` suggest the known traits, `check_personality`
+  the 8 personality traits, and the two inventory checks (`get_active`,
+  `get_number`) offer their `filter` as `None` / `"gifts"` / `"key_gifts"` —
+  the only two filter types the game defines, and all 58 of its items set one.
+  `check_trait` and `check_personality` had been left bare on purpose because
+  the Trait and Personality checks compile to them; that was the wrong call.
+  They are still listed in the "Character method (any)" picker, so leaving
+  their form worse than the neighbouring entry's only made sense from inside
+  the code. Each carries a note pointing at the friendlier built-in.
+
 ### Fixed
 
 - **The Condition Builder could insert a call with an empty argument.**

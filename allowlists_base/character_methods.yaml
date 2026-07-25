@@ -14,12 +14,14 @@
 # Sources: history_events, traits, personalities, characters, locations,
 # looks, stages, sfx.
 #
-# Methods duplicated by a friendlier built-in check are deliberately left
-# without ``param_choices``: check_trait / check_personality / get_status /
-# is_in_normal_mood are what the Trait, Personality and Mood checks compile
-# to (see dsl.py), so a writer should reach for those instead. They stay
-# listed because the generic "Character method (any)" picker is also the
-# escape hatch for a caller who needs the raw form.
+# Some methods here are what a friendlier built-in check compiles to:
+# check_trait / check_personality / get_status / is_in_normal_mood are the
+# Trait, Personality and Mood checks (see dsl.py), so a writer should normally
+# reach for those. They stay listed because the "Character method (any)"
+# picker is the escape hatch for a caller who needs the raw form — and they
+# carry ``param_choices`` like everything else: an entry that is listed should
+# not be harder to fill than the one next to it just because it duplicates
+# something. "Do not promote it" is not a reason to leave its form worse.
 source: TNH base game
 generated_at: '2026-05-13'
 methods:
@@ -27,6 +29,14 @@ methods:
   - name: check_trait
     category: Traits
     signature: "Character.check_trait(trait: str) -> bool"
+    notes: |
+      Whether the character has the trait at all. This is exactly what the
+      Trait check does — prefer that one; this raw form is here for a caller
+      who needs it.
+    param_choices:
+      trait:
+        source: traits
+        quote: true
     source_file: game/core/definitions/base.rpy
     source_line: 91
   - name: get_trait
@@ -47,6 +57,16 @@ methods:
   - name: check_personality
     category: Personality
     signature: "Character.check_personality(trait: str, threshold: int | None = None) -> bool | int"
+    notes: |
+      A personality score, or a yes/no against a threshold. Scores are small
+      integers (commonly -1, 0, 1; higher = stronger), so give a threshold
+      (e.g. 1) for a clear yes/no — left at None it returns the raw score,
+      which reads as true for -1 too. The Personality check is the friendlier
+      form of this.
+    param_choices:
+      trait:
+        source: personalities
+        quote: true
     source_file: game/core/definitions/characters.rpy
     source_line: 79
 
@@ -161,13 +181,39 @@ methods:
     source_line: 67
 
   # -- Inventory (via Character.Inventory) ---------------------------------
+  # ``filter`` is matched against the item's filter_type (inventory.rpy:103).
+  # The base game only ever sets two, and all 58 of its items set one — but an
+  # item with no filter_type would raise on `filter in None`, so a project
+  # adding items should keep setting it.
+  # ``string`` has no dropdown yet: the item keys are not extracted into any
+  # allowlist. They are the all_Items keys (e.g. "flowers", "camera") for a
+  # plain item, and the clothing tag for clothing.
   - name: get_active
     category: Inventory
     signature: "Character.Inventory.get_active(string: str, filter: str | None = None, Owner: Any = False) -> bool"
+    notes: |
+      Whether the character has this item and it is currently active (worn,
+      switched on…). string is the item's key, e.g. "flowers". Leave filter at
+      None unless you mean to narrow to gifts. Owner stays False for "anyone's
+      copy"; give a character to require that they own it.
+    param_choices:
+      filter:
+        - "None"
+        - '"gifts"'
+        - '"key_gifts"'
     source_file: game/core/definitions/inventory.rpy
     source_line: 113
   - name: get_number
     category: Inventory
     signature: "Character.Inventory.get_number(string: str, filter: str | None = None, Owner: Any = False) -> int"
+    notes: |
+      How many of this item the character holds — a COUNT, so use the Compare
+      row (e.g. `>= 1` for "has at least one"). Same string / filter / Owner
+      rules as the active check.
+    param_choices:
+      filter:
+        - "None"
+        - '"gifts"'
+        - '"key_gifts"'
     source_file: game/core/definitions/inventory.rpy
     source_line: 110
