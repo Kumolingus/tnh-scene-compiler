@@ -933,6 +933,44 @@ and refreshes the allowlists.
 Uses an `effects` key (not `values`) at the top level. Each entry carries `signature`, optional `call_mode`, and optional `param_choices`
 metadata. See section 8.3 for the full entry structure and how `call_mode` drives codegen behaviour.
 
+#### condition_functions.yaml / character_methods.yaml
+
+Both feed the editor's **Condition Builder**, which turns a selected function's or method's `signature` into a guided per-parameter form.
+Each parameter picks its input widget automatically:
+
+- a parameter carrying **`param_choices`** becomes a dropdown of those values. The dropdown is *editable* (a suggestion list, not a
+  whitelist), so a project whose allowlist does not cover a value can still type it. A parameter maps to either a **fixed list** (same schema
+  as `fx.yaml`; a **string** value must include its quotes, e.g. `'"love"'`, because it is spliced in verbatim) **or** a **dynamic source**
+  mapping resolved against the live allowlists at render time: `{source: <allowlist>, quote: <bool>, suffix: <str>}`. `source` is one of
+  `history_events`, `traits`, `personalities`, `characters`, `locations`, `looks`, `stages`, `sfx`; `quote` wraps each value in double
+  quotes (for a string argument); `suffix` is appended to each (e.g. `.History`). This keeps the suggestions in sync with the data instead of
+  copying it into the entry — e.g. a history-event `Item` parameter offers every known event, quoted.
+- a single **`Character`** parameter → a character picker; a **`Character` collection** (a `Characters` / `*_Characters` name, or a container
+  type such as `Iterable[Character]` / `set[Character]`) → a multi-select that assembles a set literal (`{JeanGrey, Rogue}`).
+- a single **location** parameter (a bare `Location` / `location` name, or a `Location` type) → a **"Current location?"** toggle. Ticked (the
+  default) targets the current room and hides the slugline dropdown; for a *required* location it inserts `get_Location()`, for an *optional*
+  one it simply omits the argument (so `get_Location()` never nests into `get_Location(get_Location())`). Unticked reveals an editable
+  dropdown of the known sluglines, inserted **quoted** (`"Jean's Room"`) since the base-game functions accept a slugline `str`.
+- a **`bool`** parameter → a `True` / `False` picker.
+- a **`(day, time_index)` date** parameter (`tuple[int, int]`) → a plain-language **Day** number and a named **time-of-day** dropdown
+  (Morning / Midday / Evening / Night / Late Night), assembled into the `(day, index)` tuple — so a writer is not faced with a raw
+  `(int, int)`.
+- everything else → free text (e.g. a `HistoryClass` argument the writer types as `JeanGrey.History`).
+
+```yaml
+functions:
+- name: are_Characters_in_Partners
+  signature: "are_Characters_in_Partners(A: Character, B: Character, knows_about: bool = True) -> bool"
+  category: Relationships
+- name: chance_of_repeat_Event
+  signature: "chance_of_repeat_Event(History, Item: str, ...) -> float"
+  category: History
+  param_choices:
+    Item:                       # dynamic source: every known history event, quoted
+      source: history_events
+      quote: true
+```
+
 #### arms/<Char>.yaml
 
 Arm allowlists only include **standing poses** -- non-standing poses (sex scene poses, special interaction poses) are excluded from the

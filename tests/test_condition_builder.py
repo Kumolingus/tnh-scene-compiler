@@ -2,12 +2,29 @@
 
 import pytest
 
-from tnh_scene_compiler.allowlists import Allowlists
+from tnh_scene_compiler.allowlists import (
+    Allowlists,
+    is_character_collection_param,
+    is_location_param,
+)
 from tnh_scene_compiler.condition_builder import (
+    PARAM_WIDGET_BOOL,
+    PARAM_WIDGET_CHARACTER,
+    PARAM_WIDGET_CHARACTER_SET,
+    PARAM_WIDGET_CHOICES,
+    PARAM_WIDGET_DATE,
+    PARAM_WIDGET_LOCATION,
+    PARAM_WIDGET_TEXT,
     build_condition,
     build_condition_catalog,
+    flow_text,
+    format_character_set,
+    is_bool_param,
+    is_date_tuple_param,
     join_conditions,
+    param_widget_kind,
     resolve_method_path,
+    resolve_param_choices,
     wrap_condition,
 )
 
@@ -342,3 +359,153 @@ class TestJoinConditions:
 
     def test_empty_list(self):
         assert join_conditions([]) == ""
+
+
+# -- Parameter-value pre-configuration ---------------------------------------
+
+
+class TestIsCharacterCollectionParam:
+    def test_bare_characters_name(self):
+        assert is_character_collection_param("Characters", "") is True
+
+    def test_compound_characters_name(self):
+        # The allowlist strips arriving_Characters' type to a bare name, so the
+        # name suffix is what makes it a collection.
+        assert is_character_collection_param("arriving_Characters", "") is True
+
+    def test_container_type_of_character(self):
+        assert is_character_collection_param("group", "Iterable[CharacterClass]") is True
+        assert is_character_collection_param("group", "set[Character]") is True
+        assert is_character_collection_param("group", "list[Character]") is True
+
+    def test_single_character_is_not_a_collection(self):
+        # The single-value cases handled by is_character_param, not this one.
+        assert is_character_collection_param("Character", "") is False
+        assert is_character_collection_param("other", "Character") is False
+
+    def test_non_character_container_is_not(self):
+        assert is_character_collection_param("items", "list[str]") is False
+
+
+class TestIsLocationParam:
+    def test_bare_location_name(self):
+        assert is_location_param("Location", "") is True
+        assert is_location_param("location", "") is True
+
+    def test_location_type_hint(self):
+        assert is_location_param("where", "str | LocationClass") is True
+
+    def test_non_location(self):
+        assert is_location_param("Character", "") is False
+        assert is_location_param("threshold", "int") is False
+
+    def test_location_container_excluded(self):
+        assert is_location_param("spots", "list[LocationClass]") is False
+
+
+class TestIsDateTupleParam:
+    def test_date_tuple(self):
+        assert is_date_tuple_param("tuple[int, int]") is True
+        assert is_date_tuple_param("tuple[int,int]") is True
+
+    def test_not_a_date_tuple(self):
+        assert is_date_tuple_param("tuple[int, int, float]") is False
+        assert is_date_tuple_param("int") is False
+        assert is_date_tuple_param("") is False
+
+
+class TestIsBoolParam:
+    def test_typed_bool(self):
+        assert is_bool_param("bool", "") is True
+
+    def test_default_true_or_false(self):
+        assert is_bool_param("", "True") is True
+        assert is_bool_param("", "False") is True
+
+    def test_non_bool(self):
+        assert is_bool_param("int", "5") is False
+        assert is_bool_param("str", "'x'") is False
+
+
+class TestParamWidgetKind:
+    def test_declared_choices_win_over_everything(self):
+        # Even a Character param defers to an explicit declared choice list.
+        assert param_widget_kind("Character", "", "", has_choices=True) == PARAM_WIDGET_CHOICES
+
+    def test_single_character(self):
+        assert param_widget_kind("Character", "", "", has_choices=False) == PARAM_WIDGET_CHARACTER
+        assert param_widget_kind("A", "Character", "", has_choices=False) == PARAM_WIDGET_CHARACTER
+
+    def test_character_collection(self):
+        got = param_widget_kind("Characters", "", "", has_choices=False)
+        assert got == PARAM_WIDGET_CHARACTER_SET
+
+    def test_location(self):
+        assert param_widget_kind("Location", "", "", has_choices=False) == PARAM_WIDGET_LOCATION
+
+    def test_bool(self):
+        assert param_widget_kind("flag", "bool", "True", has_choices=False) == PARAM_WIDGET_BOOL
+
+    def test_date_tuple(self):
+        assert param_widget_kind("date", "tuple[int, int]", "", has_choices=False) == PARAM_WIDGET_DATE
+
+    def test_free_text_fallback(self):
+        assert param_widget_kind("threshold", "int", "5", has_choices=False) == PARAM_WIDGET_TEXT
+        # A history event key (free string) is not inferred -> free text.
+        assert param_widget_kind("Item", "str", "", has_choices=False) == PARAM_WIDGET_TEXT
+
+
+class TestResolveParamChoices:
+    def _allow(self) -> Allowlists:
+        return Allowlists(
+            characters=["JeanGrey", "Rogue"],
+            history_events={"kissed_player", "anal"},
+            traits={"shy", "bold"},
+        )
+
+    def test_plain_list_passthrough(self):
+        assert resolve_param_choices(["True", "False"], self._allow()) == ["True", "False"]
+
+    def test_dynamic_source_quoted(self):
+        got = resolve_param_choices(
+            {"source": "history_events", "quote": True}, self._allow(),
+        )
+        assert got == ['"anal"', '"kissed_player"']  # sorted, quoted
+
+    def test_dynamic_source_with_suffix_unquoted(self):
+        got = resolve_param_choices(
+            {"source": "characters", "suffix": ".History"}, self._allow(),
+        )
+        assert got == ["JeanGrey.History", "Rogue.History"]
+
+    def test_unknown_source_is_empty(self):
+        assert resolve_param_choices({"source": "nope"}, self._allow()) == []
+
+
+class TestFlowText:
+    def test_soft_breaks_collapse_to_spaces(self):
+        assert flow_text("one\ntwo\nthree") == "one two three"
+
+    def test_paragraph_breaks_are_kept(self):
+        assert flow_text("a\nb\n\nc\nd") == "a b\n\nc d"
+
+    def test_runs_of_whitespace_squeezed(self):
+        assert flow_text("a   b\n   c") == "a b c"
+
+    def test_idempotent(self):
+        once = flow_text("one\ntwo\n\nthree")
+        assert flow_text(once) == once
+
+
+class TestFormatCharacterSet:
+    def test_multiple(self):
+        assert format_character_set(["JeanGrey", "Rogue"]) == "{JeanGrey, Rogue}"
+
+    def test_single(self):
+        assert format_character_set(["JeanGrey"]) == "{JeanGrey}"
+
+    def test_empty_is_set_call_not_dict(self):
+        assert format_character_set([]) == "set()"
+
+    def test_blank_entries_are_dropped(self):
+        assert format_character_set(["", "Rogue", ""]) == "{Rogue}"

@@ -51,13 +51,19 @@ properties:
   - name: breast_size
     type: int
     category: Body
-    notes: "Breast size, 0 (flat) .. 6 (massive). Compare it, e.g. >= 4."
+    notes: |
+      Breast size, 0..6: 0 tiny, 1 small, 2 average, 3 large, 4 giant,
+      5 enormous, 6 massive. Compare it, e.g. >= 3. Examples: Rogue 3,
+      JeanGrey 2, LauraKinney 1.
     source_file: game/core/definitions/companions.rpy
     source_line: 238
   - name: ass_size
     type: int
     category: Body
-    notes: "Ass size, 0 .. 6. Compare it, e.g. >= 4."
+    notes: |
+      Ass size, 0..6: 0 tiny, 1 small, 2 average, 3 big, 4 giant, 5 enormous,
+      6 massive. Compare it, e.g. >= 3. Examples: Rogue 3, LauraKinney 2,
+      JeanGrey 1.
     source_file: game/core/definitions/companions.rpy
     source_line: 257
 

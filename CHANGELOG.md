@@ -6,8 +6,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Condition Builder help text (the grey type descriptions and the per-entry
+  notes) now reflows to the panel width instead of keeping the hand-wrapped
+  source line breaks, which had left ragged, oddly-broken lines.
+- A location parameter set to "Current location" no longer nests
+  `get_Location()` inside itself: for an optional location (like
+  `get_Location`'s own argument) the current-room case now omits the argument
+  entirely (`get_Location()`, not `get_Location(get_Location())`). The slugline
+  dropdown is also hidden while "Current location" is ticked.
+- `arriving_Characters` (in "Needs to change clothes") is now recognised as a
+  character collection and gets the multi-select, like `Characters` — the
+  allowlist had stripped its type, so it was falling back to free text.
+
 ### Added
 
+- **Condition Builder pre-fills parameter values instead of always asking the
+  writer to type them.** A function or method parameter now picks its widget
+  from the signature: a declared `param_choices` list (same schema as
+  `fx.yaml`, now honoured for `condition_functions.yaml` and
+  `character_methods.yaml`) becomes an editable dropdown of suggestions; a
+  single `Character` a picker; a `Character` collection (`Characters`, or a
+  container type like `Iterable[Character]`) a multi-select that assembles a
+  set literal (`{JeanGrey, Rogue}`); a single location (a `Location` /
+  `location` parameter) a **"Current location?"** toggle — ticked (default)
+  inserts `get_Location()` for the current room, unticked reveals a dropdown of
+  the known sluglines (inserted quoted); a `bool` a `True` / `False` picker. The dropdowns stay editable so a
+  project whose allowlist doesn't carry a value can still type it. Other
+  free-string parameters (a history event key) are left as free text —
+  declare `param_choices` for them when a fixed list helps.
+- The Condition Builder's character multi-select is picked in a dedicated
+  **"Choose characters" window** (a `Choose… (N)` button opens it), so picking
+  from a large cast no longer cramps the condition panel.
+- A `(day, time_index)` **date** parameter (like "Periods since a date") now
+  gets a plain-language **Day + time-of-day** form (Morning … Late Night)
+  instead of a raw `tuple[int, int]` text field a non-developer can't read.
+- `param_choices` gains a **dynamic source** form
+  (`{source: history_events, quote: true}`) that pulls a named allowlist set
+  (`history_events`, `characters`, `traits`, `locations`, …) at render time —
+  so e.g. the `Item` argument of "Chance of a repeat event" now suggests every
+  known history event instead of asking the writer to type a bare string.
+- **Plain-language help notes** on the trickier condition functions and body
+  properties (best/worst friend of a group, "in a relationship", seen
+  recently, characters present/visible, chance of a repeat event, needs to
+  change clothes, breast/ass size), so the builder explains what a check does
+  and what its arguments mean. The misleading "Days since a date" entry is
+  renamed **"Periods since a date (4/day)"** — it counts time-of-day periods
+  (4 per day), not days.
 - **Every allowlist is editable on the project side**, not just the five the
   refresh preserves. Locking the generated ones assumed our workflow is
   everyone's: `tnh_refresh_allowlists` needs an extracted base game, and a

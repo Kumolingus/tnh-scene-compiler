@@ -33,18 +33,30 @@ functions:
     category: Relationships
     label: "In a relationship"
     signature: "are_Characters_in_Partners(Characters, knows_about: bool = True) -> bool"
+    notes: |
+      True if every listed character is one of the player's partners. With
+      knows_about (default True) it also requires the partners to know about
+      each other's relationship with the player; set it False to skip that.
     source_file: game/core/mechanics/friendship.rpy
     source_line: 24
   - name: get_best_Friend
     category: Relationships
     label: "Best friend (of a group)"
     signature: "get_best_Friend(Character, Characters) -> Character | None"
+    notes: |
+      Of the characters in the group, the one the first character likes most
+      (highest effective friendship). Returns a Character, or None when the
+      group is empty — in an [[if]] it is truthy once someone qualifies.
     source_file: game/core/mechanics/friendship.rpy
     source_line: 53
   - name: get_worst_Enemy
     category: Relationships
     label: "Worst enemy (of a group)"
     signature: "get_worst_Enemy(Character, Characters) -> Character | None"
+    notes: |
+      Of the characters in the group, the one the first character likes least
+      (lowest effective friendship). Returns a Character, or None when the
+      group is empty.
     source_file: game/core/mechanics/friendship.rpy
     source_line: 72
   # The 4 below return a FriendshipTier (IntEnum: Enemies=-2, Rivals=-1,
@@ -98,6 +110,10 @@ functions:
     category: Character status
     label: "Seen the player recently"
     signature: "seen_Player_recently(Character) -> bool"
+    notes: |
+      True if the character has seen the player this time-of-day period or the
+      previous one — TNH has 4 periods per day, so "recently" means the current
+      or last period, not a number of days.
     source_file: game/core/mechanics/utilities.rpy
     source_line: 143
   - name: Character_is_in_close_proximity
@@ -123,20 +139,33 @@ functions:
     category: Location
     label: "Characters present"
     signature: "get_present_Characters(Location) -> set[Character]"
+    notes: |
+      The set of characters physically present at a location. Location is
+      required: pick a slugline (e.g. "Jean's Room") or type get_Location()
+      for the current room. In an [[if]] the set is truthy when not empty.
     source_file: game/core/mechanics/characters.rpy
     source_line: 5
   - name: get_visible_Characters
     category: Location
     label: "Characters visible"
     signature: "get_visible_Characters(Location) -> set[Character]"
+    notes: |
+      Like "Characters present", plus background characters (minus silhouettes)
+      at the location. Same Location argument rules.
     source_file: game/core/mechanics/characters.rpy
     source_line: 32
 
   # -- Time ---------------------------------------------------------------
   - name: get_time_since
     category: Time
-    label: "Days since a date"
+    label: "Periods since a date (4/day)"
     signature: "get_time_since(date: tuple[int, int]) -> int"
+    notes: |
+      How long since a past moment, counted in time-of-day slots (about 4 per
+      day, so 4 ≈ one full day — this is NOT a plain day count). Pick the Day
+      and the time of day for that moment; it is usually one you have stored
+      from earlier game state, so this is an advanced, developer-oriented check.
+      Compare it, e.g. >= 4 for "about a day ago".
     source_file: game/core/mechanics/time.rpy
     source_line: 3
 
@@ -145,6 +174,13 @@ functions:
     category: Clothing
     label: "Needs to change clothes"
     signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True, check: bool = False) -> bool"
+    notes: |
+      Whether any of the characters needs to fix their outfit (too revealing
+      for who is arriving) or clean up a mess. arriving_Characters are the
+      characters entering the scene; one who is comfortable (friends, level
+      >= 2) with all of them is skipped. IMPORTANT in an [[if]]: pass
+      check=True — the default (check=False) actually runs the change / cleanup
+      interaction as a side effect.
     source_file: game/core/mechanics/clothing.rpy
     source_line: 21
 
@@ -153,5 +189,17 @@ functions:
     category: History
     label: "Chance of a repeat event"
     signature: "chance_of_repeat_Event(History, Item: str, chance: float = 0, limit_day_chance: float = 1.0, limit_day: int = 5) -> float"
+    notes: |
+      Returns a probability (0..1), not a yes/no: how likely a repeatable event
+      should fire again, growing the longer since it last happened. It is 0
+      right after the event, then rises to limit_day_chance (default 1.0) by
+      limit_day days (default 5). Use it to space out a repeat — compare it
+      (e.g. >= 0.5) or roll against it in mod code. History is a character's
+      history — type it as e.g. JeanGrey.History; Item is picked from the known
+      history events.
+    param_choices:
+      Item:
+        source: history_events
+        quote: true
     source_file: game/core/definitions/history.rpy
     source_line: 128

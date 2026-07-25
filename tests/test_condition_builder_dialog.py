@@ -183,8 +183,8 @@ def test_comparison_widgets_appear_for_tier_and_vanish_for_bool(
     assert clause._compare_value_var is not None
 
     # Fill the two character arguments (A, B).
-    clause._func_param_vars[0][2].set("JeanGrey")
-    clause._func_param_vars[1][2].set("Rogue")
+    clause._func_params[0].var.set("JeanGrey")
+    clause._func_params[1].var.set("Rogue")
 
     # Operator set but no value -> not valid (would insert `... >= `).
     assert clause.is_valid() is False
@@ -196,9 +196,278 @@ def test_comparison_widgets_appear_for_tier_and_vanish_for_bool(
     _select(clause, "Is ready")
     assert clause._compare_op_var is None
     assert clause._compare_value_var is None
-    clause._func_param_vars[0][2].set("JeanGrey")
+    clause._func_params[0].var.set("JeanGrey")
     assert clause.get_condition() == "is_ready(JeanGrey)"
     assert clause.is_valid() is True
+
+
+@pytest.fixture()
+def allow_collection_and_choices() -> Allowlists:
+    """A function with a Character-collection param, a bool, and a declared choice."""
+    return Allowlists(
+        characters=["JeanGrey", "Rogue", "LauraKinney"],
+        characters_upper={"JEANGREY", "ROGUE", "LAURAKINNEY"},
+        condition_functions={"get_best_Friend", "are_Characters_in_Partners"},
+        condition_function_signatures={
+            "get_best_Friend": (
+                "get_best_Friend(Character, Characters) -> Character | None"
+            ),
+            "are_Characters_in_Partners": (
+                "are_Characters_in_Partners(A: Character, B: Character, "
+                "knows_about: bool = True) -> bool"
+            ),
+        },
+        condition_function_categories={
+            "get_best_Friend": "Relationships",
+            "are_Characters_in_Partners": "Relationships",
+        },
+        condition_function_labels={
+            "get_best_Friend": "Best friend (of a group)",
+            "are_Characters_in_Partners": "In a relationship",
+        },
+        condition_function_param_choices={
+            "are_Characters_in_Partners": {"knows_about": ["True", "False"]},
+        },
+    )
+
+
+def test_character_collection_param_builds_a_set_literal(
+    tk_root, allow_collection_and_choices,
+) -> None:
+    from tnh_scene_compiler.condition_builder import (
+        PARAM_WIDGET_CHARACTER,
+        PARAM_WIDGET_CHARACTER_SET,
+    )
+
+    dlg = _make_dialog(tk_root, allow_collection_and_choices)
+    clause = _panel(dlg, 0)
+    _select(clause, "Best friend (of a group)")
+
+    # First param is a single Character; second is a Characters collection.
+    assert clause._func_params[0].kind == PARAM_WIDGET_CHARACTER
+    assert clause._func_params[1].kind == PARAM_WIDGET_CHARACTER_SET
+
+    clause._func_params[0].var.set("JeanGrey")
+    # Tick two of the three characters (checkbuttons follow the sorted order
+    # the dialog imposes: JeanGrey, LauraKinney, Rogue).
+    picks = dict(clause._func_params[1].char_vars)
+    picks["Rogue"].set(True)
+    picks["LauraKinney"].set(True)
+    assert clause.get_condition() == "get_best_Friend(JeanGrey, {LauraKinney, Rogue})"
+
+    # No picks -> an explicit empty set, never a dangling comma.
+    picks["Rogue"].set(False)
+    picks["LauraKinney"].set(False)
+    assert clause.get_condition() == "get_best_Friend(JeanGrey, set())"
+
+
+def test_character_set_picker_opens_a_window_and_drives_the_set(
+    tk_root, allow_collection_and_choices,
+) -> None:
+    dlg = _make_dialog(tk_root, allow_collection_and_choices)
+    clause = _panel(dlg, 0)
+    _select(clause, "Best friend (of a group)")
+    field = clause._func_params[1]
+
+    # The "Choose…" button opens a dedicated picker window.
+    clause._open_character_set_picker(field.name, field.char_vars)
+    pickers = [w for w in dlg.winfo_children() if isinstance(w, tk.Toplevel)]
+    assert pickers, "the Choose… button should open a picker window"
+
+    # Ticking there drives the very vars the field reads.
+    clause._func_params[0].var.set("JeanGrey")
+    dict(field.char_vars)["Rogue"].set(True)
+    assert clause.get_condition() == "get_best_Friend(JeanGrey, {Rogue})"
+    pickers[0].destroy()
+
+
+def test_bool_and_declared_choice_params_build_the_call(
+    tk_root, allow_collection_and_choices,
+) -> None:
+    from tnh_scene_compiler.condition_builder import PARAM_WIDGET_CHOICES
+
+    dlg = _make_dialog(tk_root, allow_collection_and_choices)
+    clause = _panel(dlg, 0)
+    _select(clause, "In a relationship")
+
+    # knows_about carries declared param_choices -> a (still editable) combo.
+    knows = clause._func_params[2]
+    assert knows.name == "knows_about"
+    assert knows.kind == PARAM_WIDGET_CHOICES
+
+    clause._func_params[0].var.set("JeanGrey")
+    clause._func_params[1].var.set("Rogue")
+    knows.var.set("False")
+    assert clause.get_condition() == (
+        "are_Characters_in_Partners(JeanGrey, Rogue, False)"
+    )
+
+
+@pytest.fixture()
+def allow_location() -> Allowlists:
+    """A function taking a Location param, with sluglines to suggest."""
+    return Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        locations={"Jean's Room": "loc_JeanRoom", "Danger Room": "loc_Danger"},
+        condition_functions={"get_present_Characters"},
+        condition_function_signatures={
+            "get_present_Characters": "get_present_Characters(Location) -> set[Character]",
+        },
+        condition_function_categories={"get_present_Characters": "Location"},
+        condition_function_labels={"get_present_Characters": "Characters present"},
+    )
+
+
+def test_location_param_defaults_to_current_then_takes_a_slugline(
+    tk_root, allow_location,
+) -> None:
+    from tnh_scene_compiler.condition_builder import PARAM_WIDGET_LOCATION
+
+    dlg = _make_dialog(tk_root, allow_location)
+    clause = _panel(dlg, 0)
+    _select(clause, "Characters present")
+
+    field = clause._func_params[0]
+    assert field.kind == PARAM_WIDGET_LOCATION
+    # "Current location?" is on by default -> the current room, no typing needed.
+    assert field.current_var.get() is True
+    assert clause.get_condition() == "get_present_Characters(get_Location())"
+
+    # Untick it and pick a slugline; it inserts quoted so it is a valid str arg.
+    field.current_var.set(False)
+    field.var.set('"Jean\'s Room"')
+    assert clause.get_condition() == 'get_present_Characters("Jean\'s Room")'
+
+
+@pytest.fixture()
+def allow_optional_location() -> Allowlists:
+    """get_Location itself: an *optional* location parameter."""
+    return Allowlists(
+        characters=["JeanGrey"],
+        characters_upper={"JEANGREY"},
+        locations={"Jean's Room": "loc_JeanRoom"},
+        condition_functions={"get_Location"},
+        condition_function_signatures={
+            "get_Location": "get_Location(location: str | None = None) -> Location | None",
+        },
+        condition_function_categories={"get_Location": "Location"},
+        condition_function_labels={"get_Location": "Get a location"},
+    )
+
+
+def test_optional_location_current_omits_the_argument(
+    tk_root, allow_optional_location,
+) -> None:
+    dlg = _make_dialog(tk_root, allow_optional_location)
+    clause = _panel(dlg, 0)
+    _select(clause, "Get a location")
+    field = clause._func_params[0]
+
+    # Optional param + "Current location" on -> the arg is dropped, not nested:
+    # get_Location(), never get_Location(get_Location()).
+    assert field.omit_when_current is True
+    assert clause.get_condition() == "get_Location()"
+
+    field.current_var.set(False)
+    field.var.set('"Jean\'s Room"')
+    assert clause.get_condition() == 'get_Location("Jean\'s Room")'
+
+
+@pytest.fixture()
+def allow_dynamic_item() -> Allowlists:
+    """chance_of_repeat_Event: Item pulls its suggestions from history_events."""
+    return Allowlists(
+        characters=["JeanGrey"],
+        characters_upper={"JEANGREY"},
+        history_events={"kissed_player", "anal"},
+        condition_functions={"chance_of_repeat_Event"},
+        condition_function_signatures={
+            "chance_of_repeat_Event": (
+                "chance_of_repeat_Event(History, Item: str, chance: float = 0) -> float"
+            ),
+        },
+        condition_function_categories={"chance_of_repeat_Event": "History"},
+        condition_function_labels={"chance_of_repeat_Event": "Chance of a repeat event"},
+        condition_function_param_choices={
+            "chance_of_repeat_Event": {
+                "Item": {"source": "history_events", "quote": True},
+            },
+        },
+    )
+
+
+def test_dynamic_source_param_renders_as_choices(tk_root, allow_dynamic_item) -> None:
+    from tnh_scene_compiler.condition_builder import PARAM_WIDGET_CHOICES
+
+    dlg = _make_dialog(tk_root, allow_dynamic_item)
+    clause = _panel(dlg, 0)
+    _select(clause, "Chance of a repeat event")
+
+    item_field = clause._func_params[1]
+    assert item_field.name == "Item"
+    assert item_field.kind == PARAM_WIDGET_CHOICES
+
+    clause._func_params[0].var.set("JeanGrey.History")
+    item_field.var.set('"kissed_player"')
+    assert clause.get_condition().startswith(
+        'chance_of_repeat_Event(JeanGrey.History, "kissed_player"',
+    )
+
+
+def test_arriving_characters_is_also_a_multi_select(tk_root) -> None:
+    from tnh_scene_compiler.condition_builder import (
+        PARAM_WIDGET_BOOL,
+        PARAM_WIDGET_CHARACTER_SET,
+    )
+
+    allow = Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        condition_functions={"check_if_need_to_change"},
+        condition_function_signatures={
+            "check_if_need_to_change": (
+                "check_if_need_to_change(Characters, arriving_Characters = None, "
+                "check: bool = False) -> bool"
+            ),
+        },
+        condition_function_categories={"check_if_need_to_change": "Clothing"},
+        condition_function_labels={"check_if_need_to_change": "Needs to change clothes"},
+    )
+    dlg = _make_dialog(tk_root, allow)
+    clause = _panel(dlg, 0)
+    _select(clause, "Needs to change clothes")
+
+    assert clause._func_params[0].kind == PARAM_WIDGET_CHARACTER_SET  # Characters
+    assert clause._func_params[1].kind == PARAM_WIDGET_CHARACTER_SET  # arriving_Characters
+    assert clause._func_params[2].kind == PARAM_WIDGET_BOOL  # check
+
+
+def test_date_tuple_param_uses_a_day_and_period_form(tk_root) -> None:
+    from tnh_scene_compiler.condition_builder import PARAM_WIDGET_DATE
+
+    allow = Allowlists(
+        characters=["JeanGrey"],
+        characters_upper={"JEANGREY"},
+        condition_functions={"get_time_since"},
+        condition_function_signatures={
+            "get_time_since": "get_time_since(date: tuple[int, int]) -> int",
+        },
+        condition_function_categories={"get_time_since": "Time"},
+        condition_function_labels={"get_time_since": "Periods since a date"},
+    )
+    dlg = _make_dialog(tk_root, allow)
+    clause = _panel(dlg, 0)
+    _select(clause, "Periods since a date")
+
+    field = clause._func_params[0]
+    assert field.kind == PARAM_WIDGET_DATE
+    # Defaults to day 0, Morning (index 0) -> a valid tuple out of the box.
+    assert clause.get_condition() == "get_time_since((0, 0))"
+
+    field.var.set("5")           # Day
+    field.period_var.set("Evening")  # index 2
+    assert clause.get_condition() == "get_time_since((5, 2))"
 
 
 @pytest.fixture()

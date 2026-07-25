@@ -206,6 +206,46 @@ def is_character_param(name: str, type_hint: str) -> bool:
     return "Character" in type_hint
 
 
+def is_character_collection_param(name: str, type_hint: str) -> bool:
+    """Return ``True`` if a parsed parameter expects *several* ``Character`` values.
+
+    The mirror of :func:`is_character_param` for the container case it
+    deliberately excludes: a ``Characters`` / ``*_Characters`` name (the
+    convention used by ``get_best_Friend(Character, Characters)`` and
+    ``check_if_need_to_change(Characters, arriving_Characters, ...)``) or an
+    explicit container type over ``Character`` (``Iterable[CharacterClass]``,
+    ``set[Character]``, ``list[Character]``, ...). The name check matters
+    because the allowlist signatures often strip the type down to the bare
+    name. The Condition Builder renders a multi-character picker for these and
+    assembles a set literal (e.g. ``{JeanGrey, Rogue}``), rather than the
+    single-value combobox :func:`is_character_param` drives.
+    """
+    if name == "Characters" or name.endswith("_Characters"):
+        return True
+    if not type_hint or "Character" not in type_hint:
+        return False
+    return any(marker in type_hint for marker in _CONTAINER_TYPE_MARKERS)
+
+
+def is_location_param(name: str, type_hint: str) -> bool:
+    """Return ``True`` if a parsed parameter expects a single location.
+
+    Matches the bare ``Location`` / ``location`` name convention the condition
+    allowlist uses (e.g. ``get_present_Characters(Location)``) or an explicit
+    ``Location`` type hint. The base-game functions type these ``str |
+    LocationClass``, so a slugline **string** is a valid argument — the
+    Condition Builder offers the known sluglines (quoted) as suggestions.
+    Container types (a set of locations) are excluded — free text there.
+    """
+    if name in ("Location", "location"):
+        return True
+    if not type_hint:
+        return False
+    if any(marker in type_hint for marker in _CONTAINER_TYPE_MARKERS):
+        return False
+    return "Location" in type_hint
+
+
 _OTHER_CATEGORY = "Other"
 
 
@@ -265,6 +305,35 @@ def _values_names(payload: dict[str, Any] | None, key: str = "values") -> list[s
         for item in entries
         if isinstance(item, dict) and isinstance(item.get("name"), str)
     ]
+
+
+def _read_param_choices(item: dict[str, Any]) -> dict[str, list[str] | dict[str, Any]]:
+    """Return an allowlist entry's ``param_choices`` mapping, sanitised.
+
+    ``param_choices`` lets an entry declare, per parameter, the suggested values
+    the editor surfaces as a dropdown. A parameter maps to either
+
+    - a **fixed list** (same schema as the ``[[fx]]`` effects), values coerced
+      to ``str`` so a numeric choice (``level: [1, 2, 3]``) still populates a
+      combobox; or
+    - a **dynamic source** mapping (``{source: history_events, quote: true}``)
+      resolved against the live allowlists at render time, so the suggestions
+      stay in sync with the game/mod data without being copied here.
+
+    Malformed payloads degrade to "no choices" rather than raising.
+    """
+    choices = item.get("param_choices")
+    if not isinstance(choices, dict):
+        return {}
+    result: dict[str, list[str] | dict[str, Any]] = {}
+    for key, values in choices.items():
+        if not isinstance(key, str):
+            continue
+        if isinstance(values, list):
+            result[key] = [str(value) for value in values]
+        elif isinstance(values, dict):
+            result[key] = values
+    return result
 
 
 def _build_location_map(
@@ -455,10 +524,12 @@ class Allowlists:
     condition_function_categories: dict[str, str] = field(default_factory=dict)
     condition_function_notes: dict[str, str] = field(default_factory=dict)
     condition_function_labels: dict[str, str] = field(default_factory=dict)
+    condition_function_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
     character_method_signatures: dict[str, str] = field(default_factory=dict)
     character_method_categories: dict[str, str] = field(default_factory=dict)
     character_method_notes: dict[str, str] = field(default_factory=dict)
+    character_method_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = field(default_factory=dict)
     character_properties: set[str] = field(default_factory=set)
     character_property_types: dict[str, str] = field(default_factory=dict)
     character_property_categories: dict[str, str] = field(default_factory=dict)
@@ -556,6 +627,7 @@ class Allowlists:
         condition_function_categories: dict[str, str] = {}
         condition_function_notes: dict[str, str] = {}
         condition_function_labels: dict[str, str] = {}
+        condition_function_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = {}
         if condition_functions_payload and isinstance(
             condition_functions_payload.get("functions"), list,
         ):
@@ -574,6 +646,9 @@ class Allowlists:
                     label = item.get("label")
                     if isinstance(label, str):
                         condition_function_labels[item["name"]] = label.strip()
+                    choices = _read_param_choices(item)
+                    if choices:
+                        condition_function_param_choices[item["name"]] = choices
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
@@ -582,6 +657,7 @@ class Allowlists:
         character_method_signatures: dict[str, str] = {}
         character_method_categories: dict[str, str] = {}
         character_method_notes: dict[str, str] = {}
+        character_method_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = {}
         if character_methods_payload and isinstance(
             character_methods_payload.get("methods"), list,
         ):
@@ -597,6 +673,9 @@ class Allowlists:
                     note = item.get("notes")
                     if isinstance(note, str):
                         character_method_notes[item["name"]] = note.strip()
+                    choices = _read_param_choices(item)
+                    if choices:
+                        character_method_param_choices[item["name"]] = choices
 
         # Character-properties allowlist (hand-maintained). Read-only bare
         # attributes usable in a condition (``Character.desire >= 0.5``). Each
@@ -676,10 +755,12 @@ class Allowlists:
             condition_function_categories = condition_function_categories,
             condition_function_notes = condition_function_notes,
             condition_function_labels = condition_function_labels,
+            condition_function_param_choices = condition_function_param_choices,
             character_methods = character_methods,
             character_method_signatures = character_method_signatures,
             character_method_categories = character_method_categories,
             character_method_notes = character_method_notes,
+            character_method_param_choices = character_method_param_choices,
             character_properties = character_properties,
             character_property_types = character_property_types,
             character_property_categories = character_property_categories,
@@ -875,6 +956,10 @@ class Allowlists:
             condition_function_labels={
                 **self.condition_function_labels, **other.condition_function_labels,
             },
+            condition_function_param_choices={
+                **self.condition_function_param_choices,
+                **other.condition_function_param_choices,
+            },
             character_methods=self.character_methods | other.character_methods,
             character_method_signatures={
                 **self.character_method_signatures, **other.character_method_signatures,
@@ -884,6 +969,10 @@ class Allowlists:
             },
             character_method_notes={
                 **self.character_method_notes, **other.character_method_notes,
+            },
+            character_method_param_choices={
+                **self.character_method_param_choices,
+                **other.character_method_param_choices,
             },
             character_properties=self.character_properties | other.character_properties,
             character_property_types={
