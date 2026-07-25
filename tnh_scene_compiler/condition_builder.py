@@ -512,6 +512,7 @@ _CHOICE_SOURCES: dict[str, Callable[[Allowlists, str], list[str]]] = {
     "looks": lambda a, _c: sorted(a.looks),
     "stages": lambda a, _c: sorted(a.stages),
     "sfx": lambda a, _c: sorted(a.sfx),
+    "inventory_items": lambda a, _c: sorted(a.inventory_items),
     "features": lambda a, c: character_features(a, c),
 }
 

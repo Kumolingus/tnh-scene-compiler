@@ -26,6 +26,7 @@ from .extractors import (
     fx,
     history_events,
     interpolation,
+    inventory_items,
     locations,
     looks,
     moods,
@@ -53,6 +54,7 @@ _FLAT_EXTRACTORS: tuple[_Extractor, ...] = (
     traits.extract,
     personalities.extract,
     history_events.extract,
+    inventory_items.extract,
 )
 
 _PER_CHARACTER_EXTRACTORS: tuple[_Extractor, ...] = (

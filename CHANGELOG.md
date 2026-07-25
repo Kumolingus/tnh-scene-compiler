@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **An `inventory_items` allowlist**, extracted from the `all_Items` keys (58
+  in the current build), feeding the `string` parameter of
+  `Character.Inventory.get_active("...")` and `get_number("...")` — the last
+  free-text parameter left on a listed condition. Clothing is deliberately not
+  collected: it is stored under its own tag rather than the item key
+  (`inventory.rpy:79-82`) and those ids live in per-character `Clothes`
+  mappings with a different shape, so a clothing id is still typed by hand
+  into the editable combo.
+- Extractor tests for both new allowlists (`features`, `inventory_items`),
+  including that a feature set is never flattened across characters.
+
 - **A `features` allowlist, extracted per character.** `tnh_refresh_allowlists`
   gains a `features` extractor reading each `<Character>_supported_features`
   set, emitting `features/<Character>.yaml` like faces and outfits do, and the

@@ -15,6 +15,8 @@ stats:
   traits: 310
   personalities: 8
   history_events: 105
+  # Added 2026-07-25 by a targeted run, like the features block below.
+  inventory_items: 58
   faces:
     AlisonBlaire: 49
     AmahlFarouk: 10

@@ -542,6 +542,7 @@ class Allowlists:
     traits: set[str] = field(default_factory=set)
     personalities: set[str] = field(default_factory=set)
     history_events: set[str] = field(default_factory=set)
+    inventory_items: set[str] = field(default_factory=set)
     character_aliases: dict[str, str] = field(default_factory=dict)
     function_aliases: dict[str, str] = field(default_factory=dict)
 
@@ -717,6 +718,9 @@ class Allowlists:
         history_events = set(_values_names(
             _read_yaml(allowlists_dir / "history_events.yaml"),
         ))
+        inventory_items = set(_values_names(
+            _read_yaml(allowlists_dir / "inventory_items.yaml"),
+        ))
 
         aliases_payload = _read_yaml(allowlists_dir / "aliases.yaml")
         character_aliases: dict[str, str] = {}
@@ -775,6 +779,7 @@ class Allowlists:
             traits = traits,
             personalities = personalities,
             history_events = history_events,
+            inventory_items = inventory_items,
             character_aliases = character_aliases,
             function_aliases = function_aliases,
         )
@@ -995,6 +1000,7 @@ class Allowlists:
             traits=self.traits | other.traits,
             personalities=self.personalities | other.personalities,
             history_events=self.history_events | other.history_events,
+            inventory_items=self.inventory_items | other.inventory_items,
             character_aliases={**self.character_aliases, **other.character_aliases},
             function_aliases={**self.function_aliases, **other.function_aliases},
         )

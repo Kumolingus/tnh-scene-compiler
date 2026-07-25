@@ -282,6 +282,16 @@ ALLOWLIST_TOPICS: tuple[AllowlistTopic, ...] = (
         ),
     ),
     AllowlistTopic(
+        key="inventory_items", title="Inventory items",
+        filename="inventory_items.yaml", item_key="values",
+        per_character=False, has_shared=False, maintenance=MAINTENANCE_GENERATED,
+        summary=(
+            "Item keys for the Character.Inventory.get_active(\"...\") / "
+            "get_number(\"...\") conditions. Plain items only — clothing is "
+            "keyed separately and is not extracted."
+        ),
+    ),
+    AllowlistTopic(
         key="personalities", title="Personalities",
         filename="personalities.yaml", item_key="values",
         per_character=False, has_shared=False, maintenance=MAINTENANCE_GENERATED,
