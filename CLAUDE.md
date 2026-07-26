@@ -56,7 +56,7 @@ Fountain-TNH scene compiler: converts `.scene` files to Ren'Py `.rpy` scripts fo
 - **Runtime**: `tnh_scene_compiler/thumbnails.py` — `ThumbnailStore` singleton, lazy-cached `tk.PhotoImage` objects. No Pillow at runtime.
 - **GUI**: previews in `_CharacterInsertDialog` (column 2), `_DirectiveDialog._build_show` (column 2), `_PaletteSidebar._refresh_visuals` (compound buttons for Faces/Arms).
 - **Settings**: `show_thumbnails: bool` in `AppSettings` (default `True`).
-- **Bundle**: `thumbnails/` included in PyInstaller `datas` in `.spec`.
+- **Bundle**: `thumbnails/` is **not** embedded — it was removed from the `.spec` `datas` in 26b9f45 (35 MB of PNGs). `ThumbnailStore.load()` looks in `get_data_root()/thumbnails` (the repo root when running from source) and, when frozen, falls back to a `thumbnails/` directory **next to the exe**. `scripts/build_release.py` ships it as `thumbnails.zip` only, to be unzipped next to the exe by hand — and it wipes `dist/` on every run, so that copy does not survive the next build. Re-unzip after every build; a built folder with no `thumbnails/` shows no previews at all, for any character.
 - **Mapping keys**: face names match allowlist names; arm keys are prefixed with `both_`/`left_`/`right_`.
 - **Fuzzy matching**: the import script handles typos in source filenames (e.g. `appaled` → `appalled`).
 
