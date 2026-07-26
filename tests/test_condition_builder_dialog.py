@@ -23,25 +23,10 @@ from tnh_scene_compiler.condition_builder import (
 )
 
 
-@pytest.fixture(scope="module")
-def tk_root():
-    """A single withdrawn Tk root shared by the module, or skip if no display.
-
-    Module-scoped on purpose: creating and destroying a fresh ``tk.Tk()``
-    per test in one process intermittently fails to re-init Tcl ("Can't find
-    a usable init.tcl"), which would make these tests flaky-skip. One root
-    for the module sidesteps that; each test still builds its own dialog
-    (a Toplevel) on it.
-    """
-    try:
-        root = tk.Tk()
-    except tk.TclError as exc:  # pragma: no cover - environment-dependent
-        pytest.skip(f"no Tk display available: {exc}")
-    root.withdraw()
-    try:
-        yield root
-    finally:
-        root.destroy()
+# ``tk_root`` is the session-scoped fixture in conftest.py. It used to live
+# here, module-scoped; the second Tkinter-level module added to the suite then
+# got a second ``tk.Tk()`` and started skipping at random. One root per session
+# is the only shape that holds.
 
 
 @pytest.fixture()

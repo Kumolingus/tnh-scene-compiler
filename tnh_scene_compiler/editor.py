@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import tkinter as tk
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
@@ -21,7 +22,12 @@ from .errors import CompileError
 from .new_scene_dialog import NewSceneDialog
 from . import output as out
 from .parser import parse
-from .thumbnails import get_store as _get_thumb_store
+from .thumbnails import (
+    SLOT_LABELS,
+    ThumbnailStore,
+    get_store as _get_thumb_store,
+    selected_visual_slots,
+)
 from .validator import validate
 
 
@@ -209,6 +215,50 @@ class _LineNumbers(tk.Canvas):
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
+# Shared thumbnail preview
+# ---------------------------------------------------------------------------
+
+def _render_thumbnail_row(
+    frame: ttk.Frame,
+    store: ThumbnailStore | None,
+    character: str,
+    values: Mapping[str, str],
+) -> list[tk.PhotoImage]:
+    """Fill *frame* with one captioned thumbnail per filled visual slot.
+
+    *values* is the dialog's whole variable map; :func:`selected_visual_slots`
+    picks the visual slots out of it and orders them.  A slot whose value has
+    no artwork is skipped rather than drawn as an empty box.
+
+    The frame's children are rebuilt on every call.  That is cheap here: the
+    slots are driven by readonly combos, so updates are discrete, and there
+    are at most four cells.
+
+    Returns the ``PhotoImage`` objects so the caller can keep a reference —
+    Tk drops an image as soon as nothing on the Python side holds it, and the
+    preview would go blank.
+    """
+    for child in frame.winfo_children():
+        child.destroy()
+    images: list[tk.PhotoImage] = []
+    if store is None or not character:
+        return images
+    for column, (slot, value) in enumerate(selected_visual_slots(values)):
+        img = store.get_slot(character, slot, value)
+        if img is None:
+            continue
+        cell = ttk.Frame(frame)
+        cell.grid(row=0, column=column, sticky=tk.N, padx=(0, 8))
+        ttk.Label(cell, image=img).pack()
+        ttk.Label(
+            cell, text=f"{SLOT_LABELS[slot]}: {value}",
+            foreground="#808080", font=("Segoe UI", 8),
+        ).pack()
+        images.append(img)
+    return images
+
+
+# ---------------------------------------------------------------------------
 # Character insertion dialog
 # ---------------------------------------------------------------------------
 
@@ -232,7 +282,7 @@ class _CharacterInsertDialog(tk.Toplevel):
         self._char = char
         self._insert = insert_cb
         self._thumb_store = _get_thumb_store() if show_thumbnails else None
-        self._thumb_image: tk.PhotoImage | None = None
+        self._thumb_images: list[tk.PhotoImage] = []
 
         body = ttk.Frame(self, padding=12)
         body.pack(fill=tk.BOTH, expand=True)
@@ -241,11 +291,18 @@ class _CharacterInsertDialog(tk.Toplevel):
             body, text=char, font=("Segoe UI", 12, "bold"),
         ).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
+        # The form fields live in their own frame so the preview beside them
+        # cannot stretch them: an arms thumbnail is ~385px tall, and a widget
+        # spanning the field rows would have grid spread that surplus across
+        # them, pulling the combos apart.
+        fields = ttk.Frame(body)
+        fields.grid(row=1, column=0, sticky=tk.NW)
+
         # Medium: spoken vs text
-        row = 1
-        ttk.Label(body, text="Medium:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        row = 0
+        ttk.Label(fields, text="Medium:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self._medium_var = tk.StringVar(value="spoken")
-        medium_frame = ttk.Frame(body)
+        medium_frame = ttk.Frame(fields)
         medium_frame.grid(row=row, column=1, sticky=tk.W, pady=2)
         ttk.Radiobutton(
             medium_frame, text="Spoken", variable=self._medium_var,
@@ -261,10 +318,10 @@ class _CharacterInsertDialog(tk.Toplevel):
         moods = [""] + sorted(
             allow.shared_moods | allow.char_moods.get(char, set())
         )
-        ttk.Label(body, text="Mood:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        ttk.Label(fields, text="Mood:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self._mood_var = tk.StringVar()
         self._mood_combo = ttk.Combobox(
-            body, textvariable=self._mood_var, values=moods,
+            fields, textvariable=self._mood_var, values=moods,
             state="readonly", width=20,
         )
         self._mood_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
@@ -272,10 +329,10 @@ class _CharacterInsertDialog(tk.Toplevel):
         # Face
         row += 1
         faces = [""] + sorted(allow.char_faces.get(char, set()))
-        ttk.Label(body, text="Face:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        ttk.Label(fields, text="Face:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self._face_var = tk.StringVar()
         self._face_combo = ttk.Combobox(
-            body, textvariable=self._face_var, values=faces,
+            fields, textvariable=self._face_var, values=faces,
             state="readonly", width=20,
         )
         self._face_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
@@ -283,10 +340,10 @@ class _CharacterInsertDialog(tk.Toplevel):
         # Arms
         row += 1
         arms = [""] + sorted(allow.char_arms.get(char, set()))
-        ttk.Label(body, text="Arms:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        ttk.Label(fields, text="Arms:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self._arms_var = tk.StringVar()
         self._arms_combo = ttk.Combobox(
-            body, textvariable=self._arms_var, values=arms,
+            fields, textvariable=self._arms_var, values=arms,
             state="readonly", width=20,
         )
         self._arms_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
@@ -294,10 +351,10 @@ class _CharacterInsertDialog(tk.Toplevel):
         # Outfit
         row += 1
         outfits = [""] + sorted(allow.char_outfits.get(char, set()))
-        ttk.Label(body, text="Outfit:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        ttk.Label(fields, text="Outfit:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self._outfit_var = tk.StringVar()
         self._outfit_combo = ttk.Combobox(
-            body, textvariable=self._outfit_var, values=outfits,
+            fields, textvariable=self._outfit_var, values=outfits,
             state="readonly", width=20,
         )
         self._outfit_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
@@ -305,35 +362,30 @@ class _CharacterInsertDialog(tk.Toplevel):
         # Look
         row += 1
         looks = [""] + sorted(allow.looks)
-        ttk.Label(body, text="Look:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        ttk.Label(fields, text="Look:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self._look_var = tk.StringVar()
         self._look_combo = ttk.Combobox(
-            body, textvariable=self._look_var, values=looks,
+            fields, textvariable=self._look_var, values=looks,
             state="readonly", width=20,
         )
         self._look_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
 
-        # Thumbnail preview (column 2, spanning the visual attribute rows)
-        self._thumb_label = ttk.Label(body)
-        self._thumb_label.grid(
-            row=2, column=2, rowspan=5, sticky=tk.N, padx=(12, 0),
-        )
+        # Thumbnail preview, beside the fields rather than spanning their rows
+        self._thumb_frame = ttk.Frame(body)
+        self._thumb_frame.grid(row=1, column=1, sticky=tk.N, padx=(12, 0))
 
         # Preview
-        row += 1
-        colspan = 3 if self._thumb_store else 2
         ttk.Separator(body, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=colspan, sticky=tk.EW, pady=8,
+            row=2, column=0, columnspan=2, sticky=tk.EW, pady=8,
         )
-        row += 1
-        ttk.Label(body, text="Preview:").grid(
-            row=row, column=0, sticky=tk.W, pady=2,
-        )
+        preview_row = ttk.Frame(body)
+        preview_row.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=2)
+        ttk.Label(preview_row, text="Preview:").pack(side=tk.LEFT, padx=(0, 8))
         self._preview_var = tk.StringVar()
         ttk.Label(
-            body, textvariable=self._preview_var,
+            preview_row, textvariable=self._preview_var,
             font=("Consolas", 10), foreground="#DCDCAA",
-        ).grid(row=row, column=1, sticky=tk.W, pady=2)
+        ).pack(side=tk.LEFT)
 
         # Trace changes to update preview
         for var in (
@@ -345,9 +397,8 @@ class _CharacterInsertDialog(tk.Toplevel):
         self._update_preview()
 
         # Buttons
-        row += 1
         btn_frame = ttk.Frame(body)
-        btn_frame.grid(row=row, column=0, columnspan=2, sticky=tk.E, pady=(8, 0))
+        btn_frame.grid(row=4, column=0, columnspan=2, sticky=tk.E, pady=(8, 0))
         ttk.Button(btn_frame, text="Cancel", style="Danger.TButton", command=self.destroy).pack(
             side=tk.LEFT, padx=(0, 4),
         )
@@ -378,18 +429,11 @@ class _CharacterInsertDialog(tk.Toplevel):
         self._update_thumbnail()
 
     def _update_thumbnail(self) -> None:
-        if not self._thumb_store:
-            return
-        img = None
-        face = self._face_var.get()
-        if face:
-            img = self._thumb_store.get_face(self._char, face)
-        if img is None:
-            arms = self._arms_var.get()
-            if arms:
-                img = self._thumb_store.get_arms(self._char, arms)
-        self._thumb_image = img
-        self._thumb_label.configure(image=img or "")
+        """Redraw the preview for every visual slot currently filled."""
+        self._thumb_images = _render_thumbnail_row(
+            self._thumb_frame, self._thumb_store, self._char,
+            {"face": self._face_var.get(), "arms": self._arms_var.get()},
+        )
 
     def _build_line(self) -> str:
         upper = self._char.upper()
@@ -845,9 +889,9 @@ class _DirectiveDialog(tk.Toplevel):
 
         # Thumbnail preview
         self._thumb_store = _get_thumb_store() if self._show_thumbnails else None
-        self._thumb_image: tk.PhotoImage | None = None
-        self._thumb_label = ttk.Label(parent)
-        self._thumb_label.grid(
+        self._thumb_images: list[tk.PhotoImage] = []
+        self._thumb_frame = ttk.Frame(parent)
+        self._thumb_frame.grid(
             row=0, column=2, rowspan=row, sticky=tk.N, padx=(12, 0),
         )
 
@@ -1056,37 +1100,19 @@ class _DirectiveDialog(tk.Toplevel):
         self._update_show_thumbnail()
 
     def _update_show_thumbnail(self) -> None:
-        if not hasattr(self, "_thumb_label"):
+        """Redraw the preview for every visual slot currently filled.
+
+        Only the ``show`` directive builds a preview frame, so a directive
+        that never ran ``_build_show`` bails out on the ``hasattr`` guard.
+        """
+        if not hasattr(self, "_thumb_frame"):
             return
-        store = self._thumb_store
-        if not store:
-            return
-        img = None
         char = self._vars.get("char")
-        if not char:
-            return
-        c = char.get()
-        if not c:
-            self._thumb_image = None
-            self._thumb_label.configure(image="")
-            return
-        face_var = self._vars.get("face")
-        if face_var and face_var.get():
-            img = store.get_face(c, face_var.get())
-        if img is None:
-            arms_var = self._vars.get("arms")
-            if arms_var and arms_var.get():
-                img = store.get_arms(c, arms_var.get())
-        if img is None:
-            left_var = self._vars.get("left_arm")
-            if left_var and left_var.get():
-                img = store.get_left_arm(c, left_var.get())
-        if img is None:
-            right_var = self._vars.get("right_arm")
-            if right_var and right_var.get():
-                img = store.get_right_arm(c, right_var.get())
-        self._thumb_image = img
-        self._thumb_label.configure(image=img or "")
+        self._thumb_images = _render_thumbnail_row(
+            self._thumb_frame, self._thumb_store,
+            char.get() if char else "",
+            {key: var.get() for key, var in self._vars.items()},
+        )
 
     def _build_line(self) -> str:
         d = self._directive

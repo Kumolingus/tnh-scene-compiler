@@ -790,6 +790,10 @@ The compiler ships with a graphical editor. Here are tips that are not obvious f
   shows the associated face thumbnails cycling through, so you can
   preview what expression cluster a mood represents.
 - **FX/SFX hover preview:** in the FX/SFX tab, hovering an effect shows a thumbnail preview of what it looks like.
+- **Insert dialogs preview every visual you pick.** In the character insert
+  form and in `[[show]]`, choosing a face *and* arms shows both thumbnails
+  side by side, each captioned with its slot. A value with no captured image
+  simply has no thumbnail — it is still valid.
 - **Thumbnails are a separate download.** The thumbnail images are
   distributed as `thumbnails.zip` and are not bundled inside the
   `.exe`. Extract the archive next to the editor for previews to

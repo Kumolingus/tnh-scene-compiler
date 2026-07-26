@@ -6,6 +6,7 @@ generate_cheatsheet test suites.
 
 from __future__ import annotations
 
+import tkinter as tk
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,31 @@ from tnh_refresh_allowlists.models import ScanContext
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+# --- Tkinter fixtures ---------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def tk_root():
+    """One withdrawn Tk root for the whole session, or skip if no display.
+
+    Session-scoped, and shared by every Tkinter-level module: a *second*
+    ``tk.Tk()`` in the same process intermittently fails to re-init Tcl
+    ("Can't find a usable init.tcl"), so a per-module root makes whichever
+    module runs later skip at random. That is worse than a plain failure —
+    a regression test that opts itself out proves nothing. Each test still
+    builds its own dialog (a ``Toplevel``) on this root.
+    """
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:  # pragma: no cover - environment-dependent
+        pytest.skip(f"no Tk display available: {exc}")
+    root.withdraw()
+    try:
+        yield root
+    finally:
+        root.destroy()
 
 
 # --- compile_scenes fixtures --------------------------------------------------

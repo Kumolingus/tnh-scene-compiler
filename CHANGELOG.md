@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The character preview showed one thumbnail, not the combination.** Picking
+  a face and then arms left the face on screen: both insert dialogs looked up
+  face → arms → left arm → right arm and stopped at the first image they found,
+  so every slot below the highest one filled was unreachable. In the `[[show]]`
+  form that meant `left_arm` and `right_arm` could only ever be previewed with
+  every other slot empty. The preview now renders **one captioned thumbnail per
+  filled slot**, side by side, which is what a writer is actually assembling.
+  - A slot whose value has no capture is skipped rather than drawn as an empty
+    box, and the caption names the slot as well as the value — `crossed` as a
+    left arm and `crossed` as a right arm are two different pictures sitting
+    next to each other.
+  - The `Insert — <Character>` form no longer stretches. Its fields moved into
+    a frame of their own: the preview used to span their rows, and a ~385px
+    arms thumbnail had grid spread that surplus across them, pulling the
+    combos apart. The dialog is narrower and shorter than before.
+  - Covered by `tests/test_thumbnail_preview.py`, which drives both real
+    dialogs and counts what the preview frame holds. The selection rule
+    (`selected_visual_slots`) and the slot dispatch (`ThumbnailStore.get_slot`)
+    are pure and tested on their own.
+
+### Changed
+
+- **`tk_root` is one session-scoped fixture in `conftest.py`.** It was
+  module-scoped in `test_condition_builder_dialog.py`; adding a second
+  Tkinter-level module gave the suite a second `tk.Tk()` in one process, which
+  intermittently fails to re-init Tcl — so whichever module ran later skipped
+  at random (runs varied between 773 and 799 passing). A regression test that
+  opts itself out proves nothing, so there is now exactly one root per session
+  and every dialog test builds its `Toplevel` on it.
+
 ### Added
 
 - **A mod-only refresh no longer files the game's own values as the mod's.**

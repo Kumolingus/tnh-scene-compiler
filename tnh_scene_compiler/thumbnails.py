@@ -9,12 +9,50 @@ from __future__ import annotations
 
 import sys
 import tkinter as tk
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from .config import get_data_root
+
+# Visual attributes that can carry a thumbnail, in the order they are
+# previewed.  ``mood``, ``outfit`` and ``look`` are deliberately absent:
+# they change a character's appearance but no artwork is captured for them.
+VISUAL_SLOTS: tuple[str, ...] = ("face", "arms", "left_arm", "right_arm")
+
+# Caption prefix shown under each preview.  ``crossed`` as a left arm and
+# ``crossed`` as a right arm are two different pictures side by side, so
+# the value alone would not say which is which.
+SLOT_LABELS: dict[str, str] = {
+    "face": "face",
+    "arms": "arms",
+    "left_arm": "left arm",
+    "right_arm": "right arm",
+}
+
+
+def selected_visual_slots(values: Mapping[str, str]) -> list[tuple[str, str]]:
+    """Return every filled visual slot, in preview order.
+
+    *values* maps a slot name to the value the writer picked.  A missing
+    key, ``None`` and a blank string all count as unset, and keys outside
+    :data:`VISUAL_SLOTS` are ignored — both dialogs that preview
+    thumbnails carry other fields (mood, outfit, look, stage, fade) in the
+    same variable map.
+
+    Returns a list of ``(slot, value)`` pairs.  Every filled slot is
+    returned, not just the first: the preview shows the whole combination
+    the writer is assembling, so picking a face must not hide the arms.
+    Pure — no Tk involved, so the selection rule is testable on its own.
+    """
+    picked: list[tuple[str, str]] = []
+    for slot in VISUAL_SLOTS:
+        value = (values.get(slot) or "").strip()
+        if value:
+            picked.append((slot, value))
+    return picked
 
 
 class ThumbnailStore:
@@ -88,6 +126,26 @@ class ThumbnailStore:
     def get_right_arm(self, character: str, name: str) -> tk.PhotoImage | None:
         """Return thumbnail for a right arm pose, or ``None``."""
         return self._get_arm(character, f"right_{name}")
+
+    def get_slot(
+        self, character: str, slot: str, name: str,
+    ) -> tk.PhotoImage | None:
+        """Return the thumbnail for one of :data:`VISUAL_SLOTS`, or ``None``.
+
+        Dispatches to the per-kind getter so a caller iterating over
+        :func:`selected_visual_slots` needs no slot-to-getter table of its
+        own.  An unknown *slot* returns ``None`` rather than raising.
+        """
+        getters = {
+            "face": self.get_face,
+            "arms": self.get_arms,
+            "left_arm": self.get_left_arm,
+            "right_arm": self.get_right_arm,
+        }
+        getter = getters.get(slot)
+        if getter is None:
+            return None
+        return getter(character, name)
 
     def _get_arm(self, character: str, key: str) -> tk.PhotoImage | None:
         char_map = self._arms.get(character)
