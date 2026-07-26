@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-26
+
 ### Fixed
 
 - **The Condition Builder emitted conditions that could not compile.** Three
