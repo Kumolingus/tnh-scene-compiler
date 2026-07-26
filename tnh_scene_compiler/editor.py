@@ -2256,13 +2256,16 @@ class EditorScreen(ttk.Frame):
         )
         self._title_label.pack(side=tk.LEFT, padx=8)
 
-        ttk.Button(frm, text="Glossary", command=self._open_glossary).pack(
+        # Glossary, Allowlists, Settings — reading left to right, the order
+        # every screen uses. Packed in reverse because `side=RIGHT` places the
+        # first widget furthest right.
+        ttk.Button(frm, text="Settings", command=self._open_settings).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
         ttk.Button(frm, text="Allowlists", command=self._open_allowlists).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
-        ttk.Button(frm, text="Settings", command=self._open_settings).pack(
+        ttk.Button(frm, text="Glossary", command=self._open_glossary).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
         ttk.Button(frm, text="Validate", style="Validate.TButton", command=self._validate).pack(

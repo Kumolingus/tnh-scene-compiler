@@ -51,6 +51,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   acts on the scene selection, so they are grouped the way the editor toolbar
   already grouped them, away from Compile / Validate and away from the
   per-scene buttons.
+  - The order is `Glossary`, `Allowlists`, `Settings` left to right, on every
+    screen and in the editor toolbar. The toolbar read backwards: these are
+    packed `side=RIGHT`, where the first widget packed lands furthest right,
+    so listing them in reading order reverses them on screen.
   - A project's header packs its path label **last** as part of this. `pack`
     hands out width in packing order and the project path is the one label
     with no bound on its length, so packed first it took what it wanted and
