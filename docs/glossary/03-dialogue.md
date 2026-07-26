@@ -38,6 +38,10 @@ JEANGREY
 You're a terrible liar, [Player.name].
 ```
 
+`left_arm` and `right_arm` combine with `arms` rather than replacing it: the
+preset poses both sides, a named side overrides that one. Without a preset, a
+side you do not name is posed `neutral` — not left as it was.
+
 > Watch out: put plain (positional) values first and `key=value` values
 > after — `(happy, face=smirk)` works, but `(face=smirk, happy)` doesn't.
 > Don't set the same slot twice: `(happy, mood=sad)` is an error. And mind

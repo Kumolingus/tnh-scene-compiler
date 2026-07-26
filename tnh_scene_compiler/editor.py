@@ -214,6 +214,17 @@ class _LineNumbers(tk.Canvas):
 # Palette sidebar
 # ---------------------------------------------------------------------------
 
+# Shown under the per-arm rows. ``change_arms`` builds each side from
+# ``kwargs.get(f"{part}_arm", defaults.get(part, "neutral"))`` (npcs.rpy:256):
+# with no preset there are no defaults, so a side left empty is posed
+# ``neutral`` rather than left alone. Worth saying — "empty means unchanged"
+# is the natural reading and it is wrong.
+_PER_ARM_HINT = (
+    "With no Arms preset above, a side left empty is posed \"neutral\", "
+    "not left as it was."
+)
+
+
 # ---------------------------------------------------------------------------
 # Shared thumbnail preview
 # ---------------------------------------------------------------------------
@@ -283,6 +294,9 @@ class _CharacterInsertDialog(tk.Toplevel):
         self._insert = insert_cb
         self._thumb_store = _get_thumb_store() if show_thumbnails else None
         self._thumb_images: list[tk.PhotoImage] = []
+        # label (lowercased) -> (caption, combo, var), so a row is reached by
+        # name and can be hidden whole. See _add_field.
+        self._fields: dict[str, tuple[ttk.Label, ttk.Combobox, tk.StringVar]] = {}
 
         body = ttk.Frame(self, padding=12)
         body.pack(fill=tk.BOTH, expand=True)
@@ -313,62 +327,62 @@ class _CharacterInsertDialog(tk.Toplevel):
             value="text", command=self._on_medium_change,
         ).pack(side=tk.LEFT)
 
-        # Mood
+        # Visual attribute rows. ``_add_field`` keeps the label beside its combo
+        # so both can be hidden together — text messages carry no visuals, and
+        # the per-arm slots stay out of the way until asked for.
         row += 1
         moods = [""] + sorted(
             allow.shared_moods | allow.char_moods.get(char, set())
         )
-        ttk.Label(fields, text="Mood:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._mood_var = tk.StringVar()
-        self._mood_combo = ttk.Combobox(
-            fields, textvariable=self._mood_var, values=moods,
-            state="readonly", width=20,
+        self._mood_var, self._mood_combo, row = self._add_field(
+            fields, row, "Mood", moods,
         )
-        self._mood_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
-        # Face
-        row += 1
         faces = [""] + sorted(allow.char_faces.get(char, set()))
-        ttk.Label(fields, text="Face:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._face_var = tk.StringVar()
-        self._face_combo = ttk.Combobox(
-            fields, textvariable=self._face_var, values=faces,
-            state="readonly", width=20,
+        self._face_var, self._face_combo, row = self._add_field(
+            fields, row, "Face", faces,
         )
-        self._face_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
-        # Arms
-        row += 1
         arms = [""] + sorted(allow.char_arms.get(char, set()))
-        ttk.Label(fields, text="Arms:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._arms_var = tk.StringVar()
-        self._arms_combo = ttk.Combobox(
-            fields, textvariable=self._arms_var, values=arms,
-            state="readonly", width=20,
+        self._arms_var, self._arms_combo, row = self._add_field(
+            fields, row, "Arms", arms,
         )
-        self._arms_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
 
-        # Outfit
+        # Per-arm override. Not a mode switch: the game's ``change_arms``
+        # takes the preset above as its defaults and lets a side kwarg
+        # override just that side (npcs.rpy:256), so ``arms=crossed,
+        # right_arm=hip`` is meaningful and must stay reachable.
+        self._per_arm_var = tk.BooleanVar(value=False)
+        self._per_arm_check = ttk.Checkbutton(
+            fields, text="Override each arm", variable=self._per_arm_var,
+            command=self._on_per_arm_change,
+        )
+        self._per_arm_check.grid(row=row, column=1, sticky=tk.W, pady=(0, 2))
         row += 1
+
+        left = [""] + sorted(allow.char_left_arm.get(char, set()))
+        self._left_arm_var, self._left_arm_combo, row = self._add_field(
+            fields, row, "Left arm", left,
+        )
+        right = [""] + sorted(allow.char_right_arm.get(char, set()))
+        self._right_arm_var, self._right_arm_combo, row = self._add_field(
+            fields, row, "Right arm", right,
+        )
+        self._per_arm_hint = ttk.Label(
+            fields, text=_PER_ARM_HINT,
+            foreground="#808080", font=("Segoe UI", 8), wraplength=200,
+        )
+        self._per_arm_hint.grid(row=row, column=1, sticky=tk.W, pady=(0, 4))
+        row += 1
+
         outfits = [""] + sorted(allow.char_outfits.get(char, set()))
-        ttk.Label(fields, text="Outfit:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._outfit_var = tk.StringVar()
-        self._outfit_combo = ttk.Combobox(
-            fields, textvariable=self._outfit_var, values=outfits,
-            state="readonly", width=20,
+        self._outfit_var, self._outfit_combo, row = self._add_field(
+            fields, row, "Outfit", outfits,
         )
-        self._outfit_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
-        # Look
-        row += 1
         looks = [""] + sorted(allow.looks)
-        ttk.Label(fields, text="Look:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._look_var = tk.StringVar()
-        self._look_combo = ttk.Combobox(
-            fields, textvariable=self._look_var, values=looks,
-            state="readonly", width=20,
+        self._look_var, self._look_combo, row = self._add_field(
+            fields, row, "Look", looks,
         )
-        self._look_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
+
+        self._on_per_arm_change()
 
         # Thumbnail preview, beside the fields rather than spanning their rows
         self._thumb_frame = ttk.Frame(body)
@@ -390,8 +404,8 @@ class _CharacterInsertDialog(tk.Toplevel):
         # Trace changes to update preview
         for var in (
             self._medium_var, self._mood_var, self._face_var,
-            self._arms_var, self._outfit_var,
-            self._look_var,
+            self._arms_var, self._left_arm_var, self._right_arm_var,
+            self._outfit_var, self._look_var,
         ):
             var.trace_add("write", self._update_preview)
         self._update_preview()
@@ -409,20 +423,78 @@ class _CharacterInsertDialog(tk.Toplevel):
         self.bind("<Return>", lambda e: self._do_insert())
         self.bind("<Escape>", lambda e: self.destroy())
 
+    def _add_field(
+        self, parent: ttk.Frame, row: int, label: str, values: list[str],
+    ) -> tuple[tk.StringVar, ttk.Combobox, int]:
+        """Grid one ``label: [combo]`` row and remember it under *label*.
+
+        The caption is kept alongside its combo in ``self._fields`` so a row
+        can be hidden whole — hiding the combo alone would leave the caption
+        dangling — and so callers reach a row **by name** rather than by a
+        row index that shifts whenever the form grows a widget.
+
+        Returns the row's variable, its combo, and the next free row index.
+        """
+        caption = ttk.Label(parent, text=f"{label}:")
+        caption.grid(row=row, column=0, sticky=tk.W, pady=2)
+        var = tk.StringVar()
+        combo = ttk.Combobox(
+            parent, textvariable=var, values=values,
+            state="readonly", width=20,
+        )
+        combo.grid(row=row, column=1, sticky=tk.W, pady=2)
+        self._fields[label.lower()] = (caption, combo, var)
+        return var, combo, row + 1
+
+    @staticmethod
+    def _set_row_visible(
+        field: tuple[ttk.Label, ttk.Combobox, tk.StringVar], visible: bool,
+    ) -> None:
+        """Show or hide one ``label: [combo]`` row.
+
+        Hiding clears the value: a slot the writer can no longer see must not
+        keep contributing to the inserted line.
+        """
+        caption, combo, var = field
+        if visible:
+            caption.grid()
+            combo.grid()
+        else:
+            var.set("")
+            caption.grid_remove()
+            combo.grid_remove()
+
     def _on_medium_change(self) -> None:
+        """Show or hide the visual rows: a text message carries no visuals.
+
+        They used to be greyed out instead. Hiding them says the same thing
+        with less noise, and the form shrinks to what actually applies.
+        """
         is_text = self._medium_var.get() == "text"
-        state = "disabled" if is_text else "readonly"
-        self._mood_combo.configure(state=state)
-        self._face_combo.configure(state=state)
-        self._arms_combo.configure(state=state)
-        self._outfit_combo.configure(state=state)
-        self._look_combo.configure(state=state)
+        for field in self._fields.values():
+            self._set_row_visible(field, not is_text)
         if is_text:
-            self._mood_var.set("")
-            self._face_var.set("")
-            self._arms_var.set("")
-            self._look_var.set("")
-            self._outfit_var.set("")
+            self._per_arm_check.grid_remove()
+            self._per_arm_hint.grid_remove()
+        else:
+            self._per_arm_check.grid()
+            # Restores the per-arm rows to whatever the checkbox says.
+            self._on_per_arm_change()
+
+    def _on_per_arm_change(self) -> None:
+        """Reveal or hide the two per-side arm rows.
+
+        Additive, not a mode switch: the ``Arms`` preset stays available and
+        combines with a side override, which is what ``change_arms`` does
+        with it.
+        """
+        show = self._per_arm_var.get()
+        for name in ("left arm", "right arm"):
+            self._set_row_visible(self._fields[name], show)
+        if show:
+            self._per_arm_hint.grid()
+        else:
+            self._per_arm_hint.grid_remove()
 
     def _update_preview(self, *_args: Any) -> None:
         self._preview_var.set(self._build_line())
@@ -432,7 +504,12 @@ class _CharacterInsertDialog(tk.Toplevel):
         """Redraw the preview for every visual slot currently filled."""
         self._thumb_images = _render_thumbnail_row(
             self._thumb_frame, self._thumb_store, self._char,
-            {"face": self._face_var.get(), "arms": self._arms_var.get()},
+            {
+                "face": self._face_var.get(),
+                "arms": self._arms_var.get(),
+                "left_arm": self._left_arm_var.get(),
+                "right_arm": self._right_arm_var.get(),
+            },
         )
 
     def _build_line(self) -> str:
@@ -449,6 +526,8 @@ class _CharacterInsertDialog(tk.Toplevel):
         for slot, var in [
             ("face", self._face_var),
             ("arms", self._arms_var),
+            ("left_arm", self._left_arm_var),
+            ("right_arm", self._right_arm_var),
             ("outfit", self._outfit_var),
             ("look", self._look_var),
         ]:
@@ -809,6 +888,9 @@ class _DirectiveDialog(tk.Toplevel):
         fields.pack(fill=tk.X)
 
         self._vars: dict[str, tk.StringVar] = {}
+        # slot key -> (caption, input widget), so a row is reached by name and
+        # can be hidden whole. Filled by _add_combo / _add_entry.
+        self._widgets: dict[str, tuple[ttk.Label, tk.Widget]] = {}
         builder = getattr(self, f"_build_{directive.replace(' ', '_')}", None)
         if builder:
             builder(fields, allow)
@@ -845,29 +927,32 @@ class _DirectiveDialog(tk.Toplevel):
         self, parent: ttk.Frame, row: int, label: str, key: str,
         values: list[str], default: str = "",
     ) -> int:
-        ttk.Label(parent, text=f"{label}:").grid(
-            row=row, column=0, sticky=tk.W, pady=2,
-        )
+        caption = ttk.Label(parent, text=f"{label}:")
+        caption.grid(row=row, column=0, sticky=tk.W, pady=2)
         var = tk.StringVar(value=default)
         self._vars[key] = var
-        ttk.Combobox(
+        combo = ttk.Combobox(
             parent, textvariable=var, values=values,
             state="readonly", width=22,
-        ).grid(row=row, column=1, sticky=tk.W, padx=4, pady=2)
+        )
+        combo.grid(row=row, column=1, sticky=tk.W, padx=4, pady=2)
+        # Keyed by slot, not by row: a caller that needs a widget back used to
+        # recover it from ``grid_slaves`` at ``_vars`` insertion index + 1,
+        # which silently breaks the moment the form grows a non-field row.
+        self._widgets[key] = (caption, combo)
         return row + 1
 
     def _add_entry(
         self, parent: ttk.Frame, row: int, label: str, key: str,
         default: str = "",
     ) -> int:
-        ttk.Label(parent, text=f"{label}:").grid(
-            row=row, column=0, sticky=tk.W, pady=2,
-        )
+        caption = ttk.Label(parent, text=f"{label}:")
+        caption.grid(row=row, column=0, sticky=tk.W, pady=2)
         var = tk.StringVar(value=default)
         self._vars[key] = var
-        ttk.Entry(parent, textvariable=var, width=24).grid(
-            row=row, column=1, sticky=tk.W, padx=4, pady=2,
-        )
+        entry = ttk.Entry(parent, textvariable=var, width=24)
+        entry.grid(row=row, column=1, sticky=tk.W, padx=4, pady=2)
+        self._widgets[key] = (caption, entry)
         return row + 1
 
     def _build_show(self, parent: ttk.Frame, allow: Allowlists) -> None:
@@ -880,8 +965,26 @@ class _DirectiveDialog(tk.Toplevel):
         row = self._add_combo(parent, row, "Mood", "mood", moods)
         row = self._add_combo(parent, row, "Face", "face", [""])
         row = self._add_combo(parent, row, "Arms", "arms", [""])
+
+        # Per-arm override, same contract as the character insert dialog: the
+        # preset above stays in play and a side kwarg overrides just that side.
+        self._per_arm_var = tk.BooleanVar(value=False)
+        self._per_arm_check = ttk.Checkbutton(
+            parent, text="Override each arm", variable=self._per_arm_var,
+            command=self._on_per_arm_change,
+        )
+        self._per_arm_check.grid(row=row, column=1, sticky=tk.W, padx=4)
+        row += 1
+
         row = self._add_combo(parent, row, "Left Arm", "left_arm", [""])
         row = self._add_combo(parent, row, "Right Arm", "right_arm", [""])
+        self._per_arm_hint = ttk.Label(
+            parent, text=_PER_ARM_HINT,
+            foreground="#808080", font=("Segoe UI", 8), wraplength=220,
+        )
+        self._per_arm_hint.grid(row=row, column=1, sticky=tk.W, padx=4, pady=(0, 4))
+        row += 1
+
         row = self._add_combo(parent, row, "Outfit", "outfit", [""])
         row = self._add_combo(parent, row, "Look", "look", [""] + sorted(allow.looks))
         row = self._add_combo(parent, row, "Stage", "stage", [""] + sorted(allow.stages))
@@ -907,15 +1010,28 @@ class _DirectiveDialog(tk.Toplevel):
                     allow.shared_moods | allow.char_moods.get(c, set())
                 )),
             ]:
-                vals = getter()
-                widget = parent.grid_slaves(
-                    row=list(self._vars.keys()).index(key) + 1, column=1,
-                )
-                if widget:
-                    widget[0].configure(values=vals)
+                self._widgets[key][1].configure(values=getter())
                 self._vars[key].set("")
 
         self._vars["char"].trace_add("write", _on_char_change)
+        self._on_per_arm_change()
+
+    def _on_per_arm_change(self) -> None:
+        """Reveal or hide the two per-side arm rows of the ``show`` form."""
+        show = self._per_arm_var.get()
+        for key in ("left_arm", "right_arm"):
+            caption, combo = self._widgets[key]
+            if show:
+                caption.grid()
+                combo.grid()
+            else:
+                self._vars[key].set("")
+                caption.grid_remove()
+                combo.grid_remove()
+        if show:
+            self._per_arm_hint.grid()
+        else:
+            self._per_arm_hint.grid_remove()
 
     def _build_hide(self, parent: ttk.Frame, allow: Allowlists) -> None:
         self._add_combo(parent, 0, "Character", "char", self._ui_chars)

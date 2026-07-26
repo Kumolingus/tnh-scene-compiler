@@ -794,6 +794,12 @@ The compiler ships with a graphical editor. Here are tips that are not obvious f
   form and in `[[show]]`, choosing a face *and* arms shows both thumbnails
   side by side, each captioned with its slot. A value with no captured image
   simply has no thumbnail — it is still valid.
+- **"Override each arm"** reveals the `left_arm` / `right_arm` rows, each with
+  its own thumbnail. It does not replace the `Arms` preset — leave the preset
+  set and override one side to say "crossed, but the right arm on the hip".
+  With no preset, a side left empty is posed `neutral`, so name both.
+- **Text message hides the visual rows.** They do not apply to a phone text,
+  so the form shrinks to just the medium instead of greying them out.
 - **Thumbnails are a separate download.** The thumbnail images are
   distributed as `thumbnails.zip` and are not bundled inside the
   `.exe`. Extract the archive next to the editor for previews to

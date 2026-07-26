@@ -282,6 +282,11 @@ JEANGREY (_, _, crossed)                           -> arms=crossed
 `left_arm` and `right_arm` are named-only -- they have no positional slot. Use them when the `arms` preset (both arms at once) is not
 precise enough.
 
+They **combine** with `arms` rather than replacing it: the preset supplies both sides and a named side overrides just that one, so
+`(arms=crossed, right_arm=hip)` means "crossed, but the right arm on the hip". Without an `arms` preset there is nothing to fall back on
+and a side you do not name is posed `neutral` -- *not* left as it was. Name both sides, or give a preset, whenever you care about the
+side you are not changing.
+
 ### 6.5 Multiline form
 
 For readability when 4+ attributes are present, put the parenthetical on the line after the speaker:

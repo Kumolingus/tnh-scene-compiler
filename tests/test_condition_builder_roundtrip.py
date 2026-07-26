@@ -47,18 +47,9 @@ def base_allow() -> Allowlists:
     return Allowlists.load(BASE_ALLOWLISTS)
 
 
-@pytest.fixture(scope="module")
-def tk_root():
-    """One withdrawn Tk root for the module (see test_condition_builder_dialog)."""
-    try:
-        root = tk.Tk()
-    except tk.TclError as exc:  # pragma: no cover - environment-dependent
-        pytest.skip(f"no Tk display available: {exc}")
-    root.withdraw()
-    try:
-        yield root
-    finally:
-        root.destroy()
+# ``tk_root`` is the session-scoped fixture in conftest.py — one root for the
+# whole suite. A module-scoped one here would be a second tk.Tk() in the same
+# process, which intermittently fails to re-init Tcl and skips this sweep.
 
 
 def _labels() -> list[str]:

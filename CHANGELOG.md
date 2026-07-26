@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Per-arm poses are reachable from the character insert dialog**, behind an
+  "Override each arm" checkbox that reveals a `Left arm` and a `Right arm` row.
+  `left_arm` / `right_arm` have always been legal named-only keys in the
+  parenthetical grammar, but the form only ever offered the `arms` preset, so
+  reaching them meant typing by hand. The `[[show]]` form gets the same
+  checkbox over the rows it already had.
+  - **It reveals, it does not switch modes.** `change_arms` takes the preset as
+    its defaults and lets a side kwarg override that side alone
+    (`npcs.rpy:256`), so `arms=crossed, right_arm=hip` — "crossed, but the
+    right arm on the hip" — is meaningful, and an exclusive toggle would have
+    made it unreachable from the GUI. The preset row stays visible and in play.
+  - A hint under the rows states the part that is easy to get wrong: with no
+    preset there are no defaults, so a side left empty is posed `neutral`
+    rather than left as it was. Now specced in `docs/format_spec.md` §6.4 and
+    in the in-app glossary.
+  - Hiding the rows clears them — a slot the writer can no longer see must not
+    keep feeding the inserted line.
+
+### Changed
+
+- **Text medium hides the visual rows instead of greying them out.** A phone
+  text carries no mood/face/arms/outfit/look, so the insert form now shrinks to
+  the medium and the preview rather than showing six dead dropdowns.
+- **`_DirectiveDialog` reaches its widgets by slot name.** The per-character
+  refill recovered each combo from `grid_slaves` at the slot's index in `_vars`
+  plus one; adding any non-field row to a form would have silently shifted that
+  and left the writer picking from another character's poses. Widgets are
+  registered in `_widgets[key]` as `(caption, input)` when built.
+
 ### Fixed
 
 - **The character preview showed one thumbnail, not the combination.** Picking
