@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **A mod-only refresh no longer files the game's own values as the mod's.**
+  Several extractors learn a name from *usage* rather than from a declaration
+  site — `history_events` matches every `History.check("…")`, `traits` every
+  `check_trait("…")` — and the mod tree they scan contains the compiler's own
+  compiled scenes. So a base-game name that any mod file merely *read* landed
+  in the project layer as though the mod had introduced it. Nothing failed:
+  `merge()` unions the layers and the value is in the base one anyway. What it
+  undid was the split — the allowlist browser places a value by its
+  `source_file` root, so a game value found under the mod's tree showed on the
+  project side. `tnh_refresh_allowlists` now compares each extracted value
+  against the core layer and leaves the duplicates out, reporting them per
+  topic on the CLI and in `_meta.yaml`'s `warnings`. Measured on the pregnancy
+  mod: 8 traits and 2 history events, every one of them TNH vocabulary.
+  - Applies to **every** topic, and **only** when `--no-include-tnh` is set —
+    that flag is what says "this layer may not hold game values". A run with
+    TNH either produces the core layer itself or was asked for merged output
+    on purpose, and filtering either would gut it.
+  - The core layer defaults to the bundled `allowlists_base`; `--core-allowlists`
+    points at another one. A missing or unreadable layer is reported and
+    skipped, never fatal — the filter is layer hygiene, not a correctness gate.
+  - **A duplicate is a match on the name *and* every metadata field.** `merge()`
+    unions the plain sets, so dropping a duplicate trait can never make a scene
+    fail — but it merges `locations`, `fx` and `moods` as dicts the project
+    layer *wins*: a slugline's `location_id`, an effect's signature and call
+    mode, a mood's face list. An entry reusing a core name with different
+    metadata is a deliberate override and survives; dropping it would silently
+    hand the writer the game's value instead.
+  - The filter runs *after* the "no characters discovered" abort check and
+    *before* the dry-run summary: a mod that adds no character of its own is
+    legitimate, and a dry run must announce the counts a real run would write.
+
 ## [0.2.0] - 2026-07-26
 
 ### Fixed
