@@ -122,6 +122,52 @@ def test_glossary_files_load_in_declared_order() -> None:
     assert top.index("Conditions") < top.index("Complete example")
 
 
+def test_real_glossary_documents_calling_a_compiled_scene() -> None:
+    # The integration section is the developer half of the reference: a
+    # compiled scene is a label and does nothing until something calls it.
+    sections = load_glossary_sections()
+    titles = {s.title for s in sections}
+    assert "Using compiled scenes" in titles
+
+    calling = next(s for s in sections if s.title == "Calling a scene")
+    assert calling.parent == "Using compiled scenes"
+    code = "\n".join(b.text for b in calling.blocks if b.kind == "code")
+    assert "renpy.call" in code
+
+    bootstrap = next(s for s in sections if s.title == "The runtime bootstrap")
+    code = "\n".join(b.text for b in bootstrap.blocks if b.kind == "code")
+    assert "_scene_metadata" in code and "_runtime" in code
+
+
+def test_real_glossary_cross_links_all_resolve() -> None:
+    # A [label](#anchor) pointing at a renamed or deleted section is dead in
+    # the window — clicking it goes nowhere — and nothing else would catch it.
+    sections = load_glossary_sections()
+    anchors = {slugify(s.title) for s in sections}
+    broken = [
+        (s.title, label, anchor)
+        for s in sections
+        for b in s.blocks
+        if b.kind != "code"
+        for label, anchor in parse_inline_links(b.text)
+        if anchor and anchor not in anchors
+    ]
+    assert broken == [], broken
+
+
+def test_real_glossary_has_no_markdown_tables() -> None:
+    # parse_glossary knows prose, notes and code — a table would land in a
+    # prose block as raw pipes and render as noise.
+    sections = load_glossary_sections()
+    tables = [
+        s.title
+        for s in sections
+        for b in s.blocks
+        if b.kind != "code" and "|---" in b.text.replace(" ", "")
+    ]
+    assert tables == [], tables
+
+
 def test_real_glossary_show_examples_use_spaces_not_commas() -> None:
     # Regression: the Show/Hide example used to show a comma between attributes,
     # which does not compile (the directive grammar is space-separated).

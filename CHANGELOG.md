@@ -34,6 +34,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A "Using compiled scenes" section in the in-app glossary** — how a
+  compiled `.rpy` gets into a mod and runs: a scene is a label, so
+  `renpy.call("<Scene Id>")` is the whole story, plus the runtime bootstrap
+  (the `<prefix>_scene_metadata` dict and `<prefix>_runtime` module) whose
+  absence crashes the game at boot rather than at the call, passing
+  `scene_state` into a scene, what calls what per scene type, and the stale
+  `.rpy` left behind by a renamed `.scene`. Condensed from
+  `docs/integration_guide.md`, which remains the long form. Until now the
+  glossary covered only the writer's half of the format, so a solo modder
+  had nothing in-app about wiring the output up.
+- Glossary invariants under test: every `[label](#anchor)` cross-reference
+  resolves to a section that exists (a renamed section otherwise leaves a
+  link that silently goes nowhere), and no section smuggles in a markdown
+  table, which the parser would render as raw pipes.
 - **List and tuple literals in `[[if]]` expressions** (`[JeanGrey, Rogue]`,
   `(5, 2)`), the two shapes several allowlisted base-game functions require
   and no writer could express. `ListExpr` carries an `is_tuple` flag rather
