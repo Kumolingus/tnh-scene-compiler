@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A "Glossary" button on the home screen and on a project's screen**, beside
+  Settings. It was reachable only from the editor toolbar, which meant the
+  canonical format reference could not be opened until a scene was. The
+  glossary reads bundled docs and needs no project, so nothing stopped it from
+  being available earlier.
+- `windows.py` — `open_singleton_window`, the "re-focus rather than stack a
+  duplicate" rule the modeless reference windows share. It was copy-pasted at
+  four call sites and the two new buttons would have made six.
+  - It now **refuses** an attribute already holding something that is not one
+    of our windows. Tk widgets carry their own attributes — `_w` is the
+    widget's path name, a string — and the old inline version would have
+    overwritten one, corrupting the owner silently, long after the click that
+    did it. Found by a test that picked `_w` as its attribute name.
+
+### Changed
+
 - **Per-arm poses are reachable from the character insert dialog**, behind an
   "Override each arm" checkbox that reveals a `Left arm` and a `Right arm` row.
   `left_arm` / `right_arm` have always been legal named-only keys in the

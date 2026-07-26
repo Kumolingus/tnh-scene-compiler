@@ -44,6 +44,7 @@ from .errors import CompileError
 from . import output as out
 from .parser import parse
 from .settings import AppSettings
+from .windows import open_singleton_window
 from .validator import validate
 
 
@@ -507,7 +508,7 @@ class WelcomeScreen(ttk.Frame):
             command=self._create_project,
         ).pack()
 
-        # -- Settings / About -----------------------------------------------
+        # -- Glossary / Settings / About --------------------------------------
         bottom_bar = ttk.Frame(self)
         bottom_bar.pack(fill=tk.X, padx=8, pady=(12, 0))
         ttk.Button(
@@ -518,6 +519,11 @@ class WelcomeScreen(ttk.Frame):
             bottom_bar, text="Settings",
             command=lambda: _SettingsDialog(self, app),
         ).pack(side=tk.RIGHT)
+        # The glossary reads bundled docs and needs no project, so it belongs
+        # here too — the format questions start before a project is opened.
+        ttk.Button(
+            bottom_bar, text="Glossary", command=self._open_glossary,
+        ).pack(side=tk.RIGHT, padx=(0, 4))
 
         # -- Recent projects ------------------------------------------------
         self._recent_entries = _load_recent()
@@ -569,6 +575,10 @@ class WelcomeScreen(ttk.Frame):
             ).pack(side=tk.LEFT, padx=4)
 
     # -- Actions ------------------------------------------------------------
+
+    def _open_glossary(self) -> None:
+        from .glossary import GlossaryDialog
+        open_singleton_window(self, "_glossary", lambda: GlossaryDialog(self))
 
     def _quick_compile(self) -> None:
         self._app.show_quick()
@@ -934,16 +944,12 @@ class QuickScreen(_WorkspaceBase):
 
     def _open_allowlists(self) -> None:
         from .allowlist_browser import AllowlistBrowserDialog, default_base_dir
-
-        existing = getattr(self, "_allowlist_browser", None)
-        if existing is not None and existing.winfo_exists():
-            existing.deiconify()
-            existing.lift()
-            existing.focus_set()
-            return
         # No project layer here, so the browser is read-only throughout.
-        self._allowlist_browser = AllowlistBrowserDialog(
-            self, base_dir=default_base_dir(), project_dir=None,
+        open_singleton_window(
+            self, "_allowlist_browser",
+            lambda: AllowlistBrowserDialog(
+                self, base_dir=default_base_dir(), project_dir=None,
+            ),
         )
 
     # -- File management ----------------------------------------------------
@@ -1467,6 +1473,11 @@ class ProjectScreen(_WorkspaceBase):
             command=self._open_settings,
         ).pack(side=tk.RIGHT, padx=(0, 4))
 
+        ttk.Button(
+            frm, text="Glossary",
+            command=self._open_glossary,
+        ).pack(side=tk.RIGHT, padx=(0, 4))
+
     def _build_scene_list(self) -> None:
         frm = ttk.LabelFrame(self, text="Scene files", padding=4)
         frm.pack(fill=tk.BOTH, expand=True, pady=(0, 4))
@@ -1574,19 +1585,19 @@ class ProjectScreen(_WorkspaceBase):
     def _new_scene(self) -> None:
         self._open_editor(None)
 
+    def _open_glossary(self) -> None:
+        from .glossary import GlossaryDialog
+        open_singleton_window(self, "_glossary", lambda: GlossaryDialog(self))
+
     def _open_allowlists(self) -> None:
         from .allowlist_browser import AllowlistBrowserDialog
-
-        existing = getattr(self, "_allowlist_browser", None)
-        if existing is not None and existing.winfo_exists():
-            existing.deiconify()
-            existing.lift()
-            existing.focus_set()
-            return
-        self._allowlist_browser = AllowlistBrowserDialog(
-            self,
-            base_dir=self._cfg.base_allowlists_dir,
-            project_dir=self._cfg.project_allowlists,
+        open_singleton_window(
+            self, "_allowlist_browser",
+            lambda: AllowlistBrowserDialog(
+                self,
+                base_dir=self._cfg.base_allowlists_dir,
+                project_dir=self._cfg.project_allowlists,
+            ),
         )
 
     def _open_editor(self, file_path: Path | None) -> None:

@@ -6,9 +6,10 @@ advanced patterns. No programming experience required.
 For the exact list of valid values (characters, moods, locations, SFX, etc.), see the Cheatsheet included
 in the docs folder, or generate one from the app's project settings. Keep that cheatsheet open alongside this guide.
 
-**In the editor:** the toolbar's "Glossary" button opens a searchable reference window with copy-paste examples for every part of the
+**In the app:** the "Glossary" button opens a searchable reference window with copy-paste examples for every part of the
 format (title page, dialogue, conditions, directives, …). It's the canonical format reference, browsable and searchable without leaving
-the app — leave it open beside the editor while you write.
+the app — leave it open beside the editor while you write. It sits on the home screen (next to Settings), on a project's screen, and in
+the editor toolbar, so you can reach it before opening anything.
 
 
 ---

@@ -29,6 +29,7 @@ from .thumbnails import (
     selected_visual_slots,
 )
 from .validator import validate
+from .windows import open_singleton_window
 
 
 # ---------------------------------------------------------------------------
@@ -2568,31 +2569,20 @@ class EditorScreen(ttk.Frame):
 
     def _open_glossary(self) -> None:
         from .glossary import GlossaryDialog
-        # Re-focus an already-open glossary instead of stacking duplicates.
-        existing = getattr(self, "_glossary", None)
-        if existing is not None and existing.winfo_exists():
-            existing.deiconify()
-            existing.lift()
-            existing.focus_set()
-            return
-        self._glossary = GlossaryDialog(self)
+        open_singleton_window(self, "_glossary", lambda: GlossaryDialog(self))
 
     def _open_allowlists(self) -> None:
         from .allowlist_browser import AllowlistBrowserDialog, default_base_dir
-        # Re-focus an already-open browser instead of stacking duplicates.
-        existing = getattr(self, "_allowlist_browser", None)
-        if existing is not None and existing.winfo_exists():
-            existing.deiconify()
-            existing.lift()
-            existing.focus_set()
-            return
         # Quick mode has no Config: fall back to the bundled base layer rather
         # than opening the browser on nothing.
         cfg = self._ctx.cfg
-        self._allowlist_browser = AllowlistBrowserDialog(
-            self,
-            base_dir=cfg.base_allowlists_dir if cfg else default_base_dir(),
-            project_dir=cfg.project_allowlists if cfg else None,
+        open_singleton_window(
+            self, "_allowlist_browser",
+            lambda: AllowlistBrowserDialog(
+                self,
+                base_dir=cfg.base_allowlists_dir if cfg else default_base_dir(),
+                project_dir=cfg.project_allowlists if cfg else None,
+            ),
         )
 
     def _go_back(self) -> None:
