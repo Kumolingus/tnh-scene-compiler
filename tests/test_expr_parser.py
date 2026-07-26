@@ -15,6 +15,7 @@ from tnh_scene_compiler.expr_parser import (
     BoolOp,
     Call,
     Compare,
+    ListExpr,
     Literal,
     Member,
     Name,
@@ -142,6 +143,75 @@ def test_parse_rejects_forbidden_constructs(source: str, needle: str) -> None:
     with pytest.raises(CompileError) as excinfo:
         parse_expression(source)
     # The message or hint must mention the category.
+    haystack = f"{excinfo.value.message} {excinfo.value.hint or ''}"
+    assert needle in haystack, (
+        f"source={source!r} message={excinfo.value.message!r}"
+    )
+
+
+# --- Sequence literals ------------------------------------------------------
+#
+# A writer needs to name a group of characters and a (day, time_index) moment;
+# both were unexpressible before, which left the Condition Builder emitting
+# conditions that could not compile.
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("[JeanGrey, Rogue]", "[JeanGrey, Rogue]"),
+        ("[JeanGrey]", "[JeanGrey]"),
+        ("[]", "[]"),
+        ("[JeanGrey, Rogue,]", "[JeanGrey, Rogue]"),        # trailing comma
+        ("(5, 2)", "(5, 2)"),
+        ("(5,)", "(5,)"),                                    # 1-tuple keeps it
+        ("[get_Location(), JeanGrey.History]", "[get_Location(), JeanGrey.History]"),
+    ],
+)
+def test_parse_sequence_literals(source: str, expected: str) -> None:
+    assert parse_expression(source).to_rpy() == expected
+
+
+def test_parse_list_is_a_list_and_tuple_is_a_tuple() -> None:
+    as_list = parse_expression("[a, b]")
+    as_tuple = parse_expression("(a, b)")
+    assert isinstance(as_list, ListExpr) and not as_list.is_tuple
+    assert isinstance(as_tuple, ListExpr) and as_tuple.is_tuple
+
+
+def test_parse_parenthesised_expression_is_still_a_group_not_a_tuple() -> None:
+    # No comma -> the parens only group; the node must stay the inner
+    # expression so `(a or b) and c` keeps its meaning.
+    grouped = parse_expression("(a or b)")
+    assert isinstance(grouped, BoolOp)
+
+
+def test_parse_sequence_literals_in_a_call() -> None:
+    assert parse_expression(
+        "are_Characters_friends([JeanGrey, Rogue], 2)",
+    ).to_rpy() == "are_Characters_friends([JeanGrey, Rogue], 2)"
+    assert parse_expression(
+        "get_time_since((5, 2)) >= 4",
+    ).to_rpy() == "get_time_since((5, 2)) >= 4"
+
+
+@pytest.mark.parametrize(
+    ("source", "needle"),
+    [
+        ("x[0]", "Indexing"),                    # postfix '[' is still a subscript
+        ("f()[0]", "Indexing"),
+        ("a.b[0]", "Indexing"),
+        ("[a, b][0]", "Indexing"),
+        ("[a, b", "Expected ']'"),
+        ("(5, 2", "Expected ')'"),
+        ("a]", "trailing"),
+    ],
+)
+def test_parse_rejects_malformed_or_subscripted_sequences(
+    source: str, needle: str,
+) -> None:
+    with pytest.raises(CompileError) as excinfo:
+        parse_expression(source)
     haystack = f"{excinfo.value.message} {excinfo.value.hint or ''}"
     assert needle in haystack, (
         f"source={source!r} message={excinfo.value.message!r}"

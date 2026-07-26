@@ -416,6 +416,14 @@ PARAM_WIDGET_TEXT = "text"                    # anything else -> free text
 # shows these names and emits the index.
 _TIME_PERIODS: list[str] = ["Morning", "Midday", "Evening", "Night", "Late Night"]
 
+# The two forms a ``(day, time_index)`` date field offers. The event form is
+# the default: a date the writer types by hand only makes sense against a day
+# number they cannot know, while the moment an event last happened is the one
+# a scene actually has ("has it been a day since she kissed me?").
+DATE_MODE_EVENT: str = "When an event last happened"
+DATE_MODE_DAY: str = "A specific day"
+_DATE_MODES: list[str] = [DATE_MODE_EVENT, DATE_MODE_DAY]
+
 
 def is_bool_param(type_hint: str, default: str) -> bool:
     """Return ``True`` for a boolean parameter (typed ``bool`` or defaulting to one)."""
@@ -474,18 +482,43 @@ def param_widget_kind(
     return PARAM_WIDGET_TEXT
 
 
-def format_character_set(characters: list[str]) -> str:
-    """Return a Python set literal for the picked characters.
+def format_character_collection(characters: list[str]) -> str:
+    """Return a list literal for the picked characters.
 
-    ``["JeanGrey", "Rogue"]`` -> ``"{JeanGrey, Rogue}"``. No picks -> ``"set()"``
-    (an empty ``{}`` is a dict, not a set). Bare names are emitted, matching how
-    single-``Character`` params insert — they resolve to the game's defined
-    character store variables.
+    ``["JeanGrey", "Rogue"]`` -> ``"[JeanGrey, Rogue]"``; no picks -> ``"[]"``.
+    Bare names are emitted, matching how single-``Character`` params insert —
+    they resolve to the game's defined character store variables.
+
+    A **list**, not a set: the ``[[if]]`` grammar has no set literal (``{…}``
+    is rejected outright, and ``set()`` is not a registered function), while
+    the base game types every one of these parameters ``Iterable[Character]``.
     """
     picked = [c for c in characters if c]
-    if not picked:
-        return "set()"
-    return "{" + ", ".join(picked) + "}"
+    return "[" + ", ".join(picked) + "]"
+
+
+# How a character-collection parameter is filled. "Pick characters" writes the
+# names out; the other two defer to the game, which is how these arguments are
+# actually produced at runtime.
+COLLECTION_MODE_PICK: str = "Pick characters"
+COLLECTION_MODE_PRESENT: str = "Characters present here"
+COLLECTION_MODE_VISIBLE: str = "Characters visible here"
+_COLLECTION_MODES: list[str] = [
+    COLLECTION_MODE_PRESENT, COLLECTION_MODE_VISIBLE, COLLECTION_MODE_PICK,
+]
+_COLLECTION_MODE_FUNCTIONS: dict[str, str] = {
+    COLLECTION_MODE_PRESENT: "get_present_Characters",
+    COLLECTION_MODE_VISIBLE: "get_visible_Characters",
+}
+
+
+def location_argument(current: bool, slugline: str) -> str:
+    """Render a location choice: the current room, or an explicit slugline.
+
+    Shared by the location parameter widget and the character-collection
+    modes, which ask the writer the same "here, or which room?" question.
+    """
+    return "get_Location()" if current else slugline
 
 
 def flow_text(text: str) -> str:
@@ -514,12 +547,16 @@ _CHOICE_SOURCES: dict[str, Callable[[Allowlists, str], list[str]]] = {
     "sfx": lambda a, _c: sorted(a.sfx),
     "inventory_items": lambda a, _c: sorted(a.inventory_items),
     "features": lambda a, c: character_features(a, c),
+    "clothing_items": lambda a, c: character_clothing_items(a, c),
+    "inventory_strings": lambda a, c: character_inventory_strings(a, c),
 }
 
 # Sources whose values change with the selected character. A field fed by one
 # of these is re-populated when the character row changes, the way the
 # built-in mood check re-populates its own combo.
-_PER_CHARACTER_SOURCES: frozenset[str] = frozenset({"features"})
+_PER_CHARACTER_SOURCES: frozenset[str] = frozenset({
+    "features", "clothing_items", "inventory_strings",
+})
 
 
 def character_features(allow: Allowlists, character: str) -> list[str]:
@@ -537,6 +574,35 @@ def character_features(allow: Allowlists, character: str) -> list[str]:
     if not allow.char_features:
         return []
     return sorted(set().union(*allow.char_features.values()))
+
+
+def character_clothing_items(allow: Allowlists, character: str) -> list[str]:
+    """Return *character*'s clothing inventory keys, else every known one.
+
+    Same resolution rule as :func:`character_features`: a character's own
+    wardrobe when we know who it is, the union as a fallback so the dropdown
+    is never empty before a character is picked. The keys already carry their
+    owner's tag (``JeanGrey_beige_cargo_pants``), so the union stays
+    unambiguous.
+    """
+    if character in allow.char_clothing_items:
+        return sorted(allow.char_clothing_items[character])
+    if not allow.char_clothing_items:
+        return []
+    return sorted(set().union(*allow.char_clothing_items.values()))
+
+
+def character_inventory_strings(allow: Allowlists, character: str) -> list[str]:
+    """Return everything ``Character.Inventory.get*(string)`` can match on.
+
+    An inventory holds two kinds of thing under one mapping: plain items keyed
+    by ``Item.string`` (the flat ``inventory_items`` allowlist) and clothing
+    keyed by ``Item.tag`` (the per-character ``clothing_items``). One lookup
+    reaches both, so one dropdown offers both.
+    """
+    return sorted(
+        set(allow.inventory_items) | set(character_clothing_items(allow, character)),
+    )
 
 
 def param_choices_is_per_character(spec: list[str] | dict[str, Any]) -> bool:
@@ -597,12 +663,23 @@ class _ParamField:
     omit_when_current: bool = False
     # Date only: the time-of-day period name (``var`` holds the day number).
     period_var: tk.StringVar | None = None
+    # Date only: which of the two date forms is showing, plus the character and
+    # history event the "when an event last happened" form reads.
+    mode_var: tk.StringVar | None = None
+    date_char_var: tk.StringVar | None = None
+    date_event_var: tk.StringVar | None = None
 
     def value(self) -> str:
         """Return the current argument string (``""`` -> caller falls back to default)."""
         if self.kind == PARAM_WIDGET_CHARACTER_SET:
+            mode = self.mode_var.get() if self.mode_var is not None else COLLECTION_MODE_PICK
+            func = _COLLECTION_MODE_FUNCTIONS.get(mode)
+            if func is not None:
+                current = self.current_var.get() if self.current_var is not None else True
+                slugline = self.var.get() if self.var is not None else ""
+                return f"{func}({location_argument(current, slugline)})"
             picked = [c for c, v in (self.char_vars or []) if v.get()]
-            return format_character_set(picked)
+            return format_character_collection(picked)
         if self.kind == PARAM_WIDGET_LOCATION and self.current_var is not None:
             if self.current_var.get():
                 # Optional param -> "" so it drops out (the assembler omits a
@@ -610,6 +687,15 @@ class _ParamField:
                 return "" if self.omit_when_current else "get_Location()"
             return self.var.get() if self.var is not None else ""
         if self.kind == PARAM_WIDGET_DATE:
+            if self.mode_var is not None and self.mode_var.get() == DATE_MODE_EVENT:
+                # `Char.History.check_when("event")` returns the very
+                # (day, time_index) tuple this parameter wants. Empty while
+                # either half is unpicked, so is_valid refuses to insert.
+                char = self.date_char_var.get() if self.date_char_var else ""
+                event = self.date_event_var.get() if self.date_event_var else ""
+                if not char or not event:
+                    return ""
+                return f'{char}.History.check_when("{event}")'
             day = (self.var.get().strip() if self.var is not None else "") or "0"
             period = self.period_var.get() if self.period_var is not None else ""
             index = _TIME_PERIODS.index(period) if period in _TIME_PERIODS else 0
@@ -1075,7 +1161,11 @@ class _ConditionClausePanel(ttk.Frame):
 
     def _params_property(self, parent: ttk.Frame) -> None:
         row = self._add_character_field(parent, "Character", 0)
-        props = self._allow.character_properties
+        # Only the bare-usable subset: a property flagged ``usable_bare: false``
+        # is accepted by the validator (it is a function argument, e.g.
+        # ``Character.History``) but reads as an always-true check on its own,
+        # so offering it here would be a trap.
+        props = self._allow.character_properties_bare
         if not props:
             row = self._add_text_field(
                 parent, "Property", row, "property_name", default="desire",
@@ -1260,23 +1350,61 @@ class _ConditionClausePanel(ttk.Frame):
         pname: str,
         pdefault: str,
     ) -> _ParamField:
-        """Build a "Choose…" button that opens a dedicated character-picker window.
+        """Build a character-collection field: a mode picker over three forms.
 
-        A wide row of checkbuttons for a large cast would fight the clause
-        list's fixed width, so the picking happens in its own window instead.
-        The button just shows how many are chosen; the ticked state lives in the
-        shared ``char_vars`` (so it survives reopening the picker), which
-        :meth:`_ParamField.value` turns into a set literal. Returns the field.
+        The game fills these arguments from a location ("everyone in the
+        room"), so that is what the field leads with — "Characters present
+        here" / "Characters visible here", each with the same "Current
+        location" toggle the location parameter uses, rendering
+        ``get_present_Characters(get_Location())``.
+
+        "Pick characters" names them instead. A wide row of checkbuttons for a
+        large cast would fight the clause list's fixed width, so the picking
+        happens in its own window; the button shows how many are chosen and the
+        ticked state lives in the shared ``char_vars`` (so it survives
+        reopening the picker). :meth:`_ParamField.value` renders whichever mode
+        is showing.
+
+        An *optional* collection (one with a default, e.g.
+        ``arriving_Characters = None``) starts on "Pick characters" with
+        nothing ticked — defaulting it to everyone present would silently
+        change what the condition asks.
         """
         char_vars: list[tuple[str, tk.BooleanVar]] = [
             (char, tk.BooleanVar(value=False)) for char in self._characters
         ]
-        button = ttk.Button(parent, width=22)
-        button.grid(row=row, column=1, sticky=tk.W, pady=1)
+        optional = bool(pdefault.strip())
+        holder = ttk.Frame(parent)
+        holder.grid(row=row, column=1, sticky=tk.W, pady=1)
+        mode_var = tk.StringVar(
+            value=COLLECTION_MODE_PICK if optional else COLLECTION_MODE_PRESENT,
+        )
+        ttk.Combobox(
+            holder, textvariable=mode_var, values=_COLLECTION_MODES,
+            state="readonly", width=24,
+        ).grid(row=0, column=0, sticky=tk.W)
+
+        pick_frame = ttk.Frame(holder)
+        pick_frame.grid(row=1, column=0, sticky=tk.W, pady=(2, 0))
+        button = ttk.Button(pick_frame, width=22)
+        button.grid(row=0, column=0, sticky=tk.W)
+
+        location_frame = ttk.Frame(holder)
+        location_frame.grid(row=2, column=0, sticky=tk.W, pady=(2, 0))
+        current_var, slug_var = self._build_location_controls(location_frame)
 
         def _refresh_label() -> None:
             chosen = sum(1 for _c, var in char_vars if var.get())
             button.configure(text=f"Choose…  ({chosen})" if chosen else "Choose…")
+
+        def _toggle(*_a: object) -> None:
+            if mode_var.get() == COLLECTION_MODE_PICK:
+                location_frame.grid_remove()
+                pick_frame.grid()
+            else:
+                pick_frame.grid_remove()
+                location_frame.grid()
+            self._notify_change()
 
         button.configure(
             command=lambda: self._open_character_set_picker(pname, char_vars),
@@ -1285,9 +1413,12 @@ class _ConditionClausePanel(ttk.Frame):
             var.trace_add(
                 "write", lambda *_: (_refresh_label(), self._notify_change()),
             )
+        mode_var.trace_add("write", _toggle)
         _refresh_label()
+        _toggle()
         return _ParamField(
             pname, pdefault, PARAM_WIDGET_CHARACTER_SET, char_vars=char_vars,
+            var=slug_var, current_var=current_var, mode_var=mode_var,
         )
 
     def _open_character_set_picker(
@@ -1335,8 +1466,33 @@ class _ConditionClausePanel(ttk.Frame):
         """
         holder = ttk.Frame(parent)
         holder.grid(row=row, column=1, sticky=tk.W, pady=1)
+        current_var, var = self._build_location_controls(holder, initial=pdefault)
+        # An optional location param (has a default, e.g. `location=None`) treats
+        # "current" as "no argument"; a required one passes get_Location().
+        return _ParamField(
+            pname, pdefault, PARAM_WIDGET_LOCATION, var=var,
+            current_var=current_var, omit_when_current=bool(pdefault.strip()),
+        )
+
+    def _build_location_controls(
+        self,
+        holder: ttk.Frame,
+        *,
+        initial: str = "",
+    ) -> tuple[tk.BooleanVar, tk.StringVar]:
+        """Grid a "Current location" toggle + slugline combo into *holder*.
+
+        Ticked (the default) means the current room; unticked reveals an
+        editable dropdown of the known sluglines, inserted **quoted** (the
+        base-game functions accept a slugline ``str``) and pre-selected on the
+        first so the argument is never left empty. Returns the two vars —
+        :func:`location_argument` renders them.
+
+        Shared by the location parameter and the character-collection modes,
+        which ask the writer the same question.
+        """
         current_var = tk.BooleanVar(value=True)
-        var = tk.StringVar(value=pdefault)
+        var = tk.StringVar(value=initial)
         sluglines = [f'"{slugline}"' for slugline in sorted(self._allow.locations)]
         combo = ttk.Combobox(
             holder, textvariable=var, values=sluglines, state="normal", width=20,
@@ -1357,12 +1513,7 @@ class _ConditionClausePanel(ttk.Frame):
         combo.grid(row=0, column=1, sticky=tk.W)
         combo.grid_remove()  # hidden while "Current location" is on (the default)
         var.trace_add("write", lambda *_: self._notify_change())
-        # An optional location param (has a default, e.g. `location=None`) treats
-        # "current" as "no argument"; a required one passes get_Location().
-        return _ParamField(
-            pname, pdefault, PARAM_WIDGET_LOCATION, var=var,
-            current_var=current_var, omit_when_current=bool(pdefault.strip()),
-        )
+        return current_var, var
 
     def _build_date_widget(
         self,
@@ -1371,32 +1522,69 @@ class _ConditionClausePanel(ttk.Frame):
         pname: str,
         pdefault: str,
     ) -> _ParamField:
-        """Build a plain-language ``(day, time_index)`` date field.
+        """Build a ``(day, time_index)`` date field with its two writer-facing forms.
 
-        A raw ``tuple[int, int]`` means nothing to a writer, so this offers a
-        "Day" number and a named time-of-day dropdown (Morning … Late Night),
-        and :meth:`_ParamField.value` assembles them into the ``(day, index)``
-        tuple the function expects.
+        A raw ``tuple[int, int]`` means nothing to a writer, and a day number
+        typed by hand means even less — the moment these functions want is
+        almost always one the game stored. So the field leads with "when an
+        event last happened" (a character + a history event, assembled into
+        ``Char.History.check_when("event")``) and keeps the literal "Day" +
+        time-of-day form (Morning … Late Night) behind the other mode.
+        :meth:`_ParamField.value` renders whichever is showing.
         """
         holder = ttk.Frame(parent)
         holder.grid(row=row, column=1, sticky=tk.W, pady=1)
+        mode_var = tk.StringVar(value=DATE_MODE_EVENT)
         day_var = tk.StringVar(value="0")
         period_var = tk.StringVar(value=_TIME_PERIODS[0])
+        events = sorted(self._allow.history_events)
+        char_var = tk.StringVar(value=self._characters[0] if self._characters else "")
+        event_var = tk.StringVar(value=events[0] if events else "")
 
-        ttk.Label(holder, text="Day").grid(row=0, column=0, sticky=tk.W)
-        ttk.Entry(holder, textvariable=day_var, width=6).grid(
+        ttk.Combobox(
+            holder, textvariable=mode_var, values=_DATE_MODES,
+            state="readonly", width=26,
+        ).grid(row=0, column=0, columnspan=4, sticky=tk.W)
+
+        event_frame = ttk.Frame(holder)
+        event_frame.grid(row=1, column=0, columnspan=4, sticky=tk.W, pady=(2, 0))
+        ttk.Combobox(
+            event_frame, textvariable=char_var, values=self._characters,
+            state="readonly", width=18,
+        ).grid(row=0, column=0, sticky=tk.W, padx=(0, 6))
+        ttk.Combobox(
+            event_frame, textvariable=event_var, values=events,
+            state="normal", width=24,
+        ).grid(row=0, column=1, sticky=tk.W)
+
+        day_frame = ttk.Frame(holder)
+        day_frame.grid(row=2, column=0, columnspan=4, sticky=tk.W, pady=(2, 0))
+        ttk.Label(day_frame, text="Day").grid(row=0, column=0, sticky=tk.W)
+        ttk.Entry(day_frame, textvariable=day_var, width=6).grid(
             row=0, column=1, sticky=tk.W, padx=(4, 10),
         )
-        ttk.Label(holder, text="Time of day").grid(row=0, column=2, sticky=tk.W)
+        ttk.Label(day_frame, text="Time of day").grid(row=0, column=2, sticky=tk.W)
         ttk.Combobox(
-            holder, textvariable=period_var, values=_TIME_PERIODS,
+            day_frame, textvariable=period_var, values=_TIME_PERIODS,
             state="readonly", width=12,
         ).grid(row=0, column=3, sticky=tk.W, padx=(4, 0))
+        day_frame.grid_remove()  # hidden while the event form leads (the default)
 
-        day_var.trace_add("write", lambda *_: self._notify_change())
-        period_var.trace_add("write", lambda *_: self._notify_change())
+        def _toggle(*_a: object) -> None:
+            if mode_var.get() == DATE_MODE_EVENT:
+                day_frame.grid_remove()
+                event_frame.grid()
+            else:
+                event_frame.grid_remove()
+                day_frame.grid()
+            self._notify_change()
+
+        mode_var.trace_add("write", _toggle)
+        for var in (day_var, period_var, char_var, event_var):
+            var.trace_add("write", lambda *_: self._notify_change())
         return _ParamField(
             pname, pdefault, PARAM_WIDGET_DATE, var=day_var, period_var=period_var,
+            mode_var=mode_var, date_char_var=char_var, date_event_var=event_var,
         )
 
     def _render_function_fields(

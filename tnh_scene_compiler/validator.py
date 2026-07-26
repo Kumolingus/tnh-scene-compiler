@@ -650,7 +650,8 @@ def _validate_run(
             col = node.col,
             message = (
                 f"Operation {node.target_name!r} is not registered in "
-                "run_operations.yaml."
+                "run_operations.yaml. A mod's own helpers go in the "
+                "project's _allowlists/run_operations.yaml."
             ),
         ))
         return

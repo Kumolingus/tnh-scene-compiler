@@ -252,6 +252,16 @@ ALLOWLIST_TOPICS: tuple[AllowlistTopic, ...] = (
         ),
     ),
     AllowlistTopic(
+        key="clothing_items", title="Clothing items",
+        filename="clothing_items", item_key="values",
+        per_character=True, has_shared=False, maintenance=MAINTENANCE_GENERATED,
+        summary=(
+            "Clothing inventory keys for Character.Inventory.get_active(\"...\"), "
+            "one set per character. Prefixed with the owner's tag — that is the "
+            "string the inventory files a garment under."
+        ),
+    ),
+    AllowlistTopic(
         key="looks", title="Looks",
         filename="looks.yaml", item_key="values",
         per_character=False, has_shared=False, maintenance=MAINTENANCE_GENERATED,

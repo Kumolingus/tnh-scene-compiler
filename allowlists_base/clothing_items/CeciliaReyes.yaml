@@ -1,0 +1,34 @@
+character: CeciliaReyes
+source: TNH + Mod
+generated_at: '2026-07-26'
+values:
+- name: CeciliaReyes_black_dress_pants
+  source_file: game/characters/CeciliaReyes/clothing/items/black_dress_pants.rpy
+  source_line: 1
+- name: CeciliaReyes_black_pencil_skirt
+  source_file: game/characters/CeciliaReyes/clothing/items/black_pencil_skirt.rpy
+  source_line: 1
+- name: CeciliaReyes_black_winter_coat
+  source_file: game/characters/CeciliaReyes/clothing/items/black_winter_coat.rpy
+  source_line: 1
+- name: CeciliaReyes_blue_turtleneck_shirt
+  source_file: game/characters/CeciliaReyes/clothing/items/blue_turtleneck_shirt.rpy
+  source_line: 1
+- name: CeciliaReyes_dark_blue_jeans
+  source_file: game/characters/CeciliaReyes/clothing/items/dark_blue_jeans.rpy
+  source_line: 1
+- name: CeciliaReyes_leather_yearling_boots
+  source_file: game/characters/CeciliaReyes/clothing/items/leather_yearling_boots.rpy
+  source_line: 1
+- name: CeciliaReyes_short_dreads_medusa
+  source_file: game/characters/CeciliaReyes/clothing/items/short_dreads_medusa.rpy
+  source_line: 1
+- name: CeciliaReyes_white_dress_shirt
+  source_file: game/characters/CeciliaReyes/clothing/items/white_dress_shirt.rpy
+  source_line: 1
+- name: CeciliaReyes_white_highcollar_dress_shirt
+  source_file: game/characters/CeciliaReyes/clothing/items/white_highcollar_dress_shirt.rpy
+  source_line: 1
+- name: CeciliaReyes_white_physician_coat
+  source_file: game/characters/CeciliaReyes/clothing/items/white_physician_coat.rpy
+  source_line: 1

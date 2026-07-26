@@ -15,6 +15,12 @@
 # `type` drives the Condition Builder's comparison affordance (int/float are
 # comparable, so it offers an operator + value). `category` groups the
 # pick-list; `notes` is an optional per-selection hint.
+#
+# `usable_bare: false` (default true) splits the two jobs above: the validator
+# still accepts the name, but the Condition Builder does NOT offer it as a
+# standalone "Character property" check. Use it for an attribute that is an
+# object rather than a value — `Character.History` is only ever a function
+# argument, and `[[if JeanGrey.History]]` alone is always true.
 source: TNH base game
 generated_at: '2026-07-20'
 properties:
@@ -94,3 +100,15 @@ properties:
     category: Experience
     source_file: game/core/definitions/companions.rpy
     source_line: 408
+
+  # -- Objects (arguments only, never a check on their own) ----------------
+  - name: History
+    type: object
+    category: History
+    usable_bare: false
+    notes: |
+      A character's event history. Not a check by itself — pass it to the
+      "Chance of a repeat event" condition. Lives on every character (not
+      only companions).
+    source_file: game/core/definitions/characters.rpy
+    source_line: 40

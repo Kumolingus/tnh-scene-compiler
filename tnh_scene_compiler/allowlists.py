@@ -494,6 +494,11 @@ class Allowlists:
             ``Character.feature_enabled("...")``. Genuinely per-character —
             the sets share no common value — so a consumer must resolve them
             against a selected character rather than flattening them.
+        char_clothing_items: per-character clothing **inventory keys**
+            (``JeanGrey_beige_cargo_pants``), the string
+            ``Character.Inventory.get_active(...)`` matches on. Prefixed with
+            the owner's tag because that is how ``InventoryClass.add`` files a
+            garment — the bare id would never match.
         char_arms / char_left_arm / char_right_arm: three sets per character
             matching the YAML subgroups in ``arms/<Character>.yaml``.
         looks: Global look values (``looks.yaml``). Same list for every
@@ -511,6 +516,7 @@ class Allowlists:
     char_faces: dict[str, set[str]] = field(default_factory=dict)
     char_outfits: dict[str, set[str]] = field(default_factory=dict)
     char_features: dict[str, set[str]] = field(default_factory=dict)
+    char_clothing_items: dict[str, set[str]] = field(default_factory=dict)
     char_arms: dict[str, set[str]] = field(default_factory=dict)
     char_left_arm: dict[str, set[str]] = field(default_factory=dict)
     char_right_arm: dict[str, set[str]] = field(default_factory=dict)
@@ -536,6 +542,7 @@ class Allowlists:
     character_method_notes: dict[str, str] = field(default_factory=dict)
     character_method_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = field(default_factory=dict)
     character_properties: set[str] = field(default_factory=set)
+    character_properties_bare: set[str] = field(default_factory=set)
     character_property_types: dict[str, str] = field(default_factory=dict)
     character_property_categories: dict[str, str] = field(default_factory=dict)
     character_property_notes: dict[str, str] = field(default_factory=dict)
@@ -563,6 +570,7 @@ class Allowlists:
         char_faces = _load_per_char_simple(allowlists_dir / "faces")
         char_outfits = _load_per_char_simple(allowlists_dir / "outfits")
         char_features = _load_per_char_simple(allowlists_dir / "features")
+        char_clothing_items = _load_per_char_simple(allowlists_dir / "clothing_items")
         char_arms, char_left_arm, char_right_arm = _load_per_char_arms(
             allowlists_dir / "arms",
         )
@@ -688,10 +696,17 @@ class Allowlists:
         # attributes usable in a condition (``Character.desire >= 0.5``). Each
         # carries a ``type`` (int/float/...) so the Condition Builder can offer
         # the same comparison affordance as number-returning functions.
+        #
+        # ``usable_bare: false`` marks a property the validator must accept but
+        # that means nothing on its own — an object like ``Character.History``,
+        # which exists only to be passed to a function. Those stay out of
+        # ``character_properties_bare``, the set the Condition Builder offers as
+        # a standalone check.
         character_properties_payload = _read_yaml(
             allowlists_dir / "character_properties.yaml",
         )
         character_properties: set[str] = set()
+        character_properties_bare: set[str] = set()
         character_property_types: dict[str, str] = {}
         character_property_categories: dict[str, str] = {}
         character_property_notes: dict[str, str] = {}
@@ -701,6 +716,8 @@ class Allowlists:
             for item in character_properties_payload["properties"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     character_properties.add(item["name"])
+                    if item.get("usable_bare", True):
+                        character_properties_bare.add(item["name"])
                     ptype = item.get("type")
                     if isinstance(ptype, str):
                         character_property_types[item["name"]] = ptype
@@ -748,6 +765,7 @@ class Allowlists:
             char_faces = char_faces,
             char_outfits = char_outfits,
             char_features = char_features,
+            char_clothing_items = char_clothing_items,
             char_arms = char_arms,
             char_left_arm = char_left_arm,
             char_right_arm = char_right_arm,
@@ -773,6 +791,7 @@ class Allowlists:
             character_method_notes = character_method_notes,
             character_method_param_choices = character_method_param_choices,
             character_properties = character_properties,
+            character_properties_bare = character_properties_bare,
             character_property_types = character_property_types,
             character_property_categories = character_property_categories,
             character_property_notes = character_property_notes,
@@ -937,6 +956,9 @@ class Allowlists:
             char_faces=_merge_char_sets(self.char_faces, other.char_faces),
             char_outfits=_merge_char_sets(self.char_outfits, other.char_outfits),
             char_features=_merge_char_sets(self.char_features, other.char_features),
+            char_clothing_items=_merge_char_sets(
+                self.char_clothing_items, other.char_clothing_items,
+            ),
             char_arms=_merge_char_sets(self.char_arms, other.char_arms),
             char_left_arm=_merge_char_sets(self.char_left_arm, other.char_left_arm),
             char_right_arm=_merge_char_sets(self.char_right_arm, other.char_right_arm),
@@ -988,6 +1010,9 @@ class Allowlists:
                 **other.character_method_param_choices,
             },
             character_properties=self.character_properties | other.character_properties,
+            character_properties_bare=(
+                self.character_properties_bare | other.character_properties_bare
+            ),
             character_property_types={
                 **self.character_property_types, **other.character_property_types,
             },

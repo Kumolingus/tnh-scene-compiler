@@ -172,21 +172,31 @@ class Member:
 
 @dataclass(frozen=True, slots=True)
 class ListExpr:
-    """A list literal — ``[a, b]``.
+    """A sequence literal — ``[a, b]``, or ``(a, b)`` when ``is_tuple``.
 
-    Never produced by the parser (writers cannot type list literals in
-    condition text); it exists purely so the DSL transformation layer
-    (:mod:`dsl`) can construct a syntactically valid argument when a
-    writer-friendly rewrite targets a base-game function that expects an
-    iterable of characters (e.g. ``Character.friends_with(Y)`` ->
-    ``are_Characters_friends([Character, Y])``).
+    Produced by the DSL transformation layer (:mod:`dsl`), which builds one
+    when a writer-friendly rewrite targets a base-game function expecting an
+    iterable of characters (``Character.friends_with(Y)`` ->
+    ``are_Characters_friends([Character, Y])``), and by the parser, since a
+    writer needs to name a group of characters (``are_Characters_friends(
+    [JeanGrey, Rogue], 2)``) or a ``(day, time_index)`` moment.
+
+    Tuples reuse this node rather than adding a kind: every consumer that
+    walks the expression tree (codegen, the validator's call and attribute
+    collectors) already descends into ``elements``, and the two differ only
+    in how they render.
     """
 
     elements: tuple[Expr, ...]
     col_offset: int = 0
+    is_tuple: bool = False
 
     def to_rpy(self) -> str:
-        return f"[{', '.join(e.to_rpy() for e in self.elements)}]"
+        inner = ", ".join(e.to_rpy() for e in self.elements)
+        if self.is_tuple:
+            # A 1-tuple needs its trailing comma to stay a tuple.
+            return f"({inner},)" if len(self.elements) == 1 else f"({inner})"
+        return f"[{inner}]"
 
 
 Expr = Literal | Name | Attribute | Call | UnaryNot | BoolOp | Compare | Member | ListExpr
@@ -213,6 +223,8 @@ class _TK:
     IN = "IN"
     LPAREN = "LPAREN"
     RPAREN = "RPAREN"
+    LBRACKET = "LBRACKET"
+    RBRACKET = "RBRACKET"
     COMMA = "COMMA"
     DOT = "DOT"
     EQ = "EQ"       # ==
@@ -377,6 +389,10 @@ def _scan(text: str) -> list[_Tok]:
         single: dict[str, str] = {
             "(": _TK.LPAREN,
             ")": _TK.RPAREN,
+            # A leading '[' opens a list literal; a '[' following a value is
+            # indexing, which the parser rejects with the §11.9.1 message.
+            "[": _TK.LBRACKET,
+            "]": _TK.RBRACKET,
             ",": _TK.COMMA,
             ".": _TK.DOT,
             "<": _TK.LT,
@@ -432,6 +448,12 @@ class _ParseState:
         )
 
 
+# Subscripting stays forbidden even though '[' now opens a list literal, so
+# the message lives here for the parser to raise on a postfix '['.
+_INDEXING_MESSAGE = (
+    "Indexing is not allowed. Use an attribute access or register a helper function."
+)
+
 # Reject every forbidden Python operator §11.9.1 lists. Mapping the raw
 # character to the writer-facing message keeps the error text stable.
 _FORBIDDEN_CHAR_MESSAGES: dict[str, str] = {
@@ -440,8 +462,6 @@ _FORBIDDEN_CHAR_MESSAGES: dict[str, str] = {
     "*": "Arithmetic is not allowed in [[if]] expressions.",
     "/": "Arithmetic is not allowed in [[if]] expressions.",
     "%": "Arithmetic is not allowed in [[if]] expressions.",
-    "[": "Indexing is not allowed. Use an attribute access or register a helper function.",
-    "]": "Indexing is not allowed. Use an attribute access or register a helper function.",
     "{": "Set/dict literals are not allowed in [[if]] expressions.",
     "}": "Set/dict literals are not allowed in [[if]] expressions.",
     "&": "Bitwise operators are not allowed.",
@@ -534,6 +554,11 @@ def _parse_compare(state: _ParseState) -> Expr:
 
 def _parse_member(state: _ParseState) -> Expr:
     left = _parse_primary(state)
+    # A '[' that follows a value is a subscript, not a list literal — still
+    # forbidden. Only a '[' in value position (handled by _parse_primary)
+    # opens a list.
+    if state.peek().kind == _TK.LBRACKET:
+        raise state.error(state.peek(), _INDEXING_MESSAGE)
     # Either ``<expr> in <expr>`` or ``<expr> not in <expr>``.
     if state.peek().kind == _TK.IN:
         state.advance()
@@ -551,6 +576,40 @@ def _parse_member(state: _ParseState) -> Expr:
     return left
 
 
+def _parse_sequence_elements(
+    state: _ParseState,
+    closer: str,
+    *,
+    first: Expr | None = None,
+) -> list[Expr]:
+    """Parse the comma-separated elements of a list or tuple literal.
+
+    *first* is the element already consumed by the caller (the tuple case,
+    where the opening expression was parsed before the comma disambiguated
+    it). A trailing comma before *closer* is accepted and ignored, which is
+    also what makes the one-element tuple ``(x,)`` parse.
+    """
+    elements: list[Expr] = [] if first is None else [first]
+    if first is None:
+        elements.append(_parse_expr(state))
+    while state.peek().kind == _TK.COMMA:
+        state.advance()
+        if state.peek().kind == closer:
+            break
+        elements.append(_parse_expr(state))
+    return elements
+
+
+def _expect_close(state: _ParseState, kind: str, message: str) -> None:
+    """Consume the closing bracket of a literal, or raise *message*."""
+    close = state.peek()
+    if close.kind == _TK.ILLEGAL:
+        _raise_illegal(state, close)
+    if close.kind != kind:
+        raise state.error(close, message)
+    state.advance()
+
+
 def _parse_primary(state: _ParseState) -> Expr:
     tok = state.peek()
 
@@ -560,6 +619,14 @@ def _parse_primary(state: _ParseState) -> Expr:
     if tok.kind == _TK.LPAREN:
         state.advance()
         inner = _parse_expr(state)
+        # A comma turns the group into a tuple — the `(day, time_index)`
+        # moment the time functions take.
+        if state.peek().kind == _TK.COMMA:
+            elements = _parse_sequence_elements(state, _TK.RPAREN, first = inner)
+            _expect_close(state, _TK.RPAREN, "Expected ')' to close the tuple.")
+            return ListExpr(
+                elements = tuple(elements), col_offset = tok.col, is_tuple = True,
+            )
         close = state.peek()
         if close.kind == _TK.ILLEGAL:
             _raise_illegal(state, close)
@@ -567,6 +634,16 @@ def _parse_primary(state: _ParseState) -> Expr:
             raise state.error(close, "Expected ')' to close the parenthesised expression.")
         state.advance()
         return inner
+
+    if tok.kind == _TK.LBRACKET:
+        state.advance()
+        elements = (
+            []
+            if state.peek().kind == _TK.RBRACKET
+            else _parse_sequence_elements(state, _TK.RBRACKET)
+        )
+        _expect_close(state, _TK.RBRACKET, "Expected ']' to close the list.")
+        return ListExpr(elements = tuple(elements), col_offset = tok.col)
 
     if tok.kind == _TK.INT:
         state.advance()
@@ -594,6 +671,8 @@ def _parse_primary(state: _ParseState) -> Expr:
     # targeted message rather than "unexpected token".
     if tok.kind == _TK.RPAREN:
         raise state.error(tok, "Unexpected ')'.")
+    if tok.kind == _TK.RBRACKET:
+        raise state.error(tok, "Unexpected ']'.")
     if tok.kind in (_TK.AND, _TK.OR, _TK.NOT, _TK.IN):
         raise state.error(tok, f"'{tok.value}' cannot appear here — expected a value.")
     if tok.kind in _COMP_OPS:

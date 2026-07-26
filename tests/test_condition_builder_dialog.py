@@ -11,11 +11,16 @@ widgets, and the "?" glossary quick-access.
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import ttk
 
 import pytest
 
 from tnh_scene_compiler.allowlists import Allowlists
-from tnh_scene_compiler.condition_builder import ConditionBuilderDialog
+from tnh_scene_compiler.condition_builder import (
+    COLLECTION_MODE_PICK,
+    COLLECTION_MODE_VISIBLE,
+    ConditionBuilderDialog,
+)
 
 
 @pytest.fixture(scope="module")
@@ -231,7 +236,7 @@ def allow_collection_and_choices() -> Allowlists:
     )
 
 
-def test_character_collection_param_builds_a_set_literal(
+def test_character_collection_param_defaults_to_everyone_present(
     tk_root, allow_collection_and_choices,
 ) -> None:
     from tnh_scene_compiler.condition_builder import (
@@ -248,26 +253,50 @@ def test_character_collection_param_builds_a_set_literal(
     assert clause._func_params[1].kind == PARAM_WIDGET_CHARACTER_SET
 
     clause._func_params[0].var.set("JeanGrey")
+    # A required collection leads with the form the game itself uses.
+    assert clause.get_condition() == (
+        "get_best_Friend(JeanGrey, get_present_Characters(get_Location()))"
+    )
+
+    clause._func_params[1].mode_var.set(COLLECTION_MODE_VISIBLE)
+    clause._func_params[1].current_var.set(False)
+    clause._func_params[1].var.set('"Jean\'s Room"')
+    assert clause.get_condition() == (
+        "get_best_Friend(JeanGrey, get_visible_Characters(\"Jean's Room\"))"
+    )
+
+
+def test_character_collection_param_builds_a_list_literal(
+    tk_root, allow_collection_and_choices,
+) -> None:
+    dlg = _make_dialog(tk_root, allow_collection_and_choices)
+    clause = _panel(dlg, 0)
+    _select(clause, "Best friend (of a group)")
+
+    clause._func_params[0].var.set("JeanGrey")
+    clause._func_params[1].mode_var.set(COLLECTION_MODE_PICK)
     # Tick two of the three characters (checkbuttons follow the sorted order
     # the dialog imposes: JeanGrey, LauraKinney, Rogue).
     picks = dict(clause._func_params[1].char_vars)
     picks["Rogue"].set(True)
     picks["LauraKinney"].set(True)
-    assert clause.get_condition() == "get_best_Friend(JeanGrey, {LauraKinney, Rogue})"
+    # A list, not a set: the [[if]] grammar has no set literal.
+    assert clause.get_condition() == "get_best_Friend(JeanGrey, [LauraKinney, Rogue])"
 
-    # No picks -> an explicit empty set, never a dangling comma.
+    # No picks -> an explicit empty list, never a dangling comma.
     picks["Rogue"].set(False)
     picks["LauraKinney"].set(False)
-    assert clause.get_condition() == "get_best_Friend(JeanGrey, set())"
+    assert clause.get_condition() == "get_best_Friend(JeanGrey, [])"
 
 
-def test_character_set_picker_opens_a_window_and_drives_the_set(
+def test_character_set_picker_opens_a_window_and_drives_the_list(
     tk_root, allow_collection_and_choices,
 ) -> None:
     dlg = _make_dialog(tk_root, allow_collection_and_choices)
     clause = _panel(dlg, 0)
     _select(clause, "Best friend (of a group)")
     field = clause._func_params[1]
+    field.mode_var.set(COLLECTION_MODE_PICK)
 
     # The "Choose…" button opens a dedicated picker window.
     clause._open_character_set_picker(field.name, field.char_vars)
@@ -277,7 +306,7 @@ def test_character_set_picker_opens_a_window_and_drives_the_set(
     # Ticking there drives the very vars the field reads.
     clause._func_params[0].var.set("JeanGrey")
     dict(field.char_vars)["Rogue"].set(True)
-    assert clause.get_condition() == "get_best_Friend(JeanGrey, {Rogue})"
+    assert clause.get_condition() == "get_best_Friend(JeanGrey, [Rogue])"
     pickers[0].destroy()
 
 
@@ -440,15 +469,15 @@ def test_arriving_characters_is_also_a_multi_select(tk_root) -> None:
 
     assert clause._func_params[0].kind == PARAM_WIDGET_CHARACTER_SET  # Characters
     assert clause._func_params[1].kind == PARAM_WIDGET_CHARACTER_SET  # arriving_Characters
-    assert clause._func_params[2].kind == PARAM_WIDGET_BOOL  # check
+    assert clause._func_params[2].kind == PARAM_WIDGET_BOOL  # clothing
 
 
-def test_date_tuple_param_uses_a_day_and_period_form(tk_root) -> None:
-    from tnh_scene_compiler.condition_builder import PARAM_WIDGET_DATE
-
-    allow = Allowlists(
-        characters=["JeanGrey"],
-        characters_upper={"JEANGREY"},
+@pytest.fixture()
+def allow_date() -> Allowlists:
+    return Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        history_events={"kissed_player", "anal_sex"},
         condition_functions={"get_time_since"},
         condition_function_signatures={
             "get_time_since": "get_time_since(date: tuple[int, int]) -> int",
@@ -456,12 +485,39 @@ def test_date_tuple_param_uses_a_day_and_period_form(tk_root) -> None:
         condition_function_categories={"get_time_since": "Time"},
         condition_function_labels={"get_time_since": "Periods since a date"},
     )
-    dlg = _make_dialog(tk_root, allow)
+
+
+def test_date_tuple_param_defaults_to_the_event_form(tk_root, allow_date) -> None:
+    from tnh_scene_compiler.condition_builder import PARAM_WIDGET_DATE
+
+    dlg = _make_dialog(tk_root, allow_date)
     clause = _panel(dlg, 0)
     _select(clause, "Periods since a date")
 
     field = clause._func_params[0]
     assert field.kind == PARAM_WIDGET_DATE
+    # Pre-picked first character + first event -> valid out of the box, no
+    # writer typing `JeanGrey.History.check_when(...)` by hand.
+    assert clause.get_condition() == (
+        'get_time_since(JeanGrey.History.check_when("anal_sex"))'
+    )
+
+    field.date_char_var.set("Rogue")
+    field.date_event_var.set("kissed_player")
+    assert clause.get_condition() == (
+        'get_time_since(Rogue.History.check_when("kissed_player"))'
+    )
+
+
+def test_date_tuple_param_keeps_the_day_and_period_form(tk_root, allow_date) -> None:
+    from tnh_scene_compiler.condition_builder import DATE_MODE_DAY
+
+    dlg = _make_dialog(tk_root, allow_date)
+    clause = _panel(dlg, 0)
+    _select(clause, "Periods since a date")
+
+    field = clause._func_params[0]
+    field.mode_var.set(DATE_MODE_DAY)
     # Defaults to day 0, Morning (index 0) -> a valid tuple out of the box.
     assert clause.get_condition() == "get_time_since((0, 0))"
 
@@ -470,14 +526,35 @@ def test_date_tuple_param_uses_a_day_and_period_form(tk_root) -> None:
     assert clause.get_condition() == "get_time_since((5, 2))"
 
 
+def test_date_event_form_blocks_insert_while_incomplete(tk_root, allow_date) -> None:
+    dlg = _make_dialog(tk_root, allow_date)
+    clause = _panel(dlg, 0)
+    _select(clause, "Periods since a date")
+
+    clause._compare_op_var.set(">=")
+    clause._compare_value_var.set("4")
+    assert clause.is_valid() is True
+
+    # An empty half must not splice `get_time_since()` into the scene.
+    clause._func_params[0].date_event_var.set("")
+    assert clause.is_valid() is False
+
+
 @pytest.fixture()
 def allow_properties() -> Allowlists:
+    # ``History`` is validator-only (``usable_bare: false`` in the YAML), so it
+    # is in ``character_properties`` but not in ``character_properties_bare``.
     return Allowlists(
         characters=["JeanGrey", "Rogue"],
         characters_upper={"JEANGREY", "ROGUE"},
-        character_properties={"desire", "breast_size"},
-        character_property_types={"desire": "float", "breast_size": "int"},
-        character_property_categories={"desire": "Arousal", "breast_size": "Body"},
+        character_properties={"desire", "breast_size", "History"},
+        character_properties_bare={"desire", "breast_size"},
+        character_property_types={
+            "desire": "float", "breast_size": "int", "History": "object",
+        },
+        character_property_categories={
+            "desire": "Arousal", "breast_size": "Body", "History": "History",
+        },
     )
 
 
@@ -502,6 +579,29 @@ def test_property_type_builds_bare_attribute_comparison(
     # "(no comparison)" -> bare property access.
     clause._compare_op_var.set("(no comparison)")
     assert clause.get_condition() == "JeanGrey.desire"
+
+
+def test_validator_only_property_is_not_offered_as_a_standalone_check(
+    tk_root, allow_properties,
+) -> None:
+    # ``History`` is an object, so `[[if JeanGrey.History]]` is always true.
+    # The validator accepts it (it is an argument of the repeat-event check),
+    # but the picker must not present it as a check the writer can pick.
+    dlg = _make_dialog(tk_root, allow_properties)
+    clause = _panel(dlg, 0)
+    _select(clause, "Character property")
+
+    def _all_combo_values(widget: tk.Misc) -> set[str]:
+        values: set[str] = set()
+        if isinstance(widget, ttk.Combobox):
+            values.update(widget.cget("values"))
+        for child in widget.winfo_children():
+            values.update(_all_combo_values(child))
+        return values
+
+    offered = _all_combo_values(clause)
+    assert "desire" in offered          # the pick-list is populated at all
+    assert "History" not in offered     # neither as a property nor a category
 
 
 def test_character_param_prefills_instead_of_opening_blank(tk_root, allow) -> None:
@@ -590,6 +690,43 @@ def test_per_character_choices_follow_the_character(tk_root, allow_features) -> 
     clause._vars["character"].set("CharlesXavier")
     clause._on_character_changed()
     assert _feature_options(clause) == ['"chatting"']
+
+
+def test_inventory_string_offers_items_and_that_characters_clothing(tk_root) -> None:
+    # One inventory mapping holds both: plain items keyed by Item.string and
+    # clothing keyed by Item.tag ("<Owner>_<id>"). One dropdown, both sets,
+    # and the clothing half follows the character.
+    allow = Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        inventory_items={"flowers"},
+        char_clothing_items={
+            "JeanGrey": {"JeanGrey_white_tshirt"},
+            "Rogue": {"Rogue_leather_jacket"},
+        },
+        character_methods={"get_active"},
+        character_method_signatures={
+            "get_active": "Character.Inventory.get_active(string: str) -> bool",
+        },
+        character_method_categories={"get_active": "Inventory"},
+        character_method_param_choices={
+            "get_active": {"string": {"source": "inventory_strings", "quote": True}},
+        },
+    )
+    dlg = _make_dialog(tk_root, allow)
+    clause = _panel(dlg, 0)
+    _select(clause, "Character method (any)")
+    clause._vars["method_category"].set("Inventory")
+    clause._vars["method_name"].set("get_active")
+
+    clause._vars["character"].set("JeanGrey")
+    clause._on_character_changed()
+    combo, _spec = clause._per_char_choice_widgets[0]
+    assert list(combo.cget("values")) == ['"JeanGrey_white_tshirt"', '"flowers"']
+
+    clause._vars["character"].set("Rogue")
+    clause._on_character_changed()
+    assert list(combo.cget("values")) == ['"Rogue_leather_jacket"', '"flowers"']
 
 
 def test_switching_method_drops_the_destroyed_combo(tk_root, allow_features) -> None:

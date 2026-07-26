@@ -461,10 +461,9 @@ class _ConditionSpecCollector:
             return
         if isinstance(expr, ListExpr):
             # Keep in step with the validator's _collect_calls, which also
-            # descends into list elements. Today a ListExpr only ever holds
-            # bare character Names (built by the friends_with DSL rewrite),
-            # so nothing overridable hides here — but recursing keeps the
-            # two tree-walkers aligned if a future rewrite nests a call.
+            # descends into elements. A writer-typed list or tuple can hold
+            # anything (a call, a scene-local name), so this recursion is
+            # load-bearing, not just defensive.
             for element in expr.elements:
                 self.visit_expr(element)
 
@@ -592,6 +591,9 @@ def _render_expr(
         elements = ", ".join(
             _render_expr(e, scene_local, allow, ctx) for e in expr.elements
         )
+        if expr.is_tuple:
+            # A 1-tuple keeps its trailing comma or Python reads it as a group.
+            return f"({elements},)" if len(expr.elements) == 1 else f"({elements})"
         return f"[{elements}]"
     # Defensive: an unknown node means the expression parser grew a kind
     # without teaching codegen about it.

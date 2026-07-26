@@ -54,6 +54,18 @@ stats:
     KurtWagner: 4
     LauraKinney: 34
     OroroMunroe: 5
+  # Added 2026-07-26 by a clothing_items-only run, same as the blocks above.
+  # These are inventory KEYS ("<Owner>_<id>"), not bare clothing ids.
+  clothing_items:
+    CeciliaReyes: 10
+    EmmaFrost: 15
+    JeanGrey: 63
+    KittyPryde: 36
+    KurtWagner: 4
+    LauraKinney: 62
+    OroroMunroe: 41
+    Player: 40
+    Rogue: 60
   # Added 2026-07-25 by a features-only run; the counts above are from the
   # 2026-07-23 full refresh and were not regenerated.
   features:

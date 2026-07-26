@@ -20,6 +20,7 @@ import yaml
 from .extractors import (
     arms,
     characters,
+    clothing_items,
     condition_functions,
     faces,
     features,
@@ -63,6 +64,7 @@ _PER_CHARACTER_EXTRACTORS: tuple[_Extractor, ...] = (
     outfits.extract,
     moods.extract,
     features.extract,
+    clothing_items.extract,
 )
 
 

@@ -12,9 +12,12 @@
 # ``{source: <allowlist set>, quote: true}`` resolved at render time so the
 # suggestions track the game/mod data instead of being copied here.
 # Sources: history_events, traits, personalities, characters, locations,
-# looks, stages, sfx, inventory_items, features. All are the same list for
-# every character except ``features``, which is narrowed to the character
-# selected in the form (see features/<Character>.yaml).
+# looks, stages, sfx, inventory_items, features, clothing_items,
+# inventory_strings. All are the same list for every character except
+# ``features`` (see features/<Character>.yaml), ``clothing_items`` (see
+# clothing_items/<Character>.yaml) and ``inventory_strings`` (the union of
+# the flat items and that character's clothing), which are narrowed to the
+# character selected in the form.
 #
 # Some methods here are what a friendlier built-in check compiles to:
 # check_trait / check_personality / get_status / is_in_normal_mood are the
@@ -192,9 +195,11 @@ methods:
   # The base game only ever sets two, and all 58 of its items set one — but an
   # item with no filter_type would raise on `filter in None`, so a project
   # adding items should keep setting it.
-  # ``string`` suggests the extracted all_Items keys. Clothing is stored under
-  # its own tag instead (inventory.rpy:79-82) and is not extracted, so a
-  # clothing id has to be typed — the dropdown stays editable for that.
+  # ``string`` suggests both kinds of thing an inventory holds: plain items,
+  # keyed by Item.string (the flat inventory_items allowlist), and clothing,
+  # keyed by Item.tag (inventory.rpy:79-82) — i.e. "<Owner>_<id>", which is
+  # what the per-character clothing_items allowlist carries. One lookup
+  # reaches both, so the dropdown offers both.
   - name: get_active
     category: Inventory
     signature: "Character.Inventory.get_active(string: str, filter: str | None = None, Owner: Any = False) -> bool"
@@ -205,7 +210,7 @@ methods:
       copy"; give a character to require that they own it.
     param_choices:
       string:
-        source: inventory_items
+        source: inventory_strings
         quote: true
       filter:
         - "None"
@@ -222,7 +227,7 @@ methods:
       rules as the active check.
     param_choices:
       string:
-        source: inventory_items
+        source: inventory_strings
         quote: true
       filter:
         - "None"

@@ -403,19 +403,53 @@ class TestCharacterProperties:
         assert "breast_size" not in allowlists.character_property_categories
         assert "breast_size" not in allowlists.character_property_notes
 
+    def test_property_is_bare_usable_by_default(self, tmp_path: Path) -> None:
+        _write(tmp_path / "character_properties.yaml", (
+            "properties:\n"
+            "- name: desire\n"
+            "  type: float\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert allowlists.character_properties_bare == {"desire"}
+
+    def test_usable_bare_false_validates_but_is_not_offered(
+        self, tmp_path: Path,
+    ) -> None:
+        # `Character.History` is an object: the validator must accept it (it is
+        # a function argument) while the Condition Builder must not list it as
+        # a standalone check.
+        _write(tmp_path / "character_properties.yaml", (
+            "properties:\n"
+            "- name: desire\n"
+            "  type: float\n"
+            "- name: History\n"
+            "  type: object\n"
+            "  usable_bare: false\n"
+        ))
+
+        allowlists = Allowlists.load(tmp_path)
+
+        assert allowlists.character_properties == {"desire", "History"}
+        assert allowlists.character_properties_bare == {"desire"}
+
     def test_merge_unions_properties(self) -> None:
         base = Allowlists(
-            character_properties={"desire"},
+            character_properties={"desire", "History"},
+            character_properties_bare={"desire"},
             character_property_types={"desire": "float"},
         )
         mod = Allowlists(
             character_properties={"mymod_stat"},
+            character_properties_bare={"mymod_stat"},
             character_property_types={"mymod_stat": "int"},
         )
 
         merged = base.merge(mod)
 
-        assert merged.character_properties == {"desire", "mymod_stat"}
+        assert merged.character_properties == {"desire", "History", "mymod_stat"}
+        assert merged.character_properties_bare == {"desire", "mymod_stat"}
         assert merged.character_property_types == {"desire": "float", "mymod_stat": "int"}
 
     def test_suggest_property(self) -> None:

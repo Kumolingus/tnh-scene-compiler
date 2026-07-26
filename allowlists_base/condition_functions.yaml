@@ -203,10 +203,12 @@ functions:
     signature: "get_time_since(date: tuple[int, int]) -> int"
     notes: |
       How long since a past moment, counted in time-of-day slots (about 4 per
-      day, so 4 ≈ one full day — this is NOT a plain day count). Pick the Day
-      and the time of day for that moment; it is usually one you have stored
-      from earlier game state, so this is an advanced, developer-oriented check.
-      Compare it, e.g. >= 4 for "about a day ago".
+      day, so 4 ≈ one full day — this is NOT a plain day count). Compare it,
+      e.g. >= 4 for "about a day ago". Normally you measure from when an
+      event last happened — pick the character and the event, and the moment
+      is read from her history. Careful: an event that never happened reads as
+      a very long time ago, so check it happened at all first. The "specific
+      day" form is for a day number you already have.
     source_file: game/core/mechanics/time.rpy
     source_line: 3
 
@@ -214,14 +216,15 @@ functions:
   - name: check_if_need_to_change
     category: Clothing
     label: "Needs to change clothes"
-    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True, check: bool = False) -> bool"
+    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True, check: bool = True) -> bool"
     notes: |
       Whether any of the characters needs to fix their outfit (too revealing
       for who is arriving) or clean up a mess. arriving_Characters are the
       characters entering the scene; one who is comfortable (friends, level
-      >= 2) with all of them is skipped. IMPORTANT in an [[if]]: pass
-      check=True — the default (check=False) actually runs the change / cleanup
-      interaction as a side effect.
+      >= 2) with all of them is skipped. Leave check on True: it makes this a
+      pure question. The game's own default is False, which actually PLAYS the
+      change / cleanup interaction — to do that on purpose, use
+      [[run check_if_need_to_change(...)]] instead of an [[if]].
     source_file: game/core/mechanics/clothing.rpy
     source_line: 21
 
@@ -235,10 +238,12 @@ functions:
       should fire again, growing the longer since it last happened. It is 0
       right after the event, then rises to limit_day_chance (default 1.0) by
       limit_day days (default 5). Use it to space out a repeat — compare it
-      (e.g. >= 0.5) or roll against it in mod code. History is a character's
-      history — type it as e.g. JeanGrey.History; Item is picked from the known
-      history events.
+      (e.g. >= 0.5) or roll against it in mod code. Pick whose history to read
+      in the History row; Item is picked from the known history events.
     param_choices:
+      History:
+        source: characters
+        suffix: ".History"
       Item:
         source: history_events
         quote: true

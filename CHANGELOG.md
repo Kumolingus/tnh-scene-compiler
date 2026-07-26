@@ -6,18 +6,81 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Condition Builder emitted conditions that could not compile.** Three
+  widgets produced text the `[[if]]` grammar rejects outright, so five listed
+  entries (`are_Characters_friends`, `are_Characters_in_Partners`,
+  `get_best_Friend`, `get_worst_Enemy`, `check_if_need_to_change`) and the
+  date field's day form were unusable end to end:
+  - the character multi-select wrote a set literal `{JeanGrey, Rogue}` — "Set/dict
+    literals are not allowed";
+  - an empty multi-select wrote `set()` — "Condition function 'set' is not
+    registered";
+  - the date field's day form wrote `(5, 2)` — "Expected ')' to close the
+    parenthesised expression".
+
+  None of this was visible to the test suite, which asserted on the string
+  `get_condition()` returns without ever feeding it back through the parser
+  and validator. `tests/test_condition_builder_roundtrip.py` now sweeps every
+  catalog entry and does exactly that, against the shipped base allowlists.
+- `check_if_need_to_change`'s curated signature defaults `check` to `True`, so
+  a condition built without touching it asks a question instead of playing the
+  outfit-change interaction as a side effect. The deliberate form moved to
+  `[[run check_if_need_to_change(...)]]` (see below).
+- A `[[run]]` operation that is not registered now says where a mod's own
+  helpers belong, guidance that used to appear only when the whole allowlist
+  was empty.
+
 ### Added
 
+- **List and tuple literals in `[[if]]` expressions** (`[JeanGrey, Rogue]`,
+  `(5, 2)`), the two shapes several allowlisted base-game functions require
+  and no writer could express. `ListExpr` carries an `is_tuple` flag rather
+  than adding a node kind, so every tree-walker keeps working. Subscripting
+  stays forbidden: a `[` following a value is still an indexing error, only a
+  `[` in value position opens a list. Sets and dicts stay out — the base game
+  types these parameters `Iterable`, so a list is enough. Spec updated at
+  §11.9.1 of the dialogue-authoring reference.
+- **The character-collection field offers three modes**: "Characters present
+  here" and "Characters visible here" (each with the location widget's
+  "Current location" toggle, emitting `get_present_Characters(get_Location())`)
+  alongside naming characters explicitly. A required collection leads with
+  "present here" — how the game actually fills these arguments; an optional
+  one (`arriving_Characters = None`) stays on the explicit pick, since
+  defaulting it to everyone present would silently change the question.
+- **The date field leads with "when an event last happened"** — a character
+  and a history event assembled into `Char.History.check_when("kissed_player")`
+  — with the literal day + time-of-day form behind the second mode. The moment
+  these functions want is one the game stored, not a day number a writer knows.
+- **`Character.History` is usable as a function argument.**
+  `character_properties.yaml` grew a `usable_bare: false` flag: the validator
+  accepts the name, the builder does not offer it as a standalone check (an
+  object, so `[[if JeanGrey.History]]` is always true). With it,
+  `chance_of_repeat_Event` gets a `<Character>.History` dropdown and is
+  writable at all for the first time.
+- **A `run_operations` entry for `check_if_need_to_change`** in the base
+  layer — the sanctioned way to actually play the outfit-change / cleanup
+  interaction, now that the condition form is side-effect free.
+- **A `clothing_items` allowlist, extracted per character** (331 garments in
+  the current build). The emitted value is the **inventory key**
+  `JeanGrey_beige_cargo_pants`, not the bare id: `InventoryClass.add` files a
+  garment under `Item.tag` (`f"{Owner.tag}_{string}"`), so the bare id would
+  have suggested values that silently never match. The `string` parameter of
+  `Character.Inventory.get_active` / `get_number` now resolves through a new
+  `inventory_strings` source — the flat items plus that character's clothing,
+  since one lookup reaches both. Clothing *types* (`pants`, `bra`, …) are a
+  separate, smaller id space and are not collected.
 - **An `inventory_items` allowlist**, extracted from the `all_Items` keys (58
   in the current build), feeding the `string` parameter of
   `Character.Inventory.get_active("...")` and `get_number("...")` — the last
-  free-text parameter left on a listed condition. Clothing is deliberately not
-  collected: it is stored under its own tag rather than the item key
-  (`inventory.rpy:79-82`) and those ids live in per-character `Clothes`
-  mappings with a different shape, so a clothing id is still typed by hand
-  into the editable combo.
-- Extractor tests for both new allowlists (`features`, `inventory_items`),
-  including that a feature set is never flattened across characters.
+  free-text parameter left on a listed condition. Clothing was left out of
+  this first pass because it is stored under its own tag rather than the item
+  key (`inventory.rpy:79-82`); the `clothing_items` allowlist above closes
+  that gap, and the two now feed the same dropdown.
+- Extractor tests for the new allowlists (`features`, `inventory_items`,
+  `clothing_items`), including that a per-character set is never flattened
+  across characters.
 
 - **A `features` allowlist, extracted per character.** `tnh_refresh_allowlists`
   gains a `features` extractor reading each `<Character>_supported_features`

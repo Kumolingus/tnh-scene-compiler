@@ -19,9 +19,11 @@ from tnh_scene_compiler.condition_builder import (
     PARAM_WIDGET_TEXT,
     build_condition,
     build_condition_catalog,
+    character_clothing_items,
     character_features,
+    character_inventory_strings,
     flow_text,
-    format_character_set,
+    format_character_collection,
     is_bool_param,
     is_date_tuple_param,
     join_conditions,
@@ -513,18 +515,20 @@ class TestFlowText:
         assert flow_text(once) == once
 
 
-class TestFormatCharacterSet:
+class TestFormatCharacterCollection:
     def test_multiple(self):
-        assert format_character_set(["JeanGrey", "Rogue"]) == "{JeanGrey, Rogue}"
+        assert format_character_collection(["JeanGrey", "Rogue"]) == "[JeanGrey, Rogue]"
 
     def test_single(self):
-        assert format_character_set(["JeanGrey"]) == "{JeanGrey}"
+        assert format_character_collection(["JeanGrey"]) == "[JeanGrey]"
 
-    def test_empty_is_set_call_not_dict(self):
-        assert format_character_set([]) == "set()"
+    def test_empty_is_an_empty_list(self):
+        # Not `set()`: the [[if]] grammar has no set literal and `set` is not a
+        # registered condition function, so the old form never compiled.
+        assert format_character_collection([]) == "[]"
 
     def test_blank_entries_are_dropped(self):
-        assert format_character_set(["", "Rogue", ""]) == "{Rogue}"
+        assert format_character_collection(["", "Rogue", ""]) == "[Rogue]"
 
 
 class TestPerCharacterChoices:
@@ -562,6 +566,8 @@ class TestPerCharacterChoices:
 
     def test_only_declared_per_character_sources_are_flagged(self):
         assert param_choices_is_per_character({"source": "features"}) is True
+        assert param_choices_is_per_character({"source": "clothing_items"}) is True
+        assert param_choices_is_per_character({"source": "inventory_strings"}) is True
         assert param_choices_is_per_character({"source": "traits"}) is False
         assert param_choices_is_per_character(["a", "b"]) is False
 
@@ -573,6 +579,42 @@ class TestPerCharacterChoices:
             == resolve_param_choices(spec, allow, "Rogue")
             == ["bold", "shy"]
         )
+
+
+class TestInventoryStrings:
+    """An inventory lookup reaches plain items AND clothing under one mapping."""
+
+    def _allow(self) -> Allowlists:
+        return Allowlists(
+            characters=["JeanGrey", "Rogue", "Newcomer"],
+            inventory_items={"flowers", "camera"},
+            char_clothing_items={
+                "JeanGrey": {"JeanGrey_blue_jeans", "JeanGrey_white_tshirt"},
+                "Rogue": {"Rogue_leather_jacket"},
+            },
+        )
+
+    def test_clothing_is_narrowed_to_the_character(self):
+        allow = self._allow()
+        assert character_clothing_items(allow, "Rogue") == ["Rogue_leather_jacket"]
+
+    def test_inventory_strings_union_items_and_that_characters_clothing(self):
+        allow = self._allow()
+        assert character_inventory_strings(allow, "JeanGrey") == [
+            "JeanGrey_blue_jeans", "JeanGrey_white_tshirt", "camera", "flowers",
+        ]
+
+    def test_unknown_character_falls_back_to_every_garment(self):
+        allow = self._allow()
+        assert character_inventory_strings(allow, "Newcomer") == [
+            "JeanGrey_blue_jeans", "JeanGrey_white_tshirt",
+            "Rogue_leather_jacket", "camera", "flowers",
+        ]
+
+    def test_a_project_with_no_clothing_still_offers_the_items(self):
+        allow = Allowlists(inventory_items={"flowers"})
+        assert character_clothing_items(allow, "JeanGrey") == []
+        assert character_inventory_strings(allow, "JeanGrey") == ["flowers"]
 
 
 class TestShippedParamChoices:
