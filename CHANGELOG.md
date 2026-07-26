@@ -8,11 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **A "Glossary" button on the home screen and on a project's screen**, beside
-  Settings. It was reachable only from the editor toolbar, which meant the
-  canonical format reference could not be opened until a scene was. The
-  glossary reads bundled docs and needs no project, so nothing stopped it from
-  being available earlier.
+- **A "Glossary" button on every screen** — home, quick compile, a project's
+  screen, and the editor toolbar it already had. The canonical format
+  reference used to be unreachable until a scene was open. It reads bundled
+  docs and needs no project, so nothing stopped it from being available
+  earlier.
 - `windows.py` — `open_singleton_window`, the "re-focus rather than stack a
   duplicate" rule the modeless reference windows share. It was copy-pasted at
   four call sites and the two new buttons would have made six.
@@ -44,6 +44,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Glossary and Allowlists sit together in the header, on every screen.** They
+  had drifted into three different zones: Allowlists in quick compile's action
+  row but in a project's scene-list row, Glossary in the header on a project
+  but the action row in quick compile. Both open a window to read and neither
+  acts on the scene selection, so they are grouped the way the editor toolbar
+  already grouped them, away from Compile / Validate and away from the
+  per-scene buttons.
+  - A project's header packs its path label **last** as part of this. `pack`
+    hands out width in packing order and the project path is the one label
+    with no bound on its length, so packed first it took what it wanted and
+    pushed the buttons off the edge — visible at any width once a fourth
+    button joined. Packed last it gets the remainder and clips instead.
 - **Text medium hides the visual rows instead of greying them out.** A phone
   text carries no mood/face/arms/outfit/look, so the insert form now shrinks to
   the medium and the preview rather than showing six dead dropdowns.
