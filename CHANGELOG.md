@@ -26,6 +26,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **`Player` is refused where the game structurally excludes it, and no longer
+  offered there.** `are_Characters_friends([Player, JeanGrey])` compiled, ran,
+  and was false forever: `Player` is not in the game's `all_Characters` at all,
+  so no friendship record can involve it, `check_approval` returns 0 on sight,
+  and `Partners` is already the player's own set. The player is the implicit
+  other side of every relationship in TNH, never a participant you name — and
+  across roughly 2000 calls the base game never passes it to one of these.
+  - The Condition Builder stops offering it in those pickers, and the
+    validator now rejects it with a message that says what to write instead
+    (`check_approval(Character, None, "dating")`, or `get_present_Characters()`
+    for the proximity check, whose reason is different).
+  - **The line is argument versus subject.** `Player.History` (316 uses in the
+    base game) and `Player.check_trait` (109) are ordinary things to ask
+    about and stay valid. Only a bare `Player` handed to one of the ten
+    guarded functions is refused.
+  - `seen_Player_recently(Player)` is deliberately *not* guarded: it reads
+    `Character.History`, which the player has, so it is a nonsensical question
+    rather than an impossible one, and refusing it would claim more than the
+    base game supports.
+  - **This can fail a scene that used to compile.** Nothing in the 163
+    authored scenes was affected, but a project that had one of these
+    conditions was already getting a branch that never fired.
+- **`Narrator` is gone from every character picker.** It is this compiler's own
+  speaker label for narration lines, not a game object — it appears nowhere in
+  the base game, so neither `f(Narrator)` nor `Narrator.anything` could mean
+  anything.
+
 - **"In a relationship" is now two entries**: *In a relationship* and *In a
   relationship, and the others know*. `are_Characters_in_Partners`'s
   `knows_about` is not a refinement — left at the game's default it also walks
