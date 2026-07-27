@@ -1012,6 +1012,102 @@ def _validate_standalone_call(
     )
     if arity_error is not None:
         errors.append(arity_error)
+    _reject_player_as_participant(call, func_name, errors, path, line)
+
+
+# Functions the base game structurally excludes the player from. Passing
+# ``Player`` is a category error rather than a value that happens to fail:
+#
+#  * `Player` is not in `all_Characters` (`definitions.rpy` keeps
+#    `all_Characters_plus_Player` separate), so it is not in `all_Companions`,
+#    so `register_Friendships` never records a tie involving it — the seven
+#    friendship functions return tier 0 for it, forever;
+#  * `check_approval` opens with `if Character not in GameState.all_Companions:
+#    return 0`, and love/trust already measure how a companion feels about the
+#    player, so there is nothing to name;
+#  * `Partners` *is* the player's own set of partners;
+#  * `Character_is_in_close_proximity` tests the three on-screen sprite slots,
+#    which the player is never in.
+#
+# Every one of them fails silently — no exception, a valid-looking condition
+# that is simply always false. Across ~2000 calls the base game never passes
+# `Player` to one of these, and no mod can change that without rewriting the
+# game's own data structures. `seen_Player_recently` is deliberately absent:
+# it reads `Character.History`, which the player does have, so it is merely a
+# nonsensical question rather than an impossible one.
+# Mapped to the redirection each one needs: a writer told only "no" has to
+# guess what to write instead, and the two families want different answers.
+_RELATIONSHIP_HINT = (
+    "For how a character feels about the player, use "
+    'check_approval(Character, None, "dating") — or Character.love / '
+    "Character.trust for the raw values. These functions describe ties "
+    "between the other characters."
+)
+_PROXIMITY_HINT = (
+    "The player is always where the player is. To ask about the room, use "
+    "get_present_Characters() or get_visible_Characters()."
+)
+_PLAYER_EXCLUDING_FUNCTIONS: dict[str, str] = {
+    "are_Characters_friends": _RELATIONSHIP_HINT,
+    "are_Characters_in_Partners": _RELATIONSHIP_HINT,
+    "check_approval": _RELATIONSHIP_HINT,
+    "get_base_friendship": _RELATIONSHIP_HINT,
+    "get_best_Friend": _RELATIONSHIP_HINT,
+    "get_Characters_opinion": _RELATIONSHIP_HINT,
+    "get_effective_friendship": _RELATIONSHIP_HINT,
+    "get_max_friendship": _RELATIONSHIP_HINT,
+    "get_worst_Enemy": _RELATIONSHIP_HINT,
+    "Character_is_in_close_proximity": _PROXIMITY_HINT,
+}
+
+
+def _reject_player_as_participant(
+    call: Call,
+    func_name: str,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    """Refuse a bare ``Player`` argument to a relationship check.
+
+    Only the bare name is refused. ``Player.History`` stays valid — it is
+    used 316 times in the base game — because the player is legitimate as
+    the *subject* of an attribute, just never as a named participant in a
+    relationship the player is already one side of.
+    """
+    hint = _PLAYER_EXCLUDING_FUNCTIONS.get(func_name)
+    if hint is None:
+        return
+    for arg in call.args:
+        for name in _bare_names(arg):
+            if name != "Player":
+                continue
+            errors.append(CompileError(
+                path = path,
+                line = line,
+                col = call.col_offset,
+                message = (
+                    f"{func_name}(...) cannot take 'Player'. The game keeps "
+                    "the player out of its character list, so this call is "
+                    "false whatever happens in the story."
+                ),
+                hint = hint,
+            ))
+            return
+
+
+def _bare_names(expr: Expr) -> list[str]:
+    """Bare identifiers used as values in *expr*, descending into sequences.
+
+    A list literal is the usual shape here (``[Player, JeanGrey]``), so the
+    walk has to reach inside it. Attributes are *not* descended into: the
+    root of ``Player.History`` is a subject, not an argument.
+    """
+    if isinstance(expr, Name):
+        return [expr.name]
+    if isinstance(expr, ListExpr):
+        return [n for element in expr.elements for n in _bare_names(element)]
+    return []
 
 
 def _validate_method_call(

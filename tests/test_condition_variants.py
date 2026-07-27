@@ -32,6 +32,9 @@ from tnh_scene_compiler.condition_builder import (
     COLLECTION_MODE_VISIBLE,
     build_condition_catalog,
     default_collection_mode,
+    non_narrator,
+    non_player_characters,
+    selectable_characters,
 )
 
 BASE_ALLOWLISTS = Path(__file__).resolve().parents[1] / "allowlists_base"
@@ -185,3 +188,41 @@ def test_merge_carries_collection_modes() -> None:
     base = Allowlists(condition_function_collection_modes = {"f": {"Characters": "pick"}})
     merged = base.merge(Allowlists())
     assert merged.condition_function_collection_modes == {"f": {"Characters": "pick"}}
+
+
+# -- Player / Narrator in the pickers -----------------------------------------
+
+
+def test_narrator_is_never_offered() -> None:
+    """It is the compiler's own speaker label, not a game object.
+
+    ``Narrator`` appears nowhere in the base game — neither as a value nor
+    as the root of an attribute — so both ``f(Narrator)`` and
+    ``Narrator.anything`` are meaningless.
+    """
+    allow = Allowlists(characters={"JeanGrey", "Player", "Narrator"})
+    assert "Narrator" not in selectable_characters(allow)
+    assert "Narrator" not in non_narrator(["JeanGrey", "Narrator"])
+
+
+def test_player_is_dropped_only_where_it_is_an_argument() -> None:
+    """The player is the implicit subject, never a named participant.
+
+    `Partners` is the player's own set; love/trust already measure how a
+    companion feels about the player; and friendships exist only between
+    companions, because `register_Friendships` walks `all_Companions` and
+    `Player` is not in `all_Characters` at all. Across ~2000 calls the base
+    game never passes ``Player`` to one of these.
+    """
+    names = ["JeanGrey", "Player", "Rogue"]
+    assert non_player_characters(names) == ["JeanGrey", "Rogue"]
+
+
+def test_player_stays_available_as_a_subject() -> None:
+    """``Player.History`` (316 uses) and ``Player.check_trait`` (109) are real.
+
+    The filter is on the argument position, not on the name — dropping the
+    player everywhere would remove more than it fixes.
+    """
+    allow = Allowlists(characters={"JeanGrey", "Player", "Narrator"})
+    assert "Player" in selectable_characters(allow)

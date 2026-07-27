@@ -12,7 +12,7 @@ The pure-logic helpers (``build_condition``, ``join_conditions``,
 from __future__ import annotations
 
 import tkinter as tk
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from tkinter import ttk
 from typing import Any
@@ -398,6 +398,55 @@ def join_conditions(clauses: list[tuple[str, str]]) -> str:
     return " ".join(parts)
 
 
+# ``Narrator`` is the compiler's own speaker label for narration lines, not a
+# game object: it appears nowhere in the base game, so `Narrator.anything` and
+# `f(Narrator)` are both meaningless. It is filtered out of every character
+# picker.
+NARRATOR_NAME: str = "Narrator"
+
+# ``Player`` is filtered from pickers that fill a function *argument*, and kept
+# in pickers that name the *subject* of an attribute or method.
+PLAYER_NAME: str = "Player"
+
+
+def non_narrator(names: Iterable[str]) -> list[str]:
+    """*names* without the narrator, sorted — see :data:`NARRATOR_NAME`."""
+    return sorted(name for name in names if name != NARRATOR_NAME)
+
+
+def selectable_characters(allow: Allowlists) -> list[str]:
+    """Every character a picker may offer, sorted.
+
+    Only ``Narrator`` is dropped, and it is dropped everywhere — see
+    :data:`NARRATOR_NAME`.
+    """
+    return non_narrator(allow.characters)
+
+
+def non_player_characters(names: Iterable[str]) -> list[str]:
+    """*names* without the player — for a picker filling a function argument.
+
+    In TNH the player is the implicit subject of every relationship, never a
+    participant you name. `Partners` **is** the player's set of partners;
+    `love`/`trust` live on the companion and already measure how she feels
+    about the player; and the friendship functions only ever describe
+    companion-to-companion ties, because `register_Friendships` walks
+    `all_Companions` and `Player` is not in `all_Characters` at all
+    (`definitions.rpy` keeps `all_Characters_plus_Player` separate). Passing
+    the player returns 0 / False forever, silently.
+
+    So naming the player as an argument is a category error, not a value that
+    happens to fail — and the base game agrees: across ~2000 calls it never
+    passes ``Player`` to one of these. The pickers stop offering what can
+    never mean anything.
+
+    The player stays offered wherever it is the **subject** rather than an
+    argument: ``Player.check_trait(...)`` (109 uses in the base game) and
+    ``Player.History`` (316) are ordinary things to ask about.
+    """
+    return [name for name in names if name != PLAYER_NAME]
+
+
 def default_collection_mode(pdefault: str, declared: str = "") -> str:
     """Which form a character-collection field opens on.
 
@@ -591,7 +640,10 @@ _CHOICE_SOURCES: dict[str, Callable[[Allowlists, str], list[str]]] = {
     "history_events": lambda a, _c: sorted(a.history_events),
     "traits": lambda a, _c: sorted(a.traits),
     "personalities": lambda a, _c: sorted(a.personalities),
-    "characters": lambda a, _c: list(a.characters),
+    # Keeps the player: this source feeds the ``History`` parameter (declared
+    # with a ``.History`` suffix), and `Player.History` is used 316 times in
+    # the base game. Only the narrator drops out.
+    "characters": lambda a, _c: selectable_characters(a),
     "locations": lambda a, _c: sorted(a.locations),
     "looks": lambda a, _c: sorted(a.looks),
     "stages": lambda a, _c: sorted(a.stages),
@@ -925,18 +977,27 @@ class _ConditionClausePanel(ttk.Frame):
         label: str,
         row: int,
         var_key: str = "character",
+        as_argument: bool = False,
     ) -> int:
-        """Add a character-selection row. Returns the next row index."""
+        """Add a character-selection row. Returns the next row index.
+
+        *as_argument* when the pick lands as an argument to a function rather
+        than as the subject of an attribute or method — it drops the player
+        from the list, see :func:`non_player_characters`. The default is
+        False because most built-in checks compile to ``Char.something()``,
+        which the player answers as well as anyone.
+        """
         ttk.Label(parent, text=f"{label}:").grid(
             row=row, column=0, sticky=tk.W, pady=2, padx=(0, 8),
         )
-        default = self._characters[0] if self._characters else ""
+        names = non_player_characters(self._characters) if as_argument else self._characters
+        default = names[0] if names else ""
         var = tk.StringVar(value=default)
 
-        if self._characters:
+        if names:
             widget = ttk.Combobox(
                 parent, textvariable=var,
-                values=self._characters, state="readonly", width=20,
+                values=names, state="readonly", width=20,
             )
             widget.bind(
                 "<<ComboboxSelected>>",
@@ -1114,7 +1175,10 @@ class _ConditionClausePanel(ttk.Frame):
     # -- Per-type parameter builders -----------------------------------------
 
     def _params_approval(self, parent: ttk.Frame) -> None:
-        row = self._add_character_field(parent, "Character", 0)
+        # Written as `Char.love >= tier`, but dsl.py rewrites it to
+        # check_approval(Char, ...) — so it is an argument, and the function
+        # returns 0 for anyone outside all_Companions.
+        row = self._add_character_field(parent, "Character", 0, as_argument=True)
         row = self._add_combo_field(parent, "Axis", row, "axis", AXES)
         row = self._add_text_field(
             parent, "Threshold", row, "threshold", default="500",
@@ -1173,16 +1237,19 @@ class _ConditionClausePanel(ttk.Frame):
         self._add_description(parent, row, "mood")
 
     def _params_friendship(self, parent: ttk.Frame) -> None:
-        row = self._add_character_field(parent, "Character", 0)
-        default_other = self._characters[1] if len(self._characters) > 1 else ""
+        # `A.friends_with(B)` becomes are_Characters_friends([A, B]) — both
+        # sides are arguments, and friendships exist only between companions.
+        row = self._add_character_field(parent, "Character", 0, as_argument=True)
+        others = non_player_characters(self._characters)
+        default_other = others[1] if len(others) > 1 else ""
         ttk.Label(parent, text="With:").grid(
             row=row, column=0, sticky=tk.W, pady=2, padx=(0, 8),
         )
         var = tk.StringVar(value=default_other)
-        if self._characters:
+        if others:
             ttk.Combobox(
                 parent, textvariable=var,
-                values=self._characters, state="readonly", width=20,
+                values=others, state="readonly", width=20,
             ).grid(row=row, column=1, sticky=tk.W, pady=2)
         else:
             ttk.Entry(parent, textvariable=var, width=22).grid(
@@ -1195,7 +1262,9 @@ class _ConditionClausePanel(ttk.Frame):
         self._add_description(parent, row, "friendship")
 
     def _params_nearby(self, parent: ttk.Frame) -> None:
-        row = self._add_character_field(parent, "Character", 0)
+        # Character_is_in_close_proximity(Char) — an argument, and asking it
+        # about the player would ask whether the player is where they are.
+        row = self._add_character_field(parent, "Character", 0, as_argument=True)
         self._add_description(parent, row, "nearby")
 
     def _params_personality(self, parent: ttk.Frame) -> None:
@@ -1352,9 +1421,15 @@ class _ConditionClausePanel(ttk.Frame):
             row=row, column=0, sticky=tk.W, pady=1, padx=(0, 8),
         )
         kind = param_widget_kind(pname, ptype, pdefault, has_choices=bool(choices))
+        # A signature-derived Character field is always an argument, so the
+        # player is not on offer — see :func:`non_player_characters`. (A
+        # ``History`` parameter is not this kind: it reaches its character
+        # through declared param_choices with a ``.History`` suffix, where
+        # the player is legitimate and stays listed.)
+        npcs = non_player_characters(self._characters)
         # No character list to pick from (no allowlist) -> fall back to free text
         # so the writer can still type a set literal by hand.
-        if kind == PARAM_WIDGET_CHARACTER_SET and not self._characters:
+        if kind == PARAM_WIDGET_CHARACTER_SET and not npcs:
             kind = PARAM_WIDGET_TEXT
 
         if kind == PARAM_WIDGET_CHARACTER_SET:
@@ -1370,8 +1445,8 @@ class _ConditionClausePanel(ttk.Frame):
         # readonly picker blank until the writer notices it. Pre-select the
         # first character instead, matching the built-in checks' own character
         # row and the location widget's pre-selected slugline.
-        if kind == PARAM_WIDGET_CHARACTER and not pdefault and self._characters:
-            pdefault = self._characters[0]
+        if kind == PARAM_WIDGET_CHARACTER and not pdefault and npcs:
+            pdefault = npcs[0]
 
         var = tk.StringVar(value=pdefault)
         if kind == PARAM_WIDGET_CHOICES:
@@ -1386,7 +1461,7 @@ class _ConditionClausePanel(ttk.Frame):
                 self._per_char_choice_widgets.append((combo, spec))
         elif kind == PARAM_WIDGET_CHARACTER:
             ttk.Combobox(
-                parent, textvariable=var, values=self._characters,
+                parent, textvariable=var, values=npcs,
                 state="readonly", width=18,
             ).grid(row=row, column=1, sticky=tk.W, pady=1)
         elif kind == PARAM_WIDGET_BOOL:
@@ -1430,7 +1505,8 @@ class _ConditionClausePanel(ttk.Frame):
         for one asking about named characters.
         """
         char_vars: list[tuple[str, tk.BooleanVar]] = [
-            (char, tk.BooleanVar(value=False)) for char in self._characters
+            (char, tk.BooleanVar(value=False))
+            for char in non_player_characters(self._characters)
         ]
         holder = ttk.Frame(parent)
         holder.grid(row=row, column=1, sticky=tk.W, pady=1)
@@ -1877,8 +1953,9 @@ class ConditionBuilderDialog(tk.Toplevel):
 
         self._insert = insert_cb
         self._allow = allow
-        self._characters = sorted(characters) if characters else (
-            sorted(allow.characters) if allow.characters else []
+        self._characters = (
+            non_narrator(characters) if characters
+            else selectable_characters(allow)
         )
         # Each entry: {"row": Frame, "panel": _ConditionClausePanel,
         #              "op_var": StringVar | None}. op_var is None on the first.

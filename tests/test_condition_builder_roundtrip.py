@@ -106,3 +106,79 @@ def test_the_sweep_actually_covers_the_catalog() -> None:
     # Guards the parametrisation itself: an import-time failure that returned
     # an empty list would make every assertion above vacuous.
     assert len(_labels()) > 20
+
+
+# -- Player / Narrator ---------------------------------------------------------
+
+_ARGUMENT_ENTRIES = [
+    "Love / Trust check",
+    "Friendship check",
+    "Nearby check",
+    "In a relationship",
+    "In a relationship, and the others know",
+    "Friends (a group, at a tier)",
+    "Effective friendship (tier)",
+    "Best friend (of a group)",
+]
+
+# Entries whose character names the SUBJECT of an attribute or method rather
+# than an argument. `Player.History` has 316 uses in the base game and
+# `Player.check_trait` 109, so filtering the player here would remove more
+# than it fixes.
+_SUBJECT_ENTRIES = ["Trait check", "History check", "Chance of a repeat event"]
+
+
+def _offered_names(clause) -> set[str]:
+    """Every character name any picker in the form offers.
+
+    A suffixed source yields ``Player.History``, so the leading name is what
+    is compared — the question is whether the character is reachable, not
+    how the value is spelled.
+    """
+    from tkinter import ttk
+
+    names: set[str] = set()
+
+    def walk(widget) -> None:
+        for child in widget.winfo_children():
+            if isinstance(child, ttk.Combobox):
+                for item in child.cget("values"):
+                    names.add(str(item).split(".")[0])
+            walk(child)
+
+    walk(clause._param_frame)
+    for field in clause._func_params:
+        for char, _var in field.char_vars or []:
+            names.add(char)
+    return names
+
+
+def _build(tk_root, base_allow, label):
+    dlg = ConditionBuilderDialog(
+        tk_root, base_allow, lambda _t: None, characters=list(base_allow.characters),
+    )
+    clause = dlg._clauses[0]["panel"]
+    _select(clause, label)
+    return clause
+
+
+@pytest.mark.parametrize("label", _ARGUMENT_ENTRIES)
+def test_argument_pickers_offer_neither_player_nor_narrator(
+    tk_root, base_allow, label: str,
+) -> None:
+    """Naming the player here is a category error, not a value that fails.
+
+    `Player` is not in `all_Characters`, so no friendship record can involve
+    it and `check_approval` returns 0 on sight; `Partners` is already the
+    player's own set. The base game never passes it to one of these.
+    """
+    offered = _offered_names(_build(tk_root, base_allow, label))
+    assert "Player" not in offered
+    assert "Narrator" not in offered
+
+
+@pytest.mark.parametrize("label", _SUBJECT_ENTRIES)
+def test_subject_pickers_keep_the_player(tk_root, base_allow, label: str) -> None:
+    offered = _offered_names(_build(tk_root, base_allow, label))
+    assert "Player" in offered
+    assert "Narrator" not in offered
