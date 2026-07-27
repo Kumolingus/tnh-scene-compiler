@@ -33,7 +33,8 @@ from tnh_scene_compiler.expr_parser import (
         ("False", "False"),
         ("None", "None"),
         ("42", "42"),
-        ("-17", "- 17"),  # unary '-' on numeric literal: see separate test below
+        ("-17", "-17"),
+        ("-1.25", "-1.25"),
         ("0.5", "0.5"),
         ("\"hello\"", "\"hello\""),
         ("'hi'", "\"hi\""),
@@ -58,10 +59,6 @@ from tnh_scene_compiler.expr_parser import (
     ],
 )
 def test_parse_accepts_and_round_trips(source: str, expected: str) -> None:
-    # Skip the unary-minus case here; handled by a dedicated test below so
-    # the parametrisation above doesn't mislead readers about what's legal.
-    if source == "-17":
-        return
     expr = parse_expression(source)
     assert expr.to_rpy() == expected
 
@@ -244,3 +241,51 @@ def test_parse_preserves_col_offset_in_errors() -> None:
     with pytest.raises(CompileError) as excinfo:
         parse_expression("a + 1")
     assert excinfo.value.col == 1 + 2
+
+
+# -- Negative literals --------------------------------------------------------
+
+# A '-' before a number is part of the literal; a '-' anywhere else is
+# arithmetic and stays refused. The distinction is load-bearing rather than
+# cosmetic: the friendship tiers run to -2 (enemies) and -1 (rivals), and
+# every doc that names that scale tells writers to compare against it.
+#
+# This was listed in the table above as an allowed construct with an expected
+# rendering, while the test returned early on it and a comment pointed at a
+# "dedicated test below" that did not exist. It reported PASSED and checked
+# nothing, and the grammar refused `-17` outright the whole time.
+
+
+@pytest.mark.parametrize(("source", "value"), [
+    ("-17", -17),
+    ("-1.25", -1.25),
+    ("- 17", -17),  # whitespace between them is Python-legal too
+])
+def test_negative_literal_is_one_literal(source: str, value: float) -> None:
+    expr = parse_expression(source)
+    assert expr == Literal(value = value, col_offset = 0)
+
+
+@pytest.mark.parametrize("source", [
+    "get_effective_friendship(A, B) >= -1",   # at least rivals
+    "get_Characters_opinion(A, B) > -2",      # better than enemies
+    "x >= -17",
+    "f(-2)",
+    "[-1, 2]",
+    "(-5, 2)",
+])
+def test_negative_literals_are_usable_where_a_number_is(source: str) -> None:
+    assert parse_expression(source).to_rpy() == source
+
+
+@pytest.mark.parametrize("source", [
+    "5 - 3",      # binary minus between literals
+    "x - 1",      # binary minus after a name
+    "-x",         # unary minus on a name
+    "-(3)",       # unary minus on a group
+    "x >= -y",    # unary minus in value position, but not on a number
+])
+def test_arithmetic_minus_is_still_refused(source: str) -> None:
+    with pytest.raises(CompileError) as excinfo:
+        parse_expression(source)
+    assert "Arithmetic is not allowed" in excinfo.value.message

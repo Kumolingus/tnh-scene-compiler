@@ -277,8 +277,10 @@ Allowed:
 - Logic: `AND`, `OR`, `NOT` — either casing works (`and`, `or`, `not` are the
   same thing); capitals are the house style and what the Condition Builder
   inserts
-- Literals: int, float, str (`"..."`), `True`, `False`, `None` — these are
-  case-sensitive, unlike the operators above
+- Literals: int, float, str (`"..."`), `True`, `False`, `None` — these three
+  names are case-sensitive, unlike the operators above. Negative numbers are
+  literals too (`-1`, `-2.5`), which is how you compare against the friendship
+  tiers for rivals and enemies: `>= -1`
 - Attribute access on allowlisted roots: `<Character>.attr`,
   `player.attr`, or a scene-local state key
 - Membership: `x IN y`, `x NOT IN y`

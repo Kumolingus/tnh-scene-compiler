@@ -695,6 +695,25 @@ def _expect_close(state: _ParseState, kind: str, message: str) -> None:
 def _parse_primary(state: _ParseState) -> Expr:
     tok = state.peek()
 
+    # A '-' in *value* position, directly before a number, belongs to the
+    # literal rather than being arithmetic — the same value-position versus
+    # postfix split that lets '[' open a list without allowing subscripting.
+    # It has to be expressible: the friendship tiers run down to -2 (enemies)
+    # and -1 (rivals), and every doc that names that scale tells writers to
+    # compare against it, so `get_effective_friendship(A, B) >= -1` is a
+    # question the format promises. Arithmetic stays refused — a '-' that
+    # *follows* a value never reaches here, and one before a name or a '('
+    # falls through to _raise_illegal below.
+    if tok.kind == _TK.ILLEGAL and tok.value == "-":
+        number = state.peek(1)
+        if number.kind in (_TK.INT, _TK.FLOAT):
+            state.advance()
+            state.advance()
+            magnitude = (
+                int(number.value) if number.kind == _TK.INT else float(number.value)
+            )
+            return Literal(value = -magnitude, col_offset = tok.col)
+
     if tok.kind == _TK.ILLEGAL:
         _raise_illegal(state, tok)
 
