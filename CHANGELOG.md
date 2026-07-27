@@ -6,6 +6,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The GUI tests can no longer withdraw themselves from a green run.** Two
+  test modules defined their own `tk_root` fixture instead of using the
+  session-scoped one — a second `tk.Tk()` in the same process, which
+  intermittently broke Tcl (`invalid command name "tcl_findLibrary"`) for
+  whatever ran next. The shared fixture answered that by skipping, so a run
+  could report `797 passed, 73 skipped` — no failure — with roughly fifty
+  dialog tests, the condition-builder round-trip sweep among them, never
+  executed.
+  - Both duplicate fixtures are gone; five consecutive full runs now report
+    the same `878 passed, 2 skipped` (the two are the round-trip entries that
+    document why they cannot reach validity on defaults).
+  - A `TclError` where Tk is expected to work — Windows, macOS, or a POSIX
+    session with a display — now **fails**. Skipping survives only for a
+    genuinely headless machine, or via `TNH_TESTS_SKIP_TK=1` for a deliberate
+    opt-out.
+  - `test_tk_fixture_discipline.py` parses every test module and fails on a
+    `tk_root` defined outside `conftest.py`. The rule was already written down
+    in the project instructions; that is what did not stop it happening twice.
+
+- **A condition you grouped with parentheses is now compiled the way you
+  grouped it.** `[[if not (a and b)]]` was emitted as `not a and b`, which
+  Python reads as `(not a) and b` — a different question, silently. Same for
+  `(a or b) and c`, `a and (b or c)`, and any grouping that contradicts the
+  natural precedence of `and` / `or` / `not`. The compiler reported nothing:
+  the output was valid Ren'Py, it just took the other branch.
+  - The parser drops the parentheses on purpose — the shape of the tree is
+    what carries the grouping — so a renderer has to rebuild them from
+    precedence. Neither of the two did. Both do now, from one shared table.
+  - No authored scene was affected: none of them grouped a boolean condition
+    (the 163 scenes recompile byte for byte). But the format documented
+    parentheses as available all along, so this was reachable by anyone who
+    followed the cheatsheet.
+  - The regression tests compare **meaning**, not text: the emitted line is
+    re-parsed with Python's own `ast` and matched against the condition as
+    written. A string assertion is what let this through — one test had the
+    flattened form written down as its expected value.
+
+### Changed
+
+- **`AND`, `OR`, `NOT` and `IN` can be written in capitals**, and that is what
+  the Condition Builder now inserts. Lowercase remains valid and no scene has
+  to change — the two are the same expression. Capitals separate the glue
+  between conditions from the conditions themselves, which is how the builder's
+  own dropdown has always labelled them; it lowercased them on the way out,
+  the one place the dialog disagreed with its own labels.
+  - `True`, `False` and `None` stay case-sensitive. They are values a
+    condition compares *against*, so they belong to the condition, not to the
+    glue — and relaxing them would quietly turn a misspelled state key into a
+    constant.
+  - The cost: a scene-local state key can no longer be named `AND`, `Or`,
+    `NOT` or `In` in any casing.
+
 ### Added
 
 - **A "Glossary" button on every screen** — home, quick compile, a project's
