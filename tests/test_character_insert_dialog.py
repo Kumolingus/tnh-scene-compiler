@@ -54,7 +54,18 @@ def rich_char(base_allow: Allowlists) -> str:
             base_allow.char_right_arm.get(char),
         )):
             return char
-    pytest.skip("no shipped character declares all four visual slots")
+    # Failing rather than skipping: this fixture feeds eight tests, including
+    # the ones asserting that the insert dialogs emit a line which compiles
+    # and that the per-arm rows behave. It goes empty exactly when a TNH
+    # re-extraction reshapes the arm slots — the moment those eight are worth
+    # the most. If no character legitimately carries all four any more, adapt
+    # the test deliberately; do not let it switch itself off.
+    pytest.fail(
+        "No shipped character declares all four visual slots "
+        "(faces + arms + left_arm + right_arm). Re-run "
+        "Refresh-Allowlists.ps1 after a TNH re-extraction, or narrow this "
+        "fixture on purpose if the data really changed shape.",
+    )
 
 
 def _first(values: set[str]) -> str:
@@ -262,7 +273,14 @@ def test_show_character_change_refills_every_slot(tk_root, base_allow):
         if base_allow.char_faces.get(c)
     ]
     if len(chars) < 2:
-        pytest.skip("need two shipped characters with faces")
+        # The test compares one character's offered faces against another's,
+        # so it needs two. One character with faces in the shipped data is a
+        # broken extraction, not an environment this test cannot run in.
+        pytest.fail(
+            f"Only {len(chars)} shipped character(s) declare faces; this "
+            "test needs two to catch a per-character refill serving the "
+            "wrong character's poses. Re-run Refresh-Allowlists.ps1.",
+        )
     dialog = _DirectiveDialog(tk_root, "show", base_allow, lambda _t: None)
     try:
         for char in chars[:2]:

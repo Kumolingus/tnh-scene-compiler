@@ -81,6 +81,31 @@ def tk_root():
         root.destroy()
 
 
+def require_base_allowlists() -> Path:
+    """The bundled ``allowlists_base/``, or fail the test.
+
+    A handful of tests read the *shipped* data instead of a hand-built
+    ``Allowlists``, which makes them the ones checking what a user actually
+    receives — and almost nothing else in the suite would notice the
+    directory going missing, since the rest builds its own fixtures.
+
+    They used to skip here. A skip says "this environment cannot run the
+    test"; a directory that is versioned in the repo going missing says the
+    checkout is broken, which is a result worth reporting rather than
+    passing over in a green run. Same reasoning as :func:`tk_root`.
+    """
+    from tnh_scene_compiler.allowlist_browser import default_base_dir
+
+    base = default_base_dir()
+    if base is None:
+        pytest.fail(
+            "allowlists_base/ is missing from the checkout. It ships with the "
+            "repo and is what the tests covering the shipped data read — "
+            "restore it rather than running without them.",
+        )
+    return base
+
+
 # --- compile_scenes fixtures --------------------------------------------------
 
 

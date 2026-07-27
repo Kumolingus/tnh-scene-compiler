@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import require_base_allowlists
 from tnh_scene_compiler.allowlist_browser import (
     ALLOWLIST_TOPICS,
     MAINTENANCE_DEVELOPER,
@@ -20,7 +21,6 @@ from tnh_scene_compiler.allowlist_browser import (
     AllowlistBrowserDialog,
     LayerMeta,
     classify_origin,
-    default_base_dir,
     refresh_tool_available,
     load_topic,
     read_layer,
@@ -198,9 +198,7 @@ class TestCatalogue:
     def test_real_base_layer_covers_every_flat_topic(self) -> None:
         # Guards against a topic naming a file that does not exist in the
         # shipped base allowlists (a typo would render an always-empty section).
-        base = default_base_dir()
-        if base is None:  # pragma: no cover - dev checkout without data
-            pytest.skip("no bundled allowlists_base")
+        base = require_base_allowlists()
         missing = [
             t.filename for t in ALLOWLIST_TOPICS
             if not (base / t.filename).exists()
@@ -903,9 +901,7 @@ def test_dialog_edit_without_a_project_layer_explains_itself(
 def test_base_only_session_still_shows_the_game_values(tk_root) -> None:
     # Quick mode has no Config and no project layer. The browser must fall back
     # to the bundled base allowlists instead of opening on nothing.
-    base = default_base_dir()
-    if base is None:  # pragma: no cover - dev checkout without bundled data
-        pytest.skip("no bundled allowlists_base")
+    base = require_base_allowlists()
     dlg = AllowlistBrowserDialog(tk_root, base_dir=base, project_dir=None)
     try:
         dlg._select_topic(topic_by_key("traits"), ORIGIN_CORE)

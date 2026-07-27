@@ -2,7 +2,7 @@
 
 import pytest
 
-from tnh_scene_compiler.allowlist_browser import default_base_dir
+from tests.conftest import require_base_allowlists
 from tnh_scene_compiler.allowlists import (
     Allowlists,
     is_character_collection_param,
@@ -626,10 +626,7 @@ class TestShippedParamChoices:
     """
 
     def _base_allowlists(self) -> Allowlists:
-        base = default_base_dir()
-        if base is None:  # pragma: no cover - dev checkout without data
-            pytest.skip("no bundled allowlists_base")
-        return Allowlists.load(base)
+        return Allowlists.load(require_base_allowlists())
 
     def _declared(self, allow: Allowlists):
         """Yield ``(entry, param, spec, signature)`` for every declared choice."""

@@ -29,6 +29,7 @@ from tnh_scene_compiler.allowlists import Allowlists
 from tnh_scene_compiler.condition_builder import (
     ConditionBuilderDialog,
     build_condition_catalog,
+    resolve_param_choices,
 )
 from tnh_scene_compiler.parser import parse
 from tnh_scene_compiler.validator import validate
@@ -71,6 +72,33 @@ def _select(clause, label: str) -> None:
     raise AssertionError(f"no condition entry labelled {label!r}")
 
 
+def _fill_declared_choices(clause, allow: Allowlists) -> None:
+    """Answer every empty declared-choice field with its first option.
+
+    Reads the specs from the allowlists rather than off the widgets, so the
+    sweep exercises the same data the combo is populated from — including
+    the per-character sources, which is why the character is passed through.
+    """
+    func_var = clause._vars.get("func_name")
+    method_var = clause._vars.get("method_name")
+    if func_var is not None and func_var.get():
+        specs = allow.condition_function_param_choices.get(func_var.get(), {})
+        fields = clause._func_params
+    elif method_var is not None and method_var.get():
+        specs = allow.character_method_param_choices.get(method_var.get(), {})
+        fields = clause._method_params
+    else:
+        return
+
+    character = clause._current_character()
+    for field in fields:
+        if field.var is None or field.var.get().strip():
+            continue
+        options = resolve_param_choices(specs.get(field.name, []), allow, character)
+        if options:
+            field.var.set(options[0])
+
+
 def assert_compiles(condition: str, allow: Allowlists) -> None:
     """The condition must survive both the [[if]] grammar and the validator."""
     assert condition, "an entry reported valid but produced an empty condition"
@@ -92,11 +120,19 @@ def test_every_catalog_entry_compiles(tk_root, base_allow, label) -> None:
     if clause._compare_op_var is not None and clause._compare_op_var.get():
         clause._compare_value_var.set("1")
 
+    # A field whose value only the writer can decide opens blank on purpose —
+    # a declared-choice combo with no signature default keeps Insert disabled
+    # until a choice is made, which is the affordance doing its job. The sweep
+    # answers it the way a writer would, from the declared list, rather than
+    # skipping the entry: the question here is whether the entry can produce a
+    # condition that compiles, not whether it can do so untouched.
+    _fill_declared_choices(clause, base_allow)
+
     if not clause.is_valid():
-        # The entry needs a free-text value the writer must type (a threshold,
-        # an id with no declared choices). It cannot reach a scene unfilled, so
-        # there is nothing to round-trip — but list it under `-rs` rather than
-        # passing silently.
+        # What is left needs free text with no declared options (a threshold,
+        # an id nobody enumerated). There is nothing to round-trip, so list it
+        # under `-rs` rather than passing silently. Sanctioned in
+        # tests/test_no_silent_skips.py.
         pytest.skip(f"{label!r} needs a hand-typed value to become valid")
 
     assert_compiles(clause.get_condition(), base_allow)
