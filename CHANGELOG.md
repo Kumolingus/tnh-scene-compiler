@@ -67,6 +67,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Negative numbers are usable again — they never worked.** `-17` was listed
+  as an allowed literal in §11.9.1 of the authoring conventions, and the
+  grammar refused it outright with "Arithmetic is not allowed". That mattered
+  beyond tidiness: the friendship tiers run to `-1` (rivals) and `-2`
+  (enemies), and every doc naming that scale tells writers to compare against
+  it, so `get_effective_friendship(A, B) >= -1` was a promised question the
+  compiler would not accept.
+  - A `-` **directly before a number** is now part of the literal, the same
+    value-position rule that lets `[` open a list without allowing
+    subscripting. Arithmetic stays refused: `x - 1`, `-x` and `-(3)` are
+    unchanged.
+  - **How it hid for so long:** the parametrised parser test listed `-17` with
+    an expected rendering, then returned early on that one case, pointing at a
+    "dedicated test below" that did not exist. It reported PASSED and checked
+    nothing.
+
 - **The glossary described the partner check wrongly.** It read
   "`are_Characters_in_Partners([JeanGrey, Rogue])` — yes/no, are they dating
   each other". The function asks whether each character listed is a partner of
@@ -74,6 +90,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   partners. The example sat directly under the friendship checks, which really
   are about two characters, so the shape of the section taught the wrong
   reading.
+
+- **No test can withdraw itself from a passing run any more — the suite reports
+  962 passed, 0 skipped.** Beyond the Tkinter case below, five conditional
+  skips were waiting on data rather than on an environment, together covering
+  fifteen tests: three on the bundled `allowlists_base/` going missing (the six
+  tests that check what a user actually receives — nothing else in the suite
+  reads the shipped data, so their loss would have been silent and precisely
+  targeted), and two on the *shape* of that data, feeding nine tests including
+  the ones asserting the insert dialogs emit a line that compiles. The second
+  pair would have gone quiet exactly when it mattered most: after a TNH
+  re-extraction reshaped the visual slots.
+  - All five now fail, with a message naming what to regenerate.
+  - The last two active skips are gone too. Those entries were not untestable,
+    only untested: a declared-choice field opens blank on purpose, so the
+    round-trip sweep now answers it from the same allowlist that populates the
+    combo. The widget is unchanged — a blank field keeping `Insert` disabled
+    is the affordance working, and pre-filling it to satisfy a test would have
+    let the test degrade the product.
+  - `tests/test_no_silent_skips.py` keeps it that way: every `pytest.skip` must
+    be listed with a reason, the list may not rot, and no test may `return`
+    early.
 
 - **The GUI tests can no longer withdraw themselves from a green run.** Two
   test modules defined their own `tk_root` fixture instead of using the
