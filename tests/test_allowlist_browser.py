@@ -462,18 +462,10 @@ class TestValidateTopicYaml:
 
 # -- Dialog (guarded Tkinter) -------------------------------------------------
 
-
-@pytest.fixture(scope="module")
-def tk_root():
-    try:
-        root = tk.Tk()
-    except tk.TclError as exc:  # pragma: no cover - environment-dependent
-        pytest.skip(f"no Tk display available: {exc}")
-    root.withdraw()
-    try:
-        yield root
-    finally:
-        root.destroy()
+# ``tk_root`` comes from conftest.py and is session-scoped on purpose. This
+# module used to shadow it with a module-scoped copy — a second ``tk.Tk()``
+# in the same process, which is what broke Tcl for whatever ran next. See
+# the fixture's own docstring, and test_tk_fixture_discipline.py.
 
 
 def _rows(dlg: AllowlistBrowserDialog) -> list[str]:
