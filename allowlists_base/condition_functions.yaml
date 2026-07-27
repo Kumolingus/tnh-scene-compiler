@@ -70,6 +70,20 @@ functions:
         - "3"
     source_file: game/core/mechanics/friendship.rpy
     source_line: 15
+  # Two entries, not one. `knows_about` does not refine the question, it
+  # replaces it: left at the game's default the call also walks every OTHER
+  # partner and fails on the first one who has not been told about the
+  # character being asked about. So "is she my girlfriend" returns False for
+  # someone who *is* a partner, as soon as a second partner exists who does
+  # not know. That is a polyamory-disclosure audit — a real thing to ask,
+  # and a different goal, so it gets its own name instead of a boolean the
+  # writer has to know the base game to interpret.
+  #
+  # `Characters` is declared "pick" because this function asks about named
+  # characters. The signature-derived default (a required collection leads
+  # with "everyone present here") is right for are_Characters_friends and
+  # check_if_need_to_change, and here would ask "is everyone in the room my
+  # partner".
   - name: are_Characters_in_Partners
     category: Relationships
     label: "In a relationship"
@@ -78,6 +92,27 @@ functions:
       True if every listed character is one of the player's partners. With
       knows_about (default True) it also requires the partners to know about
       each other's relationship with the player; set it False to skip that.
+    param_collection_mode:
+      Characters: pick
+    variants:
+      - label: "In a relationship"
+        fixed:
+          knows_about: "False"
+        notes: |
+          True when every character you list is one of the player's
+          partners. This is the plain "are they together" check — the game
+          asks it as `JeanGrey in Partners` in hundreds of its own
+          conditions. It does not care who else knows.
+      - label: "In a relationship, and the others know"
+        fixed:
+          knows_about: "True"
+        notes: |
+          Everyone you list is a partner of the player AND every other
+          partner has been told about them. Use it for a scene that assumes
+          the situation is out in the open — with only one partner it is the
+          same as the plain check, with two it also asks whether the player
+          has come clean. It is False while a disclosure is still pending,
+          even though the relationship itself is real.
     source_file: game/core/mechanics/friendship.rpy
     source_line: 24
   - name: get_best_Friend

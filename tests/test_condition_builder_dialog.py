@@ -15,10 +15,11 @@ from tkinter import ttk
 
 import pytest
 
-from tnh_scene_compiler.allowlists import Allowlists
+from tnh_scene_compiler.allowlists import Allowlists, ConditionVariant
 from tnh_scene_compiler.condition_builder import (
     COLLECTION_MODE_PICK,
     COLLECTION_MODE_VISIBLE,
+    PARAM_WIDGET_FIXED,
     ConditionBuilderDialog,
 )
 
@@ -58,6 +59,24 @@ def _make_dialog(root, allow):
 def _panel(dlg, index=0):
     """The _ConditionClausePanel of the *index*-th clause row."""
     return dlg._clauses[index]["panel"]
+
+
+def _all_label_texts(clause) -> str:
+    """Every label's text in the clause's parameter form, joined.
+
+    Used to assert on what the writer is shown — a note that reached the
+    form, or a parameter name that must NOT have drawn a row.
+    """
+    texts: list[str] = []
+
+    def walk(widget) -> None:
+        for child in widget.winfo_children():
+            if isinstance(child, ttk.Label):
+                texts.append(str(child.cget("text")))
+            walk(child)
+
+    walk(clause._param_frame)
+    return "\n".join(texts)
 
 
 def _select(clause, label):
@@ -751,3 +770,91 @@ def test_glossary_button_opens_filtered_glossary(tk_root, allow) -> None:
     titles = [g._listbox.get(i).strip() for i in range(g._listbox.size())]
     assert "Relationship conditions" in titles
     g.destroy()
+
+
+# -- Variants ----------------------------------------------------------------
+
+
+@pytest.fixture()
+def allow_variants() -> Allowlists:
+    """A function split into two questions by a pinned boolean."""
+    return Allowlists(
+        characters=["JeanGrey", "Rogue"],
+        characters_upper={"JEANGREY", "ROGUE"},
+        condition_functions={"are_Characters_in_Partners"},
+        condition_function_signatures={
+            "are_Characters_in_Partners": (
+                "are_Characters_in_Partners(Characters, knows_about: bool = True) -> bool"
+            ),
+        },
+        condition_function_categories={"are_Characters_in_Partners": "Relationships"},
+        condition_function_notes={"are_Characters_in_Partners": "The whole surface."},
+        condition_function_collection_modes={
+            "are_Characters_in_Partners": {"Characters": "pick"},
+        },
+        condition_function_variants={
+            "are_Characters_in_Partners": [
+                ConditionVariant("Plain", {"knows_about": "False"}, "Just partners."),
+                ConditionVariant("Disclosed", {"knows_about": "True"}),
+            ],
+        },
+    )
+
+
+def _tick_first_character(clause) -> None:
+    for field in clause._func_params:
+        if field.char_vars:
+            field.char_vars[0][1].set(True)
+            return
+    raise AssertionError("no character-collection field in the form")
+
+
+@pytest.mark.parametrize(("label", "pinned"), [("Plain", "False"), ("Disclosed", "True")])
+def test_variant_pins_its_parameter_into_the_call(
+    tk_root, allow_variants, label: str, pinned: str,
+) -> None:
+    dlg = _make_dialog(tk_root, allow_variants)
+    clause = _panel(dlg, 0)
+    _select(clause, label)
+    _tick_first_character(clause)
+
+    assert clause.get_condition() == (
+        f"are_Characters_in_Partners([JeanGrey], {pinned})"
+    )
+
+
+def test_pinned_parameter_gets_no_widget(tk_root, allow_variants) -> None:
+    """It is what makes this entry a different question, not a choice."""
+    dlg = _make_dialog(tk_root, allow_variants)
+    clause = _panel(dlg, 0)
+    _select(clause, "Plain")
+
+    fixed = [f for f in clause._func_params if f.name == "knows_about"]
+    assert len(fixed) == 1, "the pinned parameter keeps its place in signature order"
+    assert fixed[0].kind == PARAM_WIDGET_FIXED
+    assert "knows_about" not in _all_label_texts(clause)
+
+
+def test_variant_note_replaces_the_functions_own(tk_root, allow_variants) -> None:
+    dlg = _make_dialog(tk_root, allow_variants)
+    clause = _panel(dlg, 0)
+
+    _select(clause, "Plain")
+    assert "Just partners." in _all_label_texts(clause)
+
+    # The second variant declares no note, so the function's stands in — it
+    # describes the whole surface, which is better than nothing.
+    _select(clause, "Disclosed")
+    assert "The whole surface." in _all_label_texts(clause)
+
+
+def test_declared_collection_mode_opens_on_pick(tk_root, allow_variants) -> None:
+    """Without the declaration this required collection would open on
+    "present here", asking whether everyone in the room is a partner."""
+    dlg = _make_dialog(tk_root, allow_variants)
+    clause = _panel(dlg, 0)
+    _select(clause, "Plain")
+
+    collections = [f for f in clause._func_params if f.char_vars is not None]
+    assert len(collections) == 1
+    assert collections[0].mode_var.get() == COLLECTION_MODE_PICK

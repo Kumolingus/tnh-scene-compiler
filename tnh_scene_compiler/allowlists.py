@@ -307,6 +307,93 @@ def _values_names(payload: dict[str, Any] | None, key: str = "values") -> list[s
     ]
 
 
+@dataclass(frozen=True)
+class ConditionVariant:
+    """One named question a condition function can be asked in the builder.
+
+    Most functions ask a single question and get a single catalog entry.
+    Some carry a parameter that *replaces* the question rather than
+    refining it — `are_Characters_in_Partners`'s ``knows_about`` turns "is
+    she a partner of the player" into "…and every other partner has been
+    told about her", which is a polyamory-disclosure audit and a different
+    goal. Exposing that as a bare boolean field asks the writer to know the
+    base game's internals to guess which question they are asking, and its
+    default answers the less common one.
+
+    A variant pins those parameters (``fixed``) and gives the resulting
+    question its own label and help text. The pinned parameters get no
+    widget: they are not a choice the writer is making, they are what
+    distinguishes this entry from its sibling.
+    """
+
+    label: str
+    fixed: dict[str, str]
+    notes: str = ""
+
+
+def _read_condition_variants(item: dict[str, Any]) -> list[ConditionVariant]:
+    """Return an allowlist entry's ``variants``, sanitised.
+
+    A variant needs a label and at least one pinned parameter — without a
+    pin it would be a second entry asking the identical question. Values
+    are coerced to ``str`` because they are spliced into the emitted call
+    as source text (``knows_about: false`` in YAML must reach the scene as
+    Python's ``False``, so the YAML says ``"False"``).
+
+    Malformed payloads degrade to "no variants", leaving the function its
+    single ordinary entry, rather than raising.
+    """
+    raw = item.get("variants")
+    if not isinstance(raw, list):
+        return []
+    variants: list[ConditionVariant] = []
+    for spec in raw:
+        if not isinstance(spec, dict):
+            continue
+        label = spec.get("label")
+        fixed = spec.get("fixed")
+        if not isinstance(label, str) or not isinstance(fixed, dict):
+            continue
+        pinned = {
+            str(key): str(value) for key, value in fixed.items()
+            if isinstance(key, str)
+        }
+        if not label.strip() or not pinned:
+            continue
+        notes = spec.get("notes")
+        variants.append(
+            ConditionVariant(
+                label = label.strip(),
+                fixed = pinned,
+                notes = notes.strip() if isinstance(notes, str) else "",
+            ),
+        )
+    return variants
+
+
+def _read_collection_modes(item: dict[str, Any]) -> dict[str, str]:
+    """Return an entry's ``param_collection_mode`` mapping, sanitised.
+
+    Which of the three forms a character-collection field opens on. The
+    default is derived from the signature — a required collection is one
+    the game fills from a location, so it leads with "present here" — and
+    that derivation is right for `are_Characters_friends` and
+    `check_if_need_to_change` but wrong for a function asking about named
+    characters, where it would silently ask "is everyone in the room …".
+    Nothing in a signature distinguishes the two, so it is declared.
+
+    Per parameter, since one function can take two collections.
+    """
+    raw = item.get("param_collection_mode")
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(key): value.strip().lower()
+        for key, value in raw.items()
+        if isinstance(key, str) and isinstance(value, str) and value.strip()
+    }
+
+
 def _read_param_choices(item: dict[str, Any]) -> dict[str, list[str] | dict[str, Any]]:
     """Return an allowlist entry's ``param_choices`` mapping, sanitised.
 
@@ -536,6 +623,8 @@ class Allowlists:
     condition_function_notes: dict[str, str] = field(default_factory=dict)
     condition_function_labels: dict[str, str] = field(default_factory=dict)
     condition_function_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = field(default_factory=dict)
+    condition_function_variants: dict[str, list[ConditionVariant]] = field(default_factory=dict)
+    condition_function_collection_modes: dict[str, dict[str, str]] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
     character_method_signatures: dict[str, str] = field(default_factory=dict)
     character_method_categories: dict[str, str] = field(default_factory=dict)
@@ -643,6 +732,8 @@ class Allowlists:
         condition_function_notes: dict[str, str] = {}
         condition_function_labels: dict[str, str] = {}
         condition_function_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = {}
+        condition_function_variants: dict[str, list[ConditionVariant]] = {}
+        condition_function_collection_modes: dict[str, dict[str, str]] = {}
         if condition_functions_payload and isinstance(
             condition_functions_payload.get("functions"), list,
         ):
@@ -664,6 +755,12 @@ class Allowlists:
                     choices = _read_param_choices(item)
                     if choices:
                         condition_function_param_choices[item["name"]] = choices
+                    variants = _read_condition_variants(item)
+                    if variants:
+                        condition_function_variants[item["name"]] = variants
+                    collection_modes = _read_collection_modes(item)
+                    if collection_modes:
+                        condition_function_collection_modes[item["name"]] = collection_modes
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
@@ -785,6 +882,8 @@ class Allowlists:
             condition_function_notes = condition_function_notes,
             condition_function_labels = condition_function_labels,
             condition_function_param_choices = condition_function_param_choices,
+            condition_function_variants = condition_function_variants,
+            condition_function_collection_modes = condition_function_collection_modes,
             character_methods = character_methods,
             character_method_signatures = character_method_signatures,
             character_method_categories = character_method_categories,
@@ -994,6 +1093,19 @@ class Allowlists:
             condition_function_param_choices={
                 **self.condition_function_param_choices,
                 **other.condition_function_param_choices,
+            },
+            # Per function, not per variant: a project redeclaring a
+            # function's variants replaces the whole list, the same way it
+            # replaces its label or its choices. Merging them entry by entry
+            # would let a project half-override a split and end up with two
+            # entries asking the same question.
+            condition_function_variants={
+                **self.condition_function_variants,
+                **other.condition_function_variants,
+            },
+            condition_function_collection_modes={
+                **self.condition_function_collection_modes,
+                **other.condition_function_collection_modes,
             },
             character_methods=self.character_methods | other.character_methods,
             character_method_signatures={

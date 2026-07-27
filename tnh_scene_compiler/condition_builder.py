@@ -19,6 +19,7 @@ from typing import Any
 
 from .allowlists import (
     Allowlists,
+    ConditionVariant,
     group_by_category,
     is_character_collection_param,
     is_character_param,
@@ -127,11 +128,18 @@ class ConditionEntry:
     ``target`` is empty for a built-in check or the generic function/method
     pickers; for a *promoted* standalone function it holds that function's
     name, so the panel jumps straight to its parameter form.
+
+    ``variant`` indexes into that function's declared variants, or is -1
+    when it has none. A function with variants contributes one entry per
+    variant and none of its own: the variants *are* the questions it can
+    answer, so listing the unpinned form beside them would offer a third
+    entry whose meaning depends on a default the writer cannot see.
     """
 
     label: str
     kind: str
     target: str = ""
+    variant: int = -1
 
 
 def build_condition_catalog(allow: Allowlists) -> dict[str, list[ConditionEntry]]:
@@ -143,6 +151,9 @@ def build_condition_catalog(allow: Allowlists) -> dict[str, list[ConditionEntry]
     name). Categories are returned in :data:`CONDITION_CATEGORIES` order,
     empty ones dropped; within a category the built-ins keep their order and
     the promoted functions follow, sorted by label.
+
+    A function declaring ``variants`` contributes **one entry per variant
+    instead of one of its own** — see :class:`ConditionEntry`.
     """
     builtins: dict[str, list[ConditionEntry]] = {c: [] for c in CONDITION_CATEGORIES}
     for kind, category, label in _BUILTIN_TYPES:
@@ -155,6 +166,13 @@ def build_condition_catalog(allow: Allowlists) -> dict[str, list[ConditionEntry]
         top = _FUNC_CATEGORY_TO_TOP.get(
             allow.condition_function_categories.get(name, ""), "Advanced",
         )
+        variants = allow.condition_function_variants.get(name, [])
+        if variants:
+            for index, variant in enumerate(variants):
+                functions[top].append(
+                    ConditionEntry(variant.label, "function", name, index),
+                )
+            continue
         label = allow.condition_function_labels.get(name, name)
         functions[top].append(ConditionEntry(label, "function", name))
 
@@ -380,6 +398,26 @@ def join_conditions(clauses: list[tuple[str, str]]) -> str:
     return " ".join(parts)
 
 
+def default_collection_mode(pdefault: str, declared: str = "") -> str:
+    """Which form a character-collection field opens on.
+
+    A *declared* ``param_collection_mode`` wins outright — it is the only
+    way to say "this one asks about named characters", which no signature
+    reveals. An unknown key falls through to the derivation rather than
+    failing: a typo in an allowlist should not empty the field.
+
+    Otherwise it is derived. A **required** collection is one the game
+    itself fills from a location (`are_Characters_friends`,
+    `check_if_need_to_change`), so it leads with "present here". An
+    **optional** one (it has a default, e.g. ``arriving_Characters = None``)
+    starts on the explicit pick, because presuming everyone present would
+    change the question being asked.
+    """
+    if declared and declared in COLLECTION_MODE_BY_KEY:
+        return COLLECTION_MODE_BY_KEY[declared]
+    return COLLECTION_MODE_PICK if pdefault.strip() else COLLECTION_MODE_PRESENT
+
+
 def wrap_condition(condition: str, mode: str) -> str:
     """Wrap a condition expression for insertion into the editor.
 
@@ -411,6 +449,10 @@ PARAM_WIDGET_LOCATION = "location"            # single location -> editable slug
 PARAM_WIDGET_BOOL = "bool"                    # bool -> True/False combo
 PARAM_WIDGET_DATE = "date"                    # (day, period) tuple -> Day + period fields
 PARAM_WIDGET_TEXT = "text"                    # anything else -> free text
+# Pinned by the selected variant: carries its value into the call in
+# signature order but draws nothing. Never returned by param_widget_kind —
+# it is chosen by the entry, not derived from the parameter's type.
+PARAM_WIDGET_FIXED = "fixed"
 
 # TNH time-of-day periods, in ``time_index`` order (see the base game's
 # ``time_options``). A "date" is a ``(day, time_index)`` pair; the date widget
@@ -507,6 +549,14 @@ COLLECTION_MODE_VISIBLE: str = "Characters visible here"
 _COLLECTION_MODES: list[str] = [
     COLLECTION_MODE_PRESENT, COLLECTION_MODE_VISIBLE, COLLECTION_MODE_PICK,
 ]
+# The ``param_collection_mode`` values an allowlist entry may declare, mapped
+# to the mode they select. Short keys because they are typed by hand in YAML.
+COLLECTION_MODE_BY_KEY: dict[str, str] = {
+    "pick": COLLECTION_MODE_PICK,
+    "present": COLLECTION_MODE_PRESENT,
+    "visible": COLLECTION_MODE_VISIBLE,
+}
+
 _COLLECTION_MODE_FUNCTIONS: dict[str, str] = {
     COLLECTION_MODE_PRESENT: "get_present_Characters",
     COLLECTION_MODE_VISIBLE: "get_visible_Characters",
@@ -749,6 +799,9 @@ class _ConditionClausePanel(ttk.Frame):
         # kind is "function" — _params_function has no generic picker to fall
         # back on.
         self._preset_func: str = ""
+        # Which of that function's variants the selected entry stands for,
+        # or -1 when it declares none. See :class:`ConditionEntry`.
+        self._preset_variant: int = -1
 
         # -- Two-level condition-type selector (Category -> Condition) -------
         self._catalog = build_condition_catalog(allow)
@@ -840,6 +893,7 @@ class _ConditionClausePanel(ttk.Frame):
             return
         self._current_kind = entry.kind
         self._preset_func = entry.target if entry.kind == "function" else ""
+        self._preset_variant = entry.variant if entry.kind == "function" else -1
         self._build_params(entry.kind)
 
     def _build_params(self, kind: str) -> None:
@@ -1281,6 +1335,7 @@ class _ConditionClausePanel(ttk.Frame):
         ptype: str,
         pdefault: str,
         choices: list[str] | dict[str, Any] | None,
+        collection_mode: str = "",
     ) -> _ParamField:
         """Build the label + input widget for one signature parameter.
 
@@ -1303,7 +1358,9 @@ class _ConditionClausePanel(ttk.Frame):
             kind = PARAM_WIDGET_TEXT
 
         if kind == PARAM_WIDGET_CHARACTER_SET:
-            return self._build_character_set_widget(parent, row, pname, pdefault)
+            return self._build_character_set_widget(
+                parent, row, pname, pdefault, collection_mode,
+            )
         if kind == PARAM_WIDGET_LOCATION:
             return self._build_location_widget(parent, row, pname, pdefault)
         if kind == PARAM_WIDGET_DATE:
@@ -1350,6 +1407,7 @@ class _ConditionClausePanel(ttk.Frame):
         row: int,
         pname: str,
         pdefault: str,
+        collection_mode: str = "",
     ) -> _ParamField:
         """Build a character-collection field: a mode picker over three forms.
 
@@ -1366,19 +1424,18 @@ class _ConditionClausePanel(ttk.Frame):
         reopening the picker). :meth:`_ParamField.value` renders whichever mode
         is showing.
 
-        An *optional* collection (one with a default, e.g.
-        ``arriving_Characters = None``) starts on "Pick characters" with
-        nothing ticked — defaulting it to everyone present would silently
-        change what the condition asks.
+        Which mode it opens on is :func:`default_collection_mode`, which an
+        entry can override per parameter — the derivation from the signature
+        is right for the functions the game fills from a location and wrong
+        for one asking about named characters.
         """
         char_vars: list[tuple[str, tk.BooleanVar]] = [
             (char, tk.BooleanVar(value=False)) for char in self._characters
         ]
-        optional = bool(pdefault.strip())
         holder = ttk.Frame(parent)
         holder.grid(row=row, column=1, sticky=tk.W, pady=1)
         mode_var = tk.StringVar(
-            value=COLLECTION_MODE_PICK if optional else COLLECTION_MODE_PRESENT,
+            value=default_collection_mode(pdefault, collection_mode),
         )
         ttk.Combobox(
             holder, textvariable=mode_var, values=_COLLECTION_MODES,
@@ -1597,10 +1654,16 @@ class _ConditionClausePanel(ttk.Frame):
     ) -> None:
         """(Re)build the per-parameter fields + comparison + note for *name*.
 
-        Shared by the generic function picker and the preset path (a function
-        promoted to a top-level condition entry), so both render identically.
         The selected function's name is read back from ``_vars["func_name"]``
         by :meth:`get_condition`; callers set it before calling this.
+
+        When the entry is one **variant** of the function, that variant's
+        pinned parameters get a value-carrying field with no widget: they
+        still occupy their place in signature order, so the assembled call
+        is unchanged, but the writer is not asked about them — the pin is
+        what makes this entry a different question from its sibling, not a
+        choice to revisit. The variant's own note replaces the function's
+        when it has one, since the function's describes both questions.
         """
         for widget in params_frame.winfo_children():
             widget.destroy()
@@ -1609,17 +1672,46 @@ class _ConditionClausePanel(ttk.Frame):
         # for the next per-character refresh.
         self._per_char_choice_widgets.clear()
 
-        note_label.configure(text=flow_text(self._allow.condition_function_notes.get(name, "")))
+        variant = self._current_variant(name)
+        note = self._allow.condition_function_notes.get(name, "")
+        if variant is not None and variant.notes:
+            note = variant.notes
+        note_label.configure(text=flow_text(note))
         sig = self._allow.condition_function_signatures.get(name, "")
         self._build_comparison(compare_frame, return_is_comparable(sig))
         choices_map = self._allow.condition_function_param_choices.get(name, {})
-        for i, (pname, ptype, pdefault) in enumerate(parse_signature_params(sig)):
+        collection_modes = self._allow.condition_function_collection_modes.get(name, {})
+        pinned = variant.fixed if variant is not None else {}
+        # Row is counted separately from the parameter index: a pinned
+        # parameter draws nothing, and using the index would leave its row
+        # blank in the middle of the form.
+        row = 0
+        for pname, ptype, pdefault in parse_signature_params(sig):
+            if pname in pinned:
+                self._func_params.append(
+                    _ParamField(
+                        pname, pinned[pname], PARAM_WIDGET_FIXED,
+                        var=tk.StringVar(value=pinned[pname]),
+                    ),
+                )
+                continue
             self._func_params.append(
                 self._build_param_field(
-                    params_frame, i, pname, ptype, pdefault, choices_map.get(pname),
+                    params_frame, row, pname, ptype, pdefault,
+                    choices_map.get(pname), collection_modes.get(pname),
                 ),
             )
+            row += 1
         self._notify_change()
+
+    def _current_variant(self, name: str) -> ConditionVariant | None:
+        """The selected entry's variant of *name*, or None if it has none."""
+        if self._preset_variant < 0:
+            return None
+        variants = self._allow.condition_function_variants.get(name, [])
+        if self._preset_variant >= len(variants):
+            return None
+        return variants[self._preset_variant]
 
     def _params_function(self, parent: ttk.Frame) -> None:
         """Build the parameter form for the selected standalone function.
