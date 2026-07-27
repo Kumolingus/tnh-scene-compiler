@@ -6,7 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **An allowlist entry can declare `variants`** — one function listed as
+  several named questions in the Condition Builder, each pinning some of its
+  parameters. For a parameter that *replaces* the question rather than
+  refining it, a bare field asks the writer to know the base game well enough
+  to guess what the default means. A pinned parameter draws no widget: it is
+  what makes the entry a different question, not a choice to revisit. A
+  function declaring variants contributes those entries **instead of** one of
+  its own — listing the unpinned form beside them would offer a third question
+  resting on an invisible default.
+- **`param_collection_mode`** — which of the three forms a character-collection
+  field opens on, per parameter. The default is derived from the signature (a
+  required collection is one the game fills from a location, so it leads with
+  "Characters present here"), which is right for `are_Characters_friends` and
+  `check_if_need_to_change` and wrong for a function asking about named
+  characters. Nothing in a signature tells the two apart.
+
+### Changed
+
+- **"In a relationship" is now two entries**: *In a relationship* and *In a
+  relationship, and the others know*. `are_Characters_in_Partners`'s
+  `knows_about` is not a refinement — left at the game's default it also walks
+  every *other* partner and fails on the first who has not been told about the
+  character you asked about. "Is she the player's partner" therefore answered
+  **False for someone who is**, as soon as a second, undisclosed partner
+  existed. The plain entry pins it to `False`; the disclosure audit is a real
+  question and keeps the other entry, under a name that says so.
+  - Its character field now opens on "Pick characters". It is a required
+    collection, so it used to lead with "everyone present here" — which asked
+    whether every character in the room was a partner.
+
 ### Fixed
+
+- **The glossary described the partner check wrongly.** It read
+  "`are_Characters_in_Partners([JeanGrey, Rogue])` — yes/no, are they dating
+  each other". The function asks whether each character listed is a partner of
+  the **player**; naming two asks whether they are *both* the player's
+  partners. The example sat directly under the friendship checks, which really
+  are about two characters, so the shape of the section taught the wrong
+  reading.
 
 - **The GUI tests can no longer withdraw themselves from a green run.** Two
   test modules defined their own `tk_root` fixture instead of using the

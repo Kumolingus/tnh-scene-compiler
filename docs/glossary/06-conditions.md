@@ -102,20 +102,31 @@ How a character feels — about the player, and about other characters:
   (`>= medium`). How the character feels about the *player*.
 - **Friendship check** — `JeanGrey.friends_with(Rogue)` — yes/no, are these
   two friends.
-- **In a relationship** — `are_Characters_in_Partners([JeanGrey, Rogue])` —
-  yes/no, are they dating each other.
+- **In a relationship** — `are_Characters_in_Partners([JeanGrey], False)` —
+  yes/no, is she one of the **player's** partners. Note this one is about the
+  player, not about the two characters you name: listing several asks whether
+  they are *all* partners of the player, not whether they are dating each
+  other.
 - **Friendship tier** — `get_effective_friendship(JeanGrey, Rogue)` returns a
   number: enemies `-2`, rivals `-1`, acquaintances `0`, friends `1`, good
   friends `2`, best friends `3`. **Compare it** (`>= 2`, `< 0`).
 
 ```
-[[if are_Characters_in_Partners([JeanGrey, Rogue])]]
+[[if are_Characters_in_Partners([JeanGrey], False)]]
 [[if get_effective_friendship(JeanGrey, Rogue) >= 2]]
 ```
 
 > Watch out: a group of characters goes in **square brackets** —
-> `are_Characters_in_Partners([JeanGrey, Rogue])`, not
+> `are_Characters_in_Partners([JeanGrey, Rogue], False)`, not
 > `(JeanGrey, Rogue)`.
+
+> The second argument is worth understanding. Left at `True`, the check also
+> demands that every *other* partner has been told about the character you
+> asked about — so it answers `False` for someone who really is a partner, as
+> soon as a second partner exists who does not know. Pass `False` for a plain
+> "are they together". The Condition Builder offers the two as separate
+> entries so you never have to remember this: "In a relationship" and
+> "In a relationship, and the others know".
 
 ### Character-state conditions
 
