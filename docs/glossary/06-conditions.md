@@ -133,7 +133,7 @@ What one character is like, and how she is right now:
   `desire`, `breast_size`, `sex_experience`, … Compare it.
 
 ```
-[[if JeanGrey.has("shy") and JeanGrey.desire >= 0.5]]
+[[if JeanGrey.has("shy") AND JeanGrey.desire >= 0.5]]
 [[if JeanGrey.mood == "mad"]]
 ```
 
@@ -162,13 +162,17 @@ and calendar:
 
 ### Combining conditions
 
-Combine any of the above with `and`, `or`, `not`:
+Combine any of the above with `AND`, `OR`, `NOT`:
 
 ```
-[[if JeanGrey.love >= 500 and JeanGrey.mood == "normal"]]
-[[if not JeanGrey.has("angry")]]
+[[if JeanGrey.love >= 500 AND JeanGrey.mood == "normal"]]
+[[if NOT JeanGrey.has("angry")]]
 ```
 
-> Watch out: `and` binds tighter than `or` (same as most languages), so
-> `a or b and c` means `a or (b and c)`. When you mix them, add parentheses
-> to say exactly what you mean: `(a or b) and c`.
+> Capitals are just a habit that makes the joins easy to spot in a long
+> condition — `and`, `or`, `not` in lowercase mean exactly the same thing and
+> always will. The Condition Builder writes them in capitals.
+
+> Watch out: `AND` binds tighter than `OR` (same as most languages), so
+> `a OR b AND c` means `a OR (b AND c)`. When you mix them, add parentheses
+> to say exactly what you mean: `(a OR b) AND c`.

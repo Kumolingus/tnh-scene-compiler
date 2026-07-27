@@ -49,7 +49,12 @@ from tnh_scene_compiler.expr_parser import (
         ("\"x\" in collection", "\"x\" in collection"),
         ("x not in collection", "x not in collection"),
         ("check_approval(JeanGrey, \"love\")", "check_approval(JeanGrey, \"love\")"),
-        ("(a or b) and c", "a or b and c"),
+        # The parser drops the parentheses (the tree shape carries the
+        # grouping), so ``to_rpy`` has to put them back — dropping them from
+        # the text too would turn this into ``a or (b and c)``. This case
+        # asserted the flattened form until the renderers learned precedence;
+        # see tests/test_expr_precedence.py.
+        ("(a or b) and c", "(a or b) and c"),
     ],
 )
 def test_parse_accepts_and_round_trips(source: str, expected: str) -> None:

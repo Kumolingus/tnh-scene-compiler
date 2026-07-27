@@ -78,6 +78,10 @@ from .ast_nodes import (
     Slugline,
 )
 from .expr_parser import (
+    PRECEDENCE_AND,
+    PRECEDENCE_ATOM,
+    PRECEDENCE_NOT,
+    PRECEDENCE_OR,
     Attribute,
     BoolOp,
     Call,
@@ -87,6 +91,7 @@ from .expr_parser import (
     Member,
     Name,
     UnaryNot,
+    parenthesize,
 )
 
 
@@ -571,22 +576,34 @@ def _render_expr(
             _render_expr(a, scene_local, allow, ctx) for a in expr.args
         )
         return f"{target_str}({arg_str})"
+    # The four operator nodes below re-parenthesise from precedence: the
+    # parser drops the writer's grouping, so this is the only place it can
+    # come back. ``expr`` is the DSL-transformed tree (``dsl_transform``
+    # recurses), so a child inspected here has its final node kind.
     if isinstance(expr, UnaryNot):
-        return f"not {_render_expr(expr.operand, scene_local, allow, ctx)}"
+        operand = _render_expr(expr.operand, scene_local, allow, ctx)
+        return f"not {parenthesize(operand, expr.operand, PRECEDENCE_NOT)}"
     if isinstance(expr, BoolOp):
+        own = PRECEDENCE_OR if expr.op == "or" else PRECEDENCE_AND
         sep = f" {expr.op} "
         return sep.join(
-            _render_expr(o, scene_local, allow, ctx) for o in expr.operands
+            parenthesize(_render_expr(o, scene_local, allow, ctx), o, own)
+            for o in expr.operands
         )
     if isinstance(expr, Compare):
-        parts = [_render_expr(expr.left, scene_local, allow, ctx)]
+        left = _render_expr(expr.left, scene_local, allow, ctx)
+        parts = [parenthesize(left, expr.left, PRECEDENCE_ATOM)]
         for op, right in expr.ops_and_rights:
-            parts.append(f" {op} {_render_expr(right, scene_local, allow, ctx)}")
+            rendered = _render_expr(right, scene_local, allow, ctx)
+            parts.append(f" {op} {parenthesize(rendered, right, PRECEDENCE_ATOM)}")
         return "".join(parts)
     if isinstance(expr, Member):
         left = _render_expr(expr.left, scene_local, allow, ctx)
         right = _render_expr(expr.right, scene_local, allow, ctx)
-        return f"{left} {expr.op} {right}"
+        return (
+            f"{parenthesize(left, expr.left, PRECEDENCE_ATOM)} {expr.op} "
+            f"{parenthesize(right, expr.right, PRECEDENCE_ATOM)}"
+        )
     if isinstance(expr, ListExpr):
         elements = ", ".join(
             _render_expr(e, scene_local, allow, ctx) for e in expr.elements

@@ -126,7 +126,8 @@ class UnaryNot:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
-        return f"not {self.operand.to_rpy()}"
+        operand = parenthesize(self.operand.to_rpy(), self.operand, PRECEDENCE_NOT)
+        return f"not {operand}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,8 +139,11 @@ class BoolOp:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
+        own = PRECEDENCE_OR if self.op == "or" else PRECEDENCE_AND
         sep = f" {self.op} "
-        return sep.join(a.to_rpy() for a in self.operands)
+        return sep.join(
+            parenthesize(a.to_rpy(), a, own) for a in self.operands
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,9 +155,9 @@ class Compare:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
-        out = [self.left.to_rpy()]
+        out = [parenthesize(self.left.to_rpy(), self.left, PRECEDENCE_ATOM)]
         for op, right in self.ops_and_rights:
-            out.append(f" {op} {right.to_rpy()}")
+            out.append(f" {op} {parenthesize(right.to_rpy(), right, PRECEDENCE_ATOM)}")
         return "".join(out)
 
 
@@ -167,7 +171,9 @@ class Member:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
-        return f"{self.left.to_rpy()} {self.op} {self.right.to_rpy()}"
+        left = parenthesize(self.left.to_rpy(), self.left, PRECEDENCE_ATOM)
+        right = parenthesize(self.right.to_rpy(), self.right, PRECEDENCE_ATOM)
+        return f"{left} {self.op} {right}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,6 +206,58 @@ class ListExpr:
 
 
 Expr = Literal | Name | Attribute | Call | UnaryNot | BoolOp | Compare | Member | ListExpr
+
+
+# --- Operator precedence ------------------------------------------------------
+
+# Binding strength of each operator in the ``[[if]]`` subset, low to high,
+# matching Python's own. The parser does not keep the writer's parentheses —
+# the tree shape is what carries the grouping — so a renderer has to put them
+# back from precedence alone. Without that, ``not (a and b)`` renders as
+# ``not a and b``, which Python reads as ``(not a) and b``: valid Ren'Py, the
+# other branch, and nothing raises anywhere along the way.
+PRECEDENCE_OR: int = 1
+PRECEDENCE_AND: int = 2
+PRECEDENCE_NOT: int = 3
+PRECEDENCE_COMPARISON: int = 4
+PRECEDENCE_ATOM: int = 5
+
+
+def precedence(expr: Expr) -> int:
+    """Return the binding strength of *expr*'s top-level operator.
+
+    Atoms — names, literals, calls, sequence literals — are self-delimiting
+    and never need protecting, so they rank above every operator.
+    """
+    if isinstance(expr, BoolOp):
+        return PRECEDENCE_OR if expr.op == "or" else PRECEDENCE_AND
+    if isinstance(expr, UnaryNot):
+        return PRECEDENCE_NOT
+    if isinstance(expr, (Compare, Member)):
+        return PRECEDENCE_COMPARISON
+    return PRECEDENCE_ATOM
+
+
+def parenthesize(rendered: str, expr: Expr, parent_precedence: int) -> str:
+    """Wrap *rendered* in parentheses when *expr* binds looser than its parent.
+
+    ``rendered`` is *expr* already turned into text by the caller: the two
+    renderers (this module's ``to_rpy`` and :mod:`codegen`, which resolves
+    scene-local names) emit different text for the same node, so the
+    decision is shared but the rendering is not.
+
+    Operands of a comparison or membership test pass
+    :data:`PRECEDENCE_ATOM` rather than :data:`PRECEDENCE_COMPARISON`, so
+    anything that is not an atom gets wrapped. Two reasons: ``(not a) == b``
+    must not flatten to ``not a == b`` (Python reads that as
+    ``not (a == b)``), and ``a == (b in c)`` must not flatten to
+    ``a == b in c``, which Python reads as a *chained* comparison. Neither
+    over-parenthesises real conditions — the grammar only allows an operator
+    there when the writer wrote the parentheses in the first place.
+    """
+    if precedence(expr) < parent_precedence:
+        return f"({rendered})"
+    return rendered
 
 
 # --- Tokeniser ----------------------------------------------------------------
@@ -244,10 +302,28 @@ class _Tok:
     col: int  # 0-based offset within the expression source
 
 
-_KEYWORDS = {
+# Value literals, spelled exactly as Python spells them. ``TRUE`` is a name,
+# not a boolean: these are values a condition compares *against*, so they
+# belong to the condition, not to the glue between conditions.
+_LITERAL_KEYWORDS: dict[str, tuple[str, bool | None]] = {
     "True": (_TK.TRUE, True),
     "False": (_TK.FALSE, False),
     "None": (_TK.NONE, None),
+}
+
+# Boolean and membership operators, matched **case-insensitively**:
+# ``JeanGrey.nearby AND NOT lied`` and ``JeanGrey.nearby and not lied`` are
+# the same expression. Uppercase is the house style — it reads as glue
+# rather than as part of a condition, and it is what the Condition Builder
+# inserts — but lowercase stays valid, so no existing scene has to change.
+#
+# The AST is unaffected either way: ``_parse_and`` / ``_parse_or`` / the
+# membership branch hardcode the lowercase spelling into the node, so
+# codegen always emits Python regardless of how the writer typed it.
+#
+# The cost, accepted: a scene-local state key can no longer be named `AND`,
+# `Or`, `NOT` or `In` in any casing.
+_OPERATOR_KEYWORDS: dict[str, tuple[str, str]] = {
     "and": (_TK.AND, "and"),
     "or": (_TK.OR, "or"),
     "not": (_TK.NOT, "not"),
@@ -308,8 +384,14 @@ def _scan(text: str) -> list[_Tok]:
             while i < n and (text[i].isalnum() or text[i] == "_"):
                 i += 1
             ident = text[start:i]
-            if ident in _KEYWORDS:
-                kind, _ = _KEYWORDS[ident]
+            # Literals match exactly; operators match in any casing. The
+            # token keeps the source spelling so an error message quotes
+            # the writer's own text back at them.
+            if ident in _LITERAL_KEYWORDS:
+                kind, _ = _LITERAL_KEYWORDS[ident]
+                tokens.append(_Tok(kind, ident, start))
+            elif ident.lower() in _OPERATOR_KEYWORDS:
+                kind, _ = _OPERATOR_KEYWORDS[ident.lower()]
                 tokens.append(_Tok(kind, ident, start))
             elif ident in _RESERVED_WORDS:
                 tokens.append(_Tok(_TK.ILLEGAL, ident, start))

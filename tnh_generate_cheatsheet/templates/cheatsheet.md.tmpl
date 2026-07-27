@@ -209,12 +209,12 @@ Example: `[[if JeanGrey.personality("bold")]]`
 
 ### Combining conditions
 
-Use `and`, `or`, `not`, and parentheses:
+Use `AND`, `OR`, `NOT`, and parentheses (lowercase works too):
 
 ```
-[[if JeanGrey.love >= medium and JeanGrey.has("romantic")]]
-[[if not LauraKinney.nearby]]
-[[if (Rogue.trust >= small) or JeanGrey.friends_with(Rogue)]]
+[[if JeanGrey.love >= medium AND JeanGrey.has("romantic")]]
+[[if NOT LauraKinney.nearby]]
+[[if (Rogue.trust >= small) OR JeanGrey.friends_with(Rogue)]]
 ```
 
 ## Title page keys
@@ -274,12 +274,16 @@ Exact behaviour is documented in the Guide.
 Allowed:
 
 - Comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=`
-- Logic: `and`, `or`, `not`
-- Literals: int, float, str (`"..."`), `True`, `False`, `None`
+- Logic: `AND`, `OR`, `NOT` — either casing works (`and`, `or`, `not` are the
+  same thing); capitals are the house style and what the Condition Builder
+  inserts
+- Literals: int, float, str (`"..."`), `True`, `False`, `None` — these are
+  case-sensitive, unlike the operators above
 - Attribute access on allowlisted roots: `<Character>.attr`,
   `player.attr`, or a scene-local state key
-- Membership: `x in y`, `x not in y`
-- Parentheses for grouping
+- Membership: `x IN y`, `x NOT IN y`
+- Parentheses for grouping: `NOT (a AND b)`, `(a OR b) AND c` — they mean what
+  they say, so use them whenever you mix `AND` and `OR`
 
 Not allowed:
 

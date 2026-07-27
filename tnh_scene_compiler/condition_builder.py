@@ -365,16 +365,17 @@ def join_conditions(clauses: list[tuple[str, str]]) -> str:
     operator is ignored (there's nothing before it). Empty conditions are
     skipped, so an in-progress clause the writer hasn't filled yet doesn't
     break the preview, and the operator that follows a skipped clause still
-    joins the next one. Operators (``"and"`` / ``"or"``) are inserted
-    verbatim; note ``and`` binds tighter than ``or`` in Python, so a mixed
-    chain follows that precedence.
+    joins the next one. Operators are inserted verbatim, uppercase (``AND``
+    / ``OR``) being what the dialog offers and what the grammar now reads as
+    the house style; note ``and`` binds tighter than ``or``, whatever the
+    casing, so a mixed chain follows that precedence.
     """
     parts: list[str] = []
     for op, cond in clauses:
         if not cond:
             continue
         if parts:
-            parts.append(op or "and")
+            parts.append(op or "AND")
         parts.append(cond)
     return " ".join(parts)
 
@@ -1939,7 +1940,10 @@ class ConditionBuilderDialog(tk.Toplevel):
         clauses: list[tuple[str, str]] = []
         for entry in self._clauses:
             op_var = entry["op_var"]
-            op = "" if op_var is None else op_var.get().lower()
+            # Inserted as picked, i.e. uppercase: the combo has always shown
+            # AND / OR, and lowercasing here was the one place the dialog
+            # disagreed with its own labels.
+            op = "" if op_var is None else op_var.get()
             clauses.append((op, entry["panel"].get_condition()))
         return join_conditions(clauses)
 

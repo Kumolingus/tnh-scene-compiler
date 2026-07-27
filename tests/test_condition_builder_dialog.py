@@ -98,9 +98,13 @@ def test_many_clauses_join_with_their_operators(tk_root, allow) -> None:
     dlg._add_clause()
     dlg._clauses[2]["op_var"].set("OR")
     combined = dlg._build_current_condition()
-    # Three approval clauses: "X.love >= 500 and X.love >= 500 or X.love >= 500".
-    assert combined.count(" and ") == 1
-    assert combined.count(" or ") == 1
+    # Three approval clauses: "X.love >= 500 AND X.love >= 500 OR X.love >= 500".
+    # Inserted uppercase, as the combo shows them — the grammar reads either
+    # casing (see tests/test_expr_operator_casing.py).
+    assert combined.count(" AND ") == 1
+    assert combined.count(" OR ") == 1
+    assert " and " not in combined
+    assert " or " not in combined
 
 
 def test_note_label_populates_for_tier_function(tk_root, allow) -> None:
