@@ -1,0 +1,49 @@
+character: EmmaFrost
+source: TNH + Mod
+generated_at: '2026-07-26'
+values:
+- name: EmmaFrost_medium_straight_loose
+  source_file: game/characters/EmmaFrost/clothing/items/medium_straight_loose.rpy
+  source_line: 1
+- name: EmmaFrost_white_bikini_bottoms
+  source_file: game/characters/EmmaFrost/clothing/items/white_bikini_bottoms.rpy
+  source_line: 1
+- name: EmmaFrost_white_bikini_top
+  source_file: game/characters/EmmaFrost/clothing/items/white_bikini_top.rpy
+  source_line: 1
+- name: EmmaFrost_white_cashmere_coat
+  source_file: game/characters/EmmaFrost/clothing/items/white_cashmere_coat.rpy
+  source_line: 1
+- name: EmmaFrost_white_ch2_cape
+  source_file: game/characters/EmmaFrost/clothing/items/white_ch2_cape.rpy
+  source_line: 1
+- name: EmmaFrost_white_long_gloves
+  source_file: game/characters/EmmaFrost/clothing/items/white_long_gloves.rpy
+  source_line: 1
+- name: EmmaFrost_white_lowcut_pants
+  source_file: game/characters/EmmaFrost/clothing/items/white_lowcut_pants.rpy
+  source_line: 1
+- name: EmmaFrost_white_neck_corset
+  source_file: game/characters/EmmaFrost/clothing/items/white_neck_corset.rpy
+  source_line: 1
+- name: EmmaFrost_white_silk_minidress
+  source_file: game/characters/EmmaFrost/clothing/items/white_silk_minidress.rpy
+  source_line: 1
+- name: EmmaFrost_white_simple_choker
+  source_file: game/characters/EmmaFrost/clothing/items/white_simple_collar.rpy
+  source_line: 1
+- name: EmmaFrost_white_split_dress
+  source_file: game/characters/EmmaFrost/clothing/items/white_split_dress.rpy
+  source_line: 1
+- name: EmmaFrost_white_thighhigh_boots
+  source_file: game/characters/EmmaFrost/clothing/items/white_thighhigh_boots.rpy
+  source_line: 1
+- name: EmmaFrost_white_tight_shorts
+  source_file: game/characters/EmmaFrost/clothing/items/white_tight_shorts.rpy
+  source_line: 1
+- name: EmmaFrost_white_tube_corset
+  source_file: game/characters/EmmaFrost/clothing/items/white_tube_corset.rpy
+  source_line: 1
+- name: EmmaFrost_white_X_corset
+  source_file: game/characters/EmmaFrost/clothing/items/white_X_corset.rpy
+  source_line: 1

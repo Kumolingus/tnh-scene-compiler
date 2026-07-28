@@ -25,6 +25,11 @@ _FACE_RE = re.compile(
 def extract(context: ScanContext) -> ExtractionResult:
     """Return an :class:`ExtractionResult` keyed by character with a face list each."""
     result = ExtractionResult(category = "faces")
+    # A face name can be declared more than once for the same character (the
+    # base game defines e.g. LauraKinney "squint" at two lines). The allowlist
+    # only cares about the distinct authoring names, so keep the first
+    # occurrence and drop later duplicates instead of emitting the name twice.
+    seen: dict[str, set[str]] = {}
 
     for path in iter_all_rpy(context):
         text = safe_read_text(path)
@@ -35,6 +40,10 @@ def extract(context: ScanContext) -> ExtractionResult:
         for match in _FACE_RE.finditer(cleaned):
             character = match.group("character")
             name = match.group("name")
+            seen_names = seen.setdefault(character, set())
+            if name in seen_names:
+                continue
+            seen_names.add(name)
             line = cleaned[: match.start()].count("\n") + 1
             entry = AllowlistEntry(
                 name = name,

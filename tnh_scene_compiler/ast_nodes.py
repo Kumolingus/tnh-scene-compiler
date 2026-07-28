@@ -28,7 +28,6 @@ class TitlePage:
         tags: Optional list of mod-prefixed tag strings (``Tags:`` key).
         location: Optional slugline text implying ``set_scene`` at entry
             (``Location:`` key).
-        format_version: Optional format version override (``Format:`` key).
         source_line: 1-based line where the title page starts (always 1).
     """
 
@@ -43,7 +42,6 @@ class TitlePage:
     repeatable: bool | None = None
     tags: tuple[str, ...] = ()
     location: str | None = None
-    format_version: int | None = None
     openness: str | None = None
     stage: str | None = None
     source_line: int = 1
@@ -58,7 +56,6 @@ class Slugline:
     position so errors can point at the original spelling.
     """
 
-    prefix: str
     text: str
     line: int
     col: int
@@ -70,7 +67,7 @@ class Parenthetical:
 
     Slot order matches §11.6:
     ``(mood, face, arms, look, outfit, stage)``. Named-only slots
-    (``left_arm``, ``right_arm``, ``pose``) have no positional index.
+    (``left_arm``, ``right_arm``) have no positional index.
 
     Each slot holds either the value string or ``None`` when unspecified.
     The ``medium`` slot is ``"spoken"`` (default), ``"text"`` (phone-text
@@ -86,7 +83,6 @@ class Parenthetical:
     stage: str | None = None
     left_arm: str | None = None
     right_arm: str | None = None
-    pose: str | None = None
     medium: str | None = None
     line: int = 0
     col: int = 0
@@ -95,7 +91,7 @@ class Parenthetical:
         """Return ``True`` when any visual slot is set. Medium is ignored."""
         return any((
             self.mood, self.face, self.arms, self.look, self.outfit,
-            self.stage, self.left_arm, self.right_arm, self.pose,
+            self.stage, self.left_arm, self.right_arm,
         ))
 
 
@@ -190,12 +186,18 @@ class Run:
             function/method matches an allowlist entry.
         target_name: The function name (bare) or last attribute
             (``Char.method`` -> ``method``) used for allowlist lookup.
+        arg_count: Number of positional arguments in the call. The
+            safe-subset grammar admits no keyword arguments, so this is the
+            full argument count — the validator compares it against the
+            allowlisted signature's arity to catch run-time call errors at
+            compile time.
     """
 
     call_text: str
     target_name: str
     line: int = 0
     col: int = 0
+    arg_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,12 +212,19 @@ class FxCall:
     purpose-specific: ``fx.yaml`` lists engine effects,
     ``run_operations.yaml`` lists state mutations.
 
+    Attributes:
+        call_text: The raw call expression, kept verbatim for codegen.
+        target_name: The function name used for ``fx.yaml`` lookup.
+        arg_count: Number of positional arguments in the call (no keyword
+            arguments are admitted by the grammar), compared against the
+            allowlisted signature's arity by the validator.
     """
 
     call_text: str
     target_name: str
     line: int = 0
     col: int = 0
+    arg_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)

@@ -212,14 +212,13 @@ def test_parse_rejects_unknown_directive() -> None:
     assert "Unknown directive" in excinfo.value.message
 
 
-def test_parse_slugline_parts_are_split() -> None:
+def test_parse_slugline_keeps_location_text() -> None:
     text = _TITLE_PREFIX + "INT. JEANGREY'S ROOM\n"
 
     scene = parse(text, path = "inline.scene")
 
     sluglines = [n for n in scene.body if isinstance(n, Slugline)]
     assert sluglines
-    assert sluglines[0].prefix == "INT."
     assert sluglines[0].text == "JEANGREY'S ROOM"
 
 

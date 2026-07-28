@@ -27,6 +27,16 @@ def test_excludes_tnh_when_flag_off(mini_mod_only_context):
     assert "Gamma" in names
 
 
+def test_builtin_speakers_omitted_when_flag_off(mini_mod_only_context):
+    # Player and Narrator exist in every TNH build, so they belong to the
+    # base layer; consumers merge it in, and re-emitting them mod-side would
+    # copy game values into the project's own file.
+    result = characters.extract(mini_mod_only_context)
+    names = {entry.name for entry in result.entries}
+    assert "Player" not in names
+    assert "Narrator" not in names
+
+
 def test_source_paths_are_relative_with_forward_slashes(mini_context):
     result = characters.extract(mini_context)
     alpha = next(entry for entry in result.entries if entry.name == "Alpha")

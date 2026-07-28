@@ -30,7 +30,7 @@ Positional order when writing without keys:
 ```
 
 Named-only slots (no positional slot):
-`left_arm`, `right_arm`, `pose`.
+`left_arm`, `right_arm`.
 
 Reserved value: `text` (on its own, switches the line to phone-text
 medium; mutually exclusive with visual attributes).
@@ -95,10 +95,19 @@ See `scenes_source/_allowlists/fx.yaml` for the authoritative list
 and signatures. The common ones: `phone_buzz()`, `knock_on_door()`,
 `bamf()`, `smack()`, `crack()`, `pow_effect()`.
 
+Pass the right number of arguments: the signature's argument count is
+checked at compile time, so too few or too many is a compile error
+(the message shows the full signature). The same check applies to
+`[[run ...]]` operations.
+
 ## Looks
 
 Typically the same list for every character. Source:
 `_allowlists/looks.yaml`.
+
+A `look` can be a single value (`look=down`) or a **set** for a livelier,
+random-drawn gaze: `look={down|neutral}` (members separated by `|` or `,`).
+Pair it with a `face` or `mood` so brows and mouth come from that preset.
 
 | Look |
 |---|
@@ -119,7 +128,7 @@ character below.
 ## Per-character authoring values
 
 Each character listed below has at least one authoring value (mood,
-face, pose, arm, outfit). Speakers that appear only in the Speakers
+face, arm, outfit). Speakers that appear only in the Speakers
 table have no authoring surface of their own.
 
 ### JeanGrey
@@ -137,12 +146,6 @@ table have no authoring surface of their own.
 |---|
 | `smile` |
 | `smirk` |
-
-#### Poses
-
-| Value |
-|---|
-| `standing` |
 
 #### Arms
 
@@ -170,6 +173,13 @@ table have no authoring surface of their own.
 | `casual` |
 | `uniform` |
 
+#### Features
+
+| Value |
+|---|
+| `date` |
+| `texting` |
+
 ### Rogue
 
 #### Faces
@@ -194,7 +204,9 @@ inside dialogue or narration as `[path]`.
 
 Source: `_allowlists/condition_functions.yaml` (manual). Functions
 callable from `[[if]]` expressions. Adding one here is a stable
-contract: the signature must stay compatible across releases.
+contract: the signature must stay compatible across releases. The
+argument count is checked at compile time — calling one with the
+wrong number of arguments is a compile error.
 
 | Name | Signature | Source file |
 |---|---|---|
@@ -277,12 +289,12 @@ Example: `[[if JeanGrey.personality("bold")]]`
 
 ### Combining conditions
 
-Use `and`, `or`, `not`, and parentheses:
+Use `AND`, `OR`, `NOT`, and parentheses (lowercase works too):
 
 ```
-[[if JeanGrey.love >= medium and JeanGrey.has("romantic")]]
-[[if not LauraKinney.nearby]]
-[[if (Rogue.trust >= small) or JeanGrey.friends_with(Rogue)]]
+[[if JeanGrey.love >= medium AND JeanGrey.has("romantic")]]
+[[if NOT LauraKinney.nearby]]
+[[if (Rogue.trust >= small) OR JeanGrey.friends_with(Rogue)]]
 ```
 
 ## Title page keys
@@ -332,6 +344,7 @@ Exact behaviour is documented in the Guide.
 | `[[choice]]` / `= option` / `[[/choice]]` | Player choice |
 | `[[call scene_id]]` | Chain another scene |
 | `[[show Character …]]` / `[[hide Character]]` | Visual change without dialogue |
+| `[[fade to black]]` / `[[fade from black]]` | Full-screen cinematic fade (optional duration: `[[fade to black 0.6]]`) |
 | `[[phone open]]` / `[[phone open Character]]` / `[[phone close]]` | Phone UI |
 | `[[run ...]]` | Persistent state change (only allowlisted operations) |
 | `[[approval Char love\|trust ±N]]` | Move love/trust by a stat tier (`tiny_stat` ... `massive_stat`) or integer (≥ 1) |
@@ -341,12 +354,18 @@ Exact behaviour is documented in the Guide.
 Allowed:
 
 - Comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=`
-- Logic: `and`, `or`, `not`
-- Literals: int, float, str (`"..."`), `True`, `False`, `None`
+- Logic: `AND`, `OR`, `NOT` — either casing works (`and`, `or`, `not` are the
+  same thing); capitals are the house style and what the Condition Builder
+  inserts
+- Literals: int, float, str (`"..."`), `True`, `False`, `None` — these three
+  names are case-sensitive, unlike the operators above. Negative numbers are
+  literals too (`-1`, `-2.5`), which is how you compare against the friendship
+  tiers for rivals and enemies: `>= -1`
 - Attribute access on allowlisted roots: `<Character>.attr`,
   `player.attr`, or a scene-local state key
-- Membership: `x in y`, `x not in y`
-- Parentheses for grouping
+- Membership: `x IN y`, `x NOT IN y`
+- Parentheses for grouping: `NOT (a AND b)`, `(a OR b) AND c` — they mean what
+  they say, so use them whenever you mix `AND` and `OR`
 
 Not allowed:
 

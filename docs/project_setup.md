@@ -76,7 +76,7 @@ against YAML allowlists. Unknown values produce a compile error with a "did you 
 
 1. **Base layer** — vanilla TNH data, ships in `allowlists_base/`
    inside the tool. Covers all base-game characters (including NPCs), locations,
-   moods, faces, arms, poses, outfits, SFX, looks, stages, and
+   moods, faces, arms, outfits, SFX, looks, stages, and
    interpolation paths.
 
 2. **Project layer** — your mod's additions, under `project_allowlists`
@@ -205,11 +205,11 @@ This scans the base game `.rpy` files and regenerates the YAML allowlists.
   without writing output.
 
 
-## Cheatsheet for writers
+## Reference for writers
 
 The editor's palette already shows all available characters, moods, faces, arms, FX, and locations with thumbnail
-previews. For an offline reference, a cheatsheet is included in the docs folder (`docs/scene_cheatsheet.md`) with
-copy-paste examples for every directive.
+previews. For a copy-paste reference of every directive, use the editor's "Glossary" button, or read the glossary
+files under `docs/glossary/`.
 
 ## Directory layout summary
 

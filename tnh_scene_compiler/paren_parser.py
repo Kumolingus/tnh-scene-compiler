@@ -13,6 +13,8 @@ pass.
 
 from __future__ import annotations
 
+import re
+
 from .ast_nodes import Parenthetical
 from .errors import CompileError
 
@@ -20,12 +22,12 @@ from .errors import CompileError
 # positional token past the last slot is an error.
 _POSITIONAL_SLOTS: tuple[str, ...] = ("mood", "face", "arms", "look", "outfit", "stage")
 
-# Every legal key, including the named-only ones (``left_arm``, ``right_arm``,
-# ``pose``) §11.6 "Valid keys". ``medium`` is not in the key-set — it is
-# triggered by the reserved value ``text``/``spoken``.
+# Every legal key, including the named-only ones (``left_arm``, ``right_arm``)
+# §11.6 "Valid keys". ``medium`` is not in the key-set — it is triggered by the
+# reserved value ``text``/``spoken``.
 _NAMED_KEYS: frozenset[str] = frozenset({
     "mood", "face", "arms", "look", "outfit", "stage",
-    "left_arm", "right_arm", "pose",
+    "left_arm", "right_arm",
 })
 
 # Reserved values that select the dialogue medium §11.7. ``spoken`` is the
@@ -58,11 +60,11 @@ def _split_tokens(body: str) -> list[str]:
             quote = ch
             buf.append(ch)
             continue
-        if ch == "(":
+        if ch in ("(", "{"):
             depth += 1
             buf.append(ch)
             continue
-        if ch == ")":
+        if ch in (")", "}"):
             depth -= 1
             buf.append(ch)
             continue
@@ -75,6 +77,26 @@ def _split_tokens(body: str) -> list[str]:
     if tail:
         out.append(tail)
     return out
+
+
+def parse_look_values(raw: str) -> list[str]:
+    """Split a ``look`` value into its gaze tokens.
+
+    A scalar look (``down``) yields ``["down"]``; a set look (``{down|neutral}``
+    or ``{down, neutral}``) yields the member tokens in order. Members are
+    separated by ``|`` or ``,`` inside the braces; empty members are dropped.
+
+    Used by both the validator (to check every member against the ``looks``
+    allowlist) and codegen (to emit a scalar string or a Python set literal for
+    ``eyes=``). A single quoted gaze produces the native ``change_face`` set
+    idiom (``eyes = {"down", "neutral"}``) so the sprite random-draws a member
+    each render for a livelier gaze.
+    """
+    text = (raw or "").strip()
+    if text.startswith("{") and text.endswith("}"):
+        inner = text[1:-1]
+        return [part.strip() for part in re.split(r"[|,]", inner) if part.strip()]
+    return [text] if text else []
 
 
 def _assign_slot(
@@ -262,7 +284,6 @@ def parse_parenthetical(
         stage = assignments.get("stage"),
         left_arm = assignments.get("left_arm"),
         right_arm = assignments.get("right_arm"),
-        pose = assignments.get("pose"),
         medium = medium,
         line = line,
         col = col,

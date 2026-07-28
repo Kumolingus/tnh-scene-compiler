@@ -4,20 +4,32 @@ from __future__ import annotations
 
 import re
 import tkinter as tk
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
-from .allowlists import Allowlists
+from .allowlists import (
+    Allowlists,
+    group_by_category,
+    is_character_param,
+    parse_signature_params,
+)
 from .condition_builder import ConditionBuilderDialog
 from .config import Config
 from .errors import CompileError
 from .new_scene_dialog import NewSceneDialog
 from . import output as out
 from .parser import parse
-from .thumbnails import get_store as _get_thumb_store
+from .thumbnails import (
+    SLOT_LABELS,
+    ThumbnailStore,
+    get_store as _get_thumb_store,
+    selected_visual_slots,
+)
 from .validator import validate
+from .windows import open_singleton_window
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +215,61 @@ class _LineNumbers(tk.Canvas):
 # Palette sidebar
 # ---------------------------------------------------------------------------
 
+# Shown under the per-arm rows. ``change_arms`` builds each side from
+# ``kwargs.get(f"{part}_arm", defaults.get(part, "neutral"))`` (npcs.rpy:256):
+# with no preset there are no defaults, so a side left empty is posed
+# ``neutral`` rather than left alone. Worth saying — "empty means unchanged"
+# is the natural reading and it is wrong.
+_PER_ARM_HINT = (
+    "With no Arms preset above, a side left empty is posed \"neutral\", "
+    "not left as it was."
+)
+
+
+# ---------------------------------------------------------------------------
+# Shared thumbnail preview
+# ---------------------------------------------------------------------------
+
+def _render_thumbnail_row(
+    frame: ttk.Frame,
+    store: ThumbnailStore | None,
+    character: str,
+    values: Mapping[str, str],
+) -> list[tk.PhotoImage]:
+    """Fill *frame* with one captioned thumbnail per filled visual slot.
+
+    *values* is the dialog's whole variable map; :func:`selected_visual_slots`
+    picks the visual slots out of it and orders them.  A slot whose value has
+    no artwork is skipped rather than drawn as an empty box.
+
+    The frame's children are rebuilt on every call.  That is cheap here: the
+    slots are driven by readonly combos, so updates are discrete, and there
+    are at most four cells.
+
+    Returns the ``PhotoImage`` objects so the caller can keep a reference —
+    Tk drops an image as soon as nothing on the Python side holds it, and the
+    preview would go blank.
+    """
+    for child in frame.winfo_children():
+        child.destroy()
+    images: list[tk.PhotoImage] = []
+    if store is None or not character:
+        return images
+    for column, (slot, value) in enumerate(selected_visual_slots(values)):
+        img = store.get_slot(character, slot, value)
+        if img is None:
+            continue
+        cell = ttk.Frame(frame)
+        cell.grid(row=0, column=column, sticky=tk.N, padx=(0, 8))
+        ttk.Label(cell, image=img).pack()
+        ttk.Label(
+            cell, text=f"{SLOT_LABELS[slot]}: {value}",
+            foreground="#808080", font=("Segoe UI", 8),
+        ).pack()
+        images.append(img)
+    return images
+
+
 # ---------------------------------------------------------------------------
 # Character insertion dialog
 # ---------------------------------------------------------------------------
@@ -227,7 +294,10 @@ class _CharacterInsertDialog(tk.Toplevel):
         self._char = char
         self._insert = insert_cb
         self._thumb_store = _get_thumb_store() if show_thumbnails else None
-        self._thumb_image: tk.PhotoImage | None = None
+        self._thumb_images: list[tk.PhotoImage] = []
+        # label (lowercased) -> (caption, combo, var), so a row is reached by
+        # name and can be hidden whole. See _add_field.
+        self._fields: dict[str, tuple[ttk.Label, ttk.Combobox, tk.StringVar]] = {}
 
         body = ttk.Frame(self, padding=12)
         body.pack(fill=tk.BOTH, expand=True)
@@ -236,11 +306,18 @@ class _CharacterInsertDialog(tk.Toplevel):
             body, text=char, font=("Segoe UI", 12, "bold"),
         ).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 8))
 
+        # The form fields live in their own frame so the preview beside them
+        # cannot stretch them: an arms thumbnail is ~385px tall, and a widget
+        # spanning the field rows would have grid spread that surplus across
+        # them, pulling the combos apart.
+        fields = ttk.Frame(body)
+        fields.grid(row=1, column=0, sticky=tk.NW)
+
         # Medium: spoken vs text
-        row = 1
-        ttk.Label(body, text="Medium:").grid(row=row, column=0, sticky=tk.W, pady=2)
+        row = 0
+        ttk.Label(fields, text="Medium:").grid(row=row, column=0, sticky=tk.W, pady=2)
         self._medium_var = tk.StringVar(value="spoken")
-        medium_frame = ttk.Frame(body)
+        medium_frame = ttk.Frame(fields)
         medium_frame.grid(row=row, column=1, sticky=tk.W, pady=2)
         ttk.Radiobutton(
             medium_frame, text="Spoken", variable=self._medium_var,
@@ -251,109 +328,92 @@ class _CharacterInsertDialog(tk.Toplevel):
             value="text", command=self._on_medium_change,
         ).pack(side=tk.LEFT)
 
-        # Mood
+        # Visual attribute rows. ``_add_field`` keeps the label beside its combo
+        # so both can be hidden together — text messages carry no visuals, and
+        # the per-arm slots stay out of the way until asked for.
         row += 1
         moods = [""] + sorted(
             allow.shared_moods | allow.char_moods.get(char, set())
         )
-        ttk.Label(body, text="Mood:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._mood_var = tk.StringVar()
-        self._mood_combo = ttk.Combobox(
-            body, textvariable=self._mood_var, values=moods,
-            state="readonly", width=20,
+        self._mood_var, self._mood_combo, row = self._add_field(
+            fields, row, "Mood", moods,
         )
-        self._mood_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
-        # Face
-        row += 1
         faces = [""] + sorted(allow.char_faces.get(char, set()))
-        ttk.Label(body, text="Face:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._face_var = tk.StringVar()
-        self._face_combo = ttk.Combobox(
-            body, textvariable=self._face_var, values=faces,
-            state="readonly", width=20,
+        self._face_var, self._face_combo, row = self._add_field(
+            fields, row, "Face", faces,
         )
-        self._face_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
-        # Pose
-        row += 1
-        poses = [""] + sorted(allow.char_poses.get(char, set()))
-        ttk.Label(body, text="Pose:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._pose_var = tk.StringVar()
-        self._pose_combo = ttk.Combobox(
-            body, textvariable=self._pose_var, values=poses,
-            state="readonly", width=20,
-        )
-        self._pose_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
-        # Arms
-        row += 1
         arms = [""] + sorted(allow.char_arms.get(char, set()))
-        ttk.Label(body, text="Arms:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._arms_var = tk.StringVar()
-        self._arms_combo = ttk.Combobox(
-            body, textvariable=self._arms_var, values=arms,
-            state="readonly", width=20,
+        self._arms_var, self._arms_combo, row = self._add_field(
+            fields, row, "Arms", arms,
         )
-        self._arms_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
 
-        # Outfit
+        # Per-arm override. Not a mode switch: the game's ``change_arms``
+        # takes the preset above as its defaults and lets a side kwarg
+        # override just that side (npcs.rpy:256), so ``arms=crossed,
+        # right_arm=hip`` is meaningful and must stay reachable.
+        self._per_arm_var = tk.BooleanVar(value=False)
+        self._per_arm_check = ttk.Checkbutton(
+            fields, text="Override each arm", variable=self._per_arm_var,
+            command=self._on_per_arm_change,
+        )
+        self._per_arm_check.grid(row=row, column=1, sticky=tk.W, pady=(0, 2))
         row += 1
+
+        left = [""] + sorted(allow.char_left_arm.get(char, set()))
+        self._left_arm_var, self._left_arm_combo, row = self._add_field(
+            fields, row, "Left arm", left,
+        )
+        right = [""] + sorted(allow.char_right_arm.get(char, set()))
+        self._right_arm_var, self._right_arm_combo, row = self._add_field(
+            fields, row, "Right arm", right,
+        )
+        self._per_arm_hint = ttk.Label(
+            fields, text=_PER_ARM_HINT,
+            foreground="#808080", font=("Segoe UI", 8), wraplength=200,
+        )
+        self._per_arm_hint.grid(row=row, column=1, sticky=tk.W, pady=(0, 4))
+        row += 1
+
         outfits = [""] + sorted(allow.char_outfits.get(char, set()))
-        ttk.Label(body, text="Outfit:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._outfit_var = tk.StringVar()
-        self._outfit_combo = ttk.Combobox(
-            body, textvariable=self._outfit_var, values=outfits,
-            state="readonly", width=20,
+        self._outfit_var, self._outfit_combo, row = self._add_field(
+            fields, row, "Outfit", outfits,
         )
-        self._outfit_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
-
-        # Look
-        row += 1
         looks = [""] + sorted(allow.looks)
-        ttk.Label(body, text="Look:").grid(row=row, column=0, sticky=tk.W, pady=2)
-        self._look_var = tk.StringVar()
-        self._look_combo = ttk.Combobox(
-            body, textvariable=self._look_var, values=looks,
-            state="readonly", width=20,
+        self._look_var, self._look_combo, row = self._add_field(
+            fields, row, "Look", looks,
         )
-        self._look_combo.grid(row=row, column=1, sticky=tk.W, pady=2)
 
-        # Thumbnail preview (column 2, spanning the visual attribute rows)
-        self._thumb_label = ttk.Label(body)
-        self._thumb_label.grid(
-            row=2, column=2, rowspan=6, sticky=tk.N, padx=(12, 0),
-        )
+        self._on_per_arm_change()
+
+        # Thumbnail preview, beside the fields rather than spanning their rows
+        self._thumb_frame = ttk.Frame(body)
+        self._thumb_frame.grid(row=1, column=1, sticky=tk.N, padx=(12, 0))
 
         # Preview
-        row += 1
-        colspan = 3 if self._thumb_store else 2
         ttk.Separator(body, orient=tk.HORIZONTAL).grid(
-            row=row, column=0, columnspan=colspan, sticky=tk.EW, pady=8,
+            row=2, column=0, columnspan=2, sticky=tk.EW, pady=8,
         )
-        row += 1
-        ttk.Label(body, text="Preview:").grid(
-            row=row, column=0, sticky=tk.W, pady=2,
-        )
+        preview_row = ttk.Frame(body)
+        preview_row.grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=2)
+        ttk.Label(preview_row, text="Preview:").pack(side=tk.LEFT, padx=(0, 8))
         self._preview_var = tk.StringVar()
         ttk.Label(
-            body, textvariable=self._preview_var,
+            preview_row, textvariable=self._preview_var,
             font=("Consolas", 10), foreground="#DCDCAA",
-        ).grid(row=row, column=1, sticky=tk.W, pady=2)
+        ).pack(side=tk.LEFT)
 
         # Trace changes to update preview
         for var in (
             self._medium_var, self._mood_var, self._face_var,
-            self._pose_var, self._arms_var, self._outfit_var,
-            self._look_var,
+            self._arms_var, self._left_arm_var, self._right_arm_var,
+            self._outfit_var, self._look_var,
         ):
             var.trace_add("write", self._update_preview)
         self._update_preview()
 
         # Buttons
-        row += 1
         btn_frame = ttk.Frame(body)
-        btn_frame.grid(row=row, column=0, columnspan=2, sticky=tk.E, pady=(8, 0))
+        btn_frame.grid(row=4, column=0, columnspan=2, sticky=tk.E, pady=(8, 0))
         ttk.Button(btn_frame, text="Cancel", style="Danger.TButton", command=self.destroy).pack(
             side=tk.LEFT, padx=(0, 4),
         )
@@ -364,40 +424,94 @@ class _CharacterInsertDialog(tk.Toplevel):
         self.bind("<Return>", lambda e: self._do_insert())
         self.bind("<Escape>", lambda e: self.destroy())
 
+    def _add_field(
+        self, parent: ttk.Frame, row: int, label: str, values: list[str],
+    ) -> tuple[tk.StringVar, ttk.Combobox, int]:
+        """Grid one ``label: [combo]`` row and remember it under *label*.
+
+        The caption is kept alongside its combo in ``self._fields`` so a row
+        can be hidden whole — hiding the combo alone would leave the caption
+        dangling — and so callers reach a row **by name** rather than by a
+        row index that shifts whenever the form grows a widget.
+
+        Returns the row's variable, its combo, and the next free row index.
+        """
+        caption = ttk.Label(parent, text=f"{label}:")
+        caption.grid(row=row, column=0, sticky=tk.W, pady=2)
+        var = tk.StringVar()
+        combo = ttk.Combobox(
+            parent, textvariable=var, values=values,
+            state="readonly", width=20,
+        )
+        combo.grid(row=row, column=1, sticky=tk.W, pady=2)
+        self._fields[label.lower()] = (caption, combo, var)
+        return var, combo, row + 1
+
+    @staticmethod
+    def _set_row_visible(
+        field: tuple[ttk.Label, ttk.Combobox, tk.StringVar], visible: bool,
+    ) -> None:
+        """Show or hide one ``label: [combo]`` row.
+
+        Hiding clears the value: a slot the writer can no longer see must not
+        keep contributing to the inserted line.
+        """
+        caption, combo, var = field
+        if visible:
+            caption.grid()
+            combo.grid()
+        else:
+            var.set("")
+            caption.grid_remove()
+            combo.grid_remove()
+
     def _on_medium_change(self) -> None:
+        """Show or hide the visual rows: a text message carries no visuals.
+
+        They used to be greyed out instead. Hiding them says the same thing
+        with less noise, and the form shrinks to what actually applies.
+        """
         is_text = self._medium_var.get() == "text"
-        state = "disabled" if is_text else "readonly"
-        self._mood_combo.configure(state=state)
-        self._face_combo.configure(state=state)
-        self._pose_combo.configure(state=state)
-        self._arms_combo.configure(state=state)
-        self._outfit_combo.configure(state=state)
-        self._look_combo.configure(state=state)
+        for field in self._fields.values():
+            self._set_row_visible(field, not is_text)
         if is_text:
-            self._mood_var.set("")
-            self._face_var.set("")
-            self._pose_var.set("")
-            self._arms_var.set("")
-            self._look_var.set("")
-            self._outfit_var.set("")
+            self._per_arm_check.grid_remove()
+            self._per_arm_hint.grid_remove()
+        else:
+            self._per_arm_check.grid()
+            # Restores the per-arm rows to whatever the checkbox says.
+            self._on_per_arm_change()
+
+    def _on_per_arm_change(self) -> None:
+        """Reveal or hide the two per-side arm rows.
+
+        Additive, not a mode switch: the ``Arms`` preset stays available and
+        combines with a side override, which is what ``change_arms`` does
+        with it.
+        """
+        show = self._per_arm_var.get()
+        for name in ("left arm", "right arm"):
+            self._set_row_visible(self._fields[name], show)
+        if show:
+            self._per_arm_hint.grid()
+        else:
+            self._per_arm_hint.grid_remove()
 
     def _update_preview(self, *_args: Any) -> None:
         self._preview_var.set(self._build_line())
         self._update_thumbnail()
 
     def _update_thumbnail(self) -> None:
-        if not self._thumb_store:
-            return
-        img = None
-        face = self._face_var.get()
-        if face:
-            img = self._thumb_store.get_face(self._char, face)
-        if img is None:
-            arms = self._arms_var.get()
-            if arms:
-                img = self._thumb_store.get_arms(self._char, arms)
-        self._thumb_image = img
-        self._thumb_label.configure(image=img or "")
+        """Redraw the preview for every visual slot currently filled."""
+        self._thumb_images = _render_thumbnail_row(
+            self._thumb_frame, self._thumb_store, self._char,
+            {
+                "face": self._face_var.get(),
+                "arms": self._arms_var.get(),
+                "left_arm": self._left_arm_var.get(),
+                "right_arm": self._right_arm_var.get(),
+            },
+        )
 
     def _build_line(self) -> str:
         upper = self._char.upper()
@@ -412,8 +526,9 @@ class _CharacterInsertDialog(tk.Toplevel):
 
         for slot, var in [
             ("face", self._face_var),
-            ("pose", self._pose_var),
             ("arms", self._arms_var),
+            ("left_arm", self._left_arm_var),
+            ("right_arm", self._right_arm_var),
             ("outfit", self._outfit_var),
             ("look", self._look_var),
         ]:
@@ -450,71 +565,7 @@ _DIRECTIVE_DESCRIPTIONS: dict[str, str] = {
     "remove_trait": "Remove a trait from a character.",
     "record": "Record that a character did something (for history checks).",
     "set_personality": "Set a character's personality score.",
-    "sfx": "Play a sound effect.",
-    "fx": "Trigger a visual effect or animation.",
 }
-
-
-def _parse_fx_signature(signature: str) -> list[tuple[str, str, str]]:
-    """Extract (name, type_hint, default) tuples from an FX signature string.
-
-    Handles signatures like:
-        "phone_buzz(x: float = 0.5, y: float = 0.5, ...) -> None"
-    Returns an empty list if the signature is empty or unparseable.
-    """
-    if not signature:
-        return []
-    paren_start = signature.find("(")
-    paren_end = signature.rfind(")")
-    if paren_start < 0 or paren_end < 0:
-        return []
-    params_str = signature[paren_start + 1:paren_end].strip()
-    if not params_str:
-        return []
-
-    params: list[tuple[str, str, str]] = []
-    depth = 0
-    current = ""
-    for ch in params_str:
-        if ch in ("(", "[", "{"):
-            depth += 1
-            current += ch
-        elif ch in (")", "]", "}"):
-            depth -= 1
-            current += ch
-        elif ch == "," and depth == 0:
-            params.append(_parse_single_param(current.strip()))
-            current = ""
-        else:
-            current += ch
-    if current.strip():
-        params.append(_parse_single_param(current.strip()))
-    return params
-
-
-def _parse_single_param(param: str) -> tuple[str, str, str]:
-    """Parse a single parameter like 'x: float = 0.5' into (name, type, default).
-
-    Default values are kept verbatim (including quotes for strings) since
-    they are inserted as-is into the [[fx name(...)]] call.
-    """
-    name = ""
-    type_hint = ""
-    default = ""
-
-    if "=" in param:
-        before_eq, default = param.rsplit("=", 1)
-        default = default.strip()
-        param = before_eq.strip()
-
-    if ":" in param:
-        name, type_hint = param.split(":", 1)
-        name = name.strip()
-        type_hint = type_hint.strip()
-    else:
-        name = param.strip()
-
-    return (name, type_hint, default)
 
 
 _FX_LABEL_STRIP_RE = re.compile(r"^[A-Z][A-Za-z]+_animations_")
@@ -696,7 +747,7 @@ class _FxParamDialog(tk.Toplevel):
         ).pack(anchor=tk.W, pady=(0, 8))
 
         sig = allow.fx_signatures.get(fx_name, "")
-        params = _parse_fx_signature(sig)
+        params = parse_signature_params(sig)
         choices_map = allow.fx_param_choices.get(fx_name, {})
 
         if params:
@@ -715,6 +766,11 @@ class _FxParamDialog(tk.Toplevel):
                 if choices:
                     ttk.Combobox(
                         fields, textvariable=var, values=choices,
+                        state="readonly", width=22,
+                    ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=2)
+                elif is_character_param(pname, ptype):
+                    ttk.Combobox(
+                        fields, textvariable=var, values=sorted(allow.characters),
                         state="readonly", width=22,
                     ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=2)
                 else:
@@ -833,6 +889,9 @@ class _DirectiveDialog(tk.Toplevel):
         fields.pack(fill=tk.X)
 
         self._vars: dict[str, tk.StringVar] = {}
+        # slot key -> (caption, input widget), so a row is reached by name and
+        # can be hidden whole. Filled by _add_combo / _add_entry.
+        self._widgets: dict[str, tuple[ttk.Label, tk.Widget]] = {}
         builder = getattr(self, f"_build_{directive.replace(' ', '_')}", None)
         if builder:
             builder(fields, allow)
@@ -869,29 +928,32 @@ class _DirectiveDialog(tk.Toplevel):
         self, parent: ttk.Frame, row: int, label: str, key: str,
         values: list[str], default: str = "",
     ) -> int:
-        ttk.Label(parent, text=f"{label}:").grid(
-            row=row, column=0, sticky=tk.W, pady=2,
-        )
+        caption = ttk.Label(parent, text=f"{label}:")
+        caption.grid(row=row, column=0, sticky=tk.W, pady=2)
         var = tk.StringVar(value=default)
         self._vars[key] = var
-        ttk.Combobox(
+        combo = ttk.Combobox(
             parent, textvariable=var, values=values,
             state="readonly", width=22,
-        ).grid(row=row, column=1, sticky=tk.W, padx=4, pady=2)
+        )
+        combo.grid(row=row, column=1, sticky=tk.W, padx=4, pady=2)
+        # Keyed by slot, not by row: a caller that needs a widget back used to
+        # recover it from ``grid_slaves`` at ``_vars`` insertion index + 1,
+        # which silently breaks the moment the form grows a non-field row.
+        self._widgets[key] = (caption, combo)
         return row + 1
 
     def _add_entry(
         self, parent: ttk.Frame, row: int, label: str, key: str,
         default: str = "",
     ) -> int:
-        ttk.Label(parent, text=f"{label}:").grid(
-            row=row, column=0, sticky=tk.W, pady=2,
-        )
+        caption = ttk.Label(parent, text=f"{label}:")
+        caption.grid(row=row, column=0, sticky=tk.W, pady=2)
         var = tk.StringVar(value=default)
         self._vars[key] = var
-        ttk.Entry(parent, textvariable=var, width=24).grid(
-            row=row, column=1, sticky=tk.W, padx=4, pady=2,
-        )
+        entry = ttk.Entry(parent, textvariable=var, width=24)
+        entry.grid(row=row, column=1, sticky=tk.W, padx=4, pady=2)
+        self._widgets[key] = (caption, entry)
         return row + 1
 
     def _build_show(self, parent: ttk.Frame, allow: Allowlists) -> None:
@@ -903,16 +965,37 @@ class _DirectiveDialog(tk.Toplevel):
         moods = [""] + sorted(allow.shared_moods)
         row = self._add_combo(parent, row, "Mood", "mood", moods)
         row = self._add_combo(parent, row, "Face", "face", [""])
-        row = self._add_combo(parent, row, "Pose", "pose", [""])
         row = self._add_combo(parent, row, "Arms", "arms", [""])
+
+        # Per-arm override, same contract as the character insert dialog: the
+        # preset above stays in play and a side kwarg overrides just that side.
+        self._per_arm_var = tk.BooleanVar(value=False)
+        self._per_arm_check = ttk.Checkbutton(
+            parent, text="Override each arm", variable=self._per_arm_var,
+            command=self._on_per_arm_change,
+        )
+        self._per_arm_check.grid(row=row, column=1, sticky=tk.W, padx=4)
+        row += 1
+
+        row = self._add_combo(parent, row, "Left Arm", "left_arm", [""])
+        row = self._add_combo(parent, row, "Right Arm", "right_arm", [""])
+        self._per_arm_hint = ttk.Label(
+            parent, text=_PER_ARM_HINT,
+            foreground="#808080", font=("Segoe UI", 8), wraplength=220,
+        )
+        self._per_arm_hint.grid(row=row, column=1, sticky=tk.W, padx=4, pady=(0, 4))
+        row += 1
+
         row = self._add_combo(parent, row, "Outfit", "outfit", [""])
         row = self._add_combo(parent, row, "Look", "look", [""] + sorted(allow.looks))
+        row = self._add_combo(parent, row, "Stage", "stage", [""] + sorted(allow.stages))
+        row = self._add_combo(parent, row, "Fade", "fade", ["", "true", "false"])
 
         # Thumbnail preview
         self._thumb_store = _get_thumb_store() if self._show_thumbnails else None
-        self._thumb_image: tk.PhotoImage | None = None
-        self._thumb_label = ttk.Label(parent)
-        self._thumb_label.grid(
+        self._thumb_images: list[tk.PhotoImage] = []
+        self._thumb_frame = ttk.Frame(parent)
+        self._thumb_frame.grid(
             row=0, column=2, rowspan=row, sticky=tk.N, padx=(12, 0),
         )
 
@@ -920,22 +1003,36 @@ class _DirectiveDialog(tk.Toplevel):
             c = self._vars["char"].get()
             for key, getter in [
                 ("face", lambda: [""] + sorted(allow.char_faces.get(c, set()))),
-                ("pose", lambda: [""] + sorted(allow.char_poses.get(c, set()))),
                 ("arms", lambda: [""] + sorted(allow.char_arms.get(c, set()))),
+                ("left_arm", lambda: [""] + sorted(allow.char_left_arm.get(c, set()))),
+                ("right_arm", lambda: [""] + sorted(allow.char_right_arm.get(c, set()))),
                 ("outfit", lambda: [""] + sorted(allow.char_outfits.get(c, set()))),
                 ("mood", lambda: [""] + sorted(
                     allow.shared_moods | allow.char_moods.get(c, set())
                 )),
             ]:
-                vals = getter()
-                widget = parent.grid_slaves(
-                    row=list(self._vars.keys()).index(key) + 1, column=1,
-                )
-                if widget:
-                    widget[0].configure(values=vals)
+                self._widgets[key][1].configure(values=getter())
                 self._vars[key].set("")
 
         self._vars["char"].trace_add("write", _on_char_change)
+        self._on_per_arm_change()
+
+    def _on_per_arm_change(self) -> None:
+        """Reveal or hide the two per-side arm rows of the ``show`` form."""
+        show = self._per_arm_var.get()
+        for key in ("left_arm", "right_arm"):
+            caption, combo = self._widgets[key]
+            if show:
+                caption.grid()
+                combo.grid()
+            else:
+                self._vars[key].set("")
+                caption.grid_remove()
+                combo.grid_remove()
+        if show:
+            self._per_arm_hint.grid()
+        else:
+            self._per_arm_hint.grid_remove()
 
     def _build_hide(self, parent: ttk.Frame, allow: Allowlists) -> None:
         self._add_combo(parent, 0, "Character", "char", self._ui_chars)
@@ -1037,81 +1134,79 @@ class _DirectiveDialog(tk.Toplevel):
 
     def _build_run(self, parent: ttk.Frame, allow: Allowlists) -> None:
         ops = sorted(allow.run_operations) if allow.run_operations else []
-        if ops:
-            self._add_combo(parent, 0, "Operation", "op", ops)
-        else:
+        self._run_param_vars: list[tuple[str, str, tk.StringVar]] = []
+        if not ops:
             self._add_entry(parent, 0, "Function call", "op")
+            return
 
-    def _build_sfx(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        sfx_names = sorted(allow.sfx) if allow.sfx else []
-        if sfx_names:
-            row = self._add_combo(parent, 0, "Sound", "name", sfx_names)
-        else:
-            row = self._add_entry(parent, 0, "Sound name", "name")
-        self._add_entry(parent, row, "Duration (optional)", "duration")
+        grouped = group_by_category(allow.run_operations, allow.run_operation_categories)
+        cat_names = list(grouped.keys())
 
-    def _build_fx(self, parent: ttk.Frame, allow: Allowlists) -> None:
-        fx_names = sorted(allow.fx) if allow.fx else []
-        if fx_names:
-            row = self._add_combo(parent, 0, "Effect", "name", fx_names)
-        else:
-            row = self._add_entry(parent, 0, "Effect name", "name")
+        row = self._add_combo(
+            parent, 0, "Category", "op_category", cat_names, default=cat_names[0],
+        )
+        op_row = row
+        row = self._add_combo(parent, row, "Operation", "op", grouped[cat_names[0]])
 
-        self._fx_params_frame = ttk.Frame(parent)
-        self._fx_params_frame.grid(
+        self._run_params_frame = ttk.Frame(parent)
+        self._run_params_frame.grid(
             row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0),
         )
-        self._fx_param_vars: list[tuple[str, str, tk.StringVar]] = []
-        self._fx_signatures = allow.fx_signatures
+        self._run_signatures = allow.run_operation_signatures
 
-        def _on_fx_change(*_a: Any) -> None:
-            for widget in self._fx_params_frame.winfo_children():
+        def _on_category_change(*_a: Any) -> None:
+            names = grouped.get(self._vars["op_category"].get(), [])
+            widget = parent.grid_slaves(row=op_row, column=1)
+            if widget:
+                widget[0].configure(values=names)
+            self._vars["op"].set("")
+
+        def _on_run_change(*_a: Any) -> None:
+            for widget in self._run_params_frame.winfo_children():
                 widget.destroy()
-            self._fx_param_vars.clear()
+            self._run_param_vars.clear()
 
-            name = self._vars["name"].get()
-            sig = self._fx_signatures.get(name, "")
-            params = _parse_fx_signature(sig)
+            name = self._vars["op"].get()
+            sig = self._run_signatures.get(name, "")
+            params = parse_signature_params(sig)
             for i, (pname, ptype, pdefault) in enumerate(params):
                 hint = pname
                 if ptype:
                     hint += f" ({ptype})"
-                ttk.Label(self._fx_params_frame, text=f"{hint}:").grid(
+                ttk.Label(self._run_params_frame, text=f"{hint}:").grid(
                     row=i, column=0, sticky=tk.W, pady=1,
                 )
                 var = tk.StringVar(value=pdefault)
-                self._fx_param_vars.append((pname, pdefault, var))
-                ttk.Entry(
-                    self._fx_params_frame, textvariable=var, width=20,
-                ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
+                self._run_param_vars.append((pname, pdefault, var))
+                if is_character_param(pname, ptype):
+                    ttk.Combobox(
+                        self._run_params_frame, textvariable=var,
+                        values=sorted(allow.characters),
+                        state="readonly", width=18,
+                    ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
+                else:
+                    ttk.Entry(
+                        self._run_params_frame, textvariable=var, width=20,
+                    ).grid(row=i, column=1, sticky=tk.W, padx=4, pady=1)
                 var.trace_add("write", self._update_preview)
 
             self._update_preview()
 
-        self._vars["name"].trace_add("write", _on_fx_change)
+        self._vars["op_category"].trace_add("write", _on_category_change)
+        self._vars["op"].trace_add("write", _on_run_change)
 
-    def _build_fx_args(self) -> str:
-        """Assemble positional args from per-parameter fields.
+    def _build_run_args(self) -> str:
+        """Assemble positional args from the run operation's per-parameter fields.
 
-        Only includes args up to the last one that differs from its default.
+        Unlike FX args, every parameter is included verbatim (falling back
+        to its declared default when left blank) — ``[[run]]`` signatures
+        are mandatory state-mutation calls, not optional-tail effect calls.
         """
-        if not hasattr(self, "_fx_param_vars") or not self._fx_param_vars:
+        if not self._run_param_vars:
             return ""
-        values: list[tuple[str, str]] = []
-        for _pname, default, var in self._fx_param_vars:
-            values.append((var.get().strip(), default))
-
-        last_non_default = -1
-        for i, (val, default) in enumerate(values):
-            if val and val != default:
-                last_non_default = i
-
-        if last_non_default < 0:
-            return ""
-
         parts: list[str] = []
-        for i in range(last_non_default + 1):
-            val, default = values[i]
+        for _pname, default, var in self._run_param_vars:
+            val = var.get().strip()
             parts.append(val if val else default)
         return ", ".join(parts)
 
@@ -1122,29 +1217,19 @@ class _DirectiveDialog(tk.Toplevel):
         self._update_show_thumbnail()
 
     def _update_show_thumbnail(self) -> None:
-        if not hasattr(self, "_thumb_label"):
+        """Redraw the preview for every visual slot currently filled.
+
+        Only the ``show`` directive builds a preview frame, so a directive
+        that never ran ``_build_show`` bails out on the ``hasattr`` guard.
+        """
+        if not hasattr(self, "_thumb_frame"):
             return
-        store = self._thumb_store
-        if not store:
-            return
-        img = None
         char = self._vars.get("char")
-        if not char:
-            return
-        c = char.get()
-        if not c:
-            self._thumb_image = None
-            self._thumb_label.configure(image="")
-            return
-        face_var = self._vars.get("face")
-        if face_var and face_var.get():
-            img = store.get_face(c, face_var.get())
-        if img is None:
-            arms_var = self._vars.get("arms")
-            if arms_var and arms_var.get():
-                img = store.get_arms(c, arms_var.get())
-        self._thumb_image = img
-        self._thumb_label.configure(image=img or "")
+        self._thumb_images = _render_thumbnail_row(
+            self._thumb_frame, self._thumb_store,
+            char.get() if char else "",
+            {key: var.get() for key, var in self._vars.items()},
+        )
 
     def _build_line(self) -> str:
         d = self._directive
@@ -1153,11 +1238,17 @@ class _DirectiveDialog(tk.Toplevel):
         if d == "show":
             char = v.get("char", "Character")
             attrs = []
-            for slot in ("mood", "face", "pose", "arms", "outfit", "look"):
+            for slot in (
+                "mood", "face", "arms", "left_arm", "right_arm",
+                "outfit", "look", "stage", "fade",
+            ):
                 val = v.get(slot, "")
                 if val:
                     attrs.append(f"{slot}={val}")
-            attr_str = ", ".join(attrs)
+            # §11.6 attributes are space-separated key=value tokens, not
+            # comma-separated — a comma would end up glued to the previous
+            # value once the parser's shlex.split() runs on it.
+            attr_str = " ".join(attrs)
             if attr_str:
                 return f"[[show {char} {attr_str}]]"
             return f"[[show {char}]]"
@@ -1202,9 +1293,10 @@ class _DirectiveDialog(tk.Toplevel):
 
         if d == "run":
             op = v.get("op", "function()")
-            if "(" not in op:
-                op += "()"
-            return f"[[run {op}]]"
+            if "(" in op:
+                return f"[[run {op}]]"
+            args = self._build_run_args()
+            return f"[[run {op}({args})]]"
 
         if d == "give_trait":
             return f"[[give_trait {v.get('char', 'Character')} {v.get('trait', 'trait')}]]"
@@ -1220,20 +1312,6 @@ class _DirectiveDialog(tk.Toplevel):
                 f"[[set_personality {v.get('char', 'Character')} "
                 f"{v.get('trait', 'trait')} {v.get('value', '1')}]]"
             )
-
-        if d == "sfx":
-            name = v.get("name", "sound")
-            dur = v.get("duration", "")
-            if dur:
-                return f"[[sfx {name} {dur}]]"
-            return f"[[sfx {name}]]"
-
-        if d == "fx":
-            name = v.get("name", "effect")
-            args = self._build_fx_args()
-            if args:
-                return f"[[fx {name}({args})]]"
-            return f"[[fx {name}()]]"
 
         return f"[[{d}]]"
 
@@ -1770,7 +1848,7 @@ class _PaletteSidebar(ttk.Frame):
             _SfxParamDialog(self, display, self._insert)
         else:
             sig = self._allow.fx_signatures.get(display, "")
-            if not _parse_fx_signature(sig):
+            if not parse_signature_params(sig):
                 self._insert(f"[[fx {display}()]]\n")
             else:
                 _FxParamDialog(self, display, self._allow, self._insert)
@@ -1798,7 +1876,7 @@ class _PaletteSidebar(ttk.Frame):
 
         ttk.Separator(inner, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=6)
         builder_btn = ttk.Button(
-            inner, text="Build condition…",
+            inner, text="Condition Builder…",
             style="Compile.TButton",
             command=self._open_condition_builder,
         )
@@ -1909,7 +1987,6 @@ class _PaletteSidebar(ttk.Frame):
         )
         self._visual_preview_name.pack(padx=4, pady=(0, 8))
         self._visual_preview_image: tk.PhotoImage | None = None
-        self._visual_preview_clear_id: str | None = None
 
         self._visual_frame: ttk.Frame | None = None
         self._refresh_visual_categories()
@@ -1933,14 +2010,19 @@ class _PaletteSidebar(ttk.Frame):
             if available_right:
                 right_arm = right_arm & available_right
 
+        # Arms/Left Arm/Right Arm precede Faces: their thumbnails are full-
+        # body pose shots, while Faces are tight crops. Writers picking a
+        # face first (Faces used to be listed above Arms) had no easy way
+        # to sanity-check the pose without switching category and losing
+        # the face preview — putting the fuller-context images first means
+        # the pose is seen before the writer zooms into an expression.
         all_cats: dict[str, set[str]] = {
             "Moods": allow.shared_moods | allow.char_moods.get(char, set()),
-            "Faces": allow.char_faces.get(char, set()),
-            "Poses": allow.char_poses.get(char, set()),
-            "Outfits": allow.char_outfits.get(char, set()),
             "Arms": arms,
             "Left Arm": left_arm,
             "Right Arm": right_arm,
+            "Faces": allow.char_faces.get(char, set()),
+            "Outfits": allow.char_outfits.get(char, set()),
             "Looks": allow.looks,
             "Stages": allow.stages,
         }
@@ -1965,8 +2047,9 @@ class _PaletteSidebar(ttk.Frame):
         if self._visual_frame is not None:
             self._visual_frame.destroy()
         self._visual_thumb_refs.clear()
-        self._visual_preview_image = None
-        self._visual_preview_label.configure(image="")
+        # Deliberately not blanking the preview here: switching category
+        # (e.g. Faces -> Arms to sanity-check a pose) should leave the last
+        # hovered image visible until something new is hovered, not go blank.
 
         char = self._visual_char_var.get()
         category = self._visual_cat_var.get()
@@ -2033,13 +2116,13 @@ class _PaletteSidebar(ttk.Frame):
                     )
                     if img:
                         self._visual_thumb_refs.append(img)
+                        # No <Leave> binding: the preview stays on the last
+                        # hovered image instead of going blank, so switching
+                        # categories to sanity-check the pose doesn't lose
+                        # what was just being looked at.
                         btn.bind(
                             "<Enter>",
                             lambda _e, i=img, n=v: self._show_visual_preview(i, n),
-                        )
-                        btn.bind(
-                            "<Leave>",
-                            lambda _e: self._clear_visual_preview(),
                         )
 
     def _resolve_visual_thumb(
@@ -2078,17 +2161,15 @@ class _PaletteSidebar(ttk.Frame):
         self._mood_cycle_after_id = self.after(500, self._mood_cycle_step)
 
     def _stop_mood_cycle(self) -> None:
+        # Only stops the cycling timer — the preview itself is left showing
+        # the last frame rather than blanking (see _show_visual_preview).
         after_id = getattr(self, "_mood_cycle_after_id", None)
         if after_id is not None:
             self.after_cancel(after_id)
             self._mood_cycle_after_id = None
         self._mood_cycle_faces = None
-        self._clear_visual_preview()
 
     def _show_visual_preview(self, img: tk.PhotoImage, name: str) -> None:
-        if self._visual_preview_clear_id is not None:
-            self.after_cancel(self._visual_preview_clear_id)
-            self._visual_preview_clear_id = None
         w = img.width()
         factor = max(1, self._visual_preview_width // w) if w > 0 else 1
         if factor > 1:
@@ -2098,19 +2179,6 @@ class _PaletteSidebar(ttk.Frame):
         self._visual_preview_image = zoomed
         self._visual_preview_label.configure(image=zoomed)
         self._visual_preview_name.configure(text=name)
-
-    def _clear_visual_preview(self) -> None:
-        if self._visual_preview_clear_id is not None:
-            self.after_cancel(self._visual_preview_clear_id)
-        self._visual_preview_clear_id = self.after(
-            300, self._do_clear_visual_preview,
-        )
-
-    def _do_clear_visual_preview(self) -> None:
-        self._visual_preview_clear_id = None
-        self._visual_preview_image = None
-        self._visual_preview_label.configure(image="")
-        self._visual_preview_name.configure(text="")
 
     # -- Search filter ------------------------------------------------------
 
@@ -2188,7 +2256,16 @@ class EditorScreen(ttk.Frame):
         )
         self._title_label.pack(side=tk.LEFT, padx=8)
 
+        # Glossary, Allowlists, Settings — reading left to right, the order
+        # every screen uses. Packed in reverse because `side=RIGHT` places the
+        # first widget furthest right.
         ttk.Button(frm, text="Settings", command=self._open_settings).pack(
+            side=tk.RIGHT, padx=(4, 0),
+        )
+        ttk.Button(frm, text="Allowlists", command=self._open_allowlists).pack(
+            side=tk.RIGHT, padx=(4, 0),
+        )
+        ttk.Button(frm, text="Glossary", command=self._open_glossary).pack(
             side=tk.RIGHT, padx=(4, 0),
         )
         ttk.Button(frm, text="Validate", style="Validate.TButton", command=self._validate).pack(
@@ -2492,6 +2569,24 @@ class EditorScreen(ttk.Frame):
     def _open_settings(self) -> None:
         from .gui import _SettingsDialog
         _SettingsDialog(self, self._app)
+
+    def _open_glossary(self) -> None:
+        from .glossary import GlossaryDialog
+        open_singleton_window(self, "_glossary", lambda: GlossaryDialog(self))
+
+    def _open_allowlists(self) -> None:
+        from .allowlist_browser import AllowlistBrowserDialog, default_base_dir
+        # Quick mode has no Config: fall back to the bundled base layer rather
+        # than opening the browser on nothing.
+        cfg = self._ctx.cfg
+        open_singleton_window(
+            self, "_allowlist_browser",
+            lambda: AllowlistBrowserDialog(
+                self,
+                base_dir=cfg.base_allowlists_dir if cfg else default_base_dir(),
+                project_dir=cfg.project_allowlists if cfg else None,
+            ),
+        )
 
     def _go_back(self) -> None:
         if self._modified:

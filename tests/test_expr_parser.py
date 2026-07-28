@@ -15,6 +15,7 @@ from tnh_scene_compiler.expr_parser import (
     BoolOp,
     Call,
     Compare,
+    ListExpr,
     Literal,
     Member,
     Name,
@@ -32,7 +33,8 @@ from tnh_scene_compiler.expr_parser import (
         ("False", "False"),
         ("None", "None"),
         ("42", "42"),
-        ("-17", "- 17"),  # unary '-' on numeric literal: see separate test below
+        ("-17", "-17"),
+        ("-1.25", "-1.25"),
         ("0.5", "0.5"),
         ("\"hello\"", "\"hello\""),
         ("'hi'", "\"hi\""),
@@ -48,14 +50,15 @@ from tnh_scene_compiler.expr_parser import (
         ("\"x\" in collection", "\"x\" in collection"),
         ("x not in collection", "x not in collection"),
         ("check_approval(JeanGrey, \"love\")", "check_approval(JeanGrey, \"love\")"),
-        ("(a or b) and c", "a or b and c"),
+        # The parser drops the parentheses (the tree shape carries the
+        # grouping), so ``to_rpy`` has to put them back — dropping them from
+        # the text too would turn this into ``a or (b and c)``. This case
+        # asserted the flattened form until the renderers learned precedence;
+        # see tests/test_expr_precedence.py.
+        ("(a or b) and c", "(a or b) and c"),
     ],
 )
 def test_parse_accepts_and_round_trips(source: str, expected: str) -> None:
-    # Skip the unary-minus case here; handled by a dedicated test below so
-    # the parametrisation above doesn't mislead readers about what's legal.
-    if source == "-17":
-        return
     expr = parse_expression(source)
     assert expr.to_rpy() == expected
 
@@ -148,6 +151,75 @@ def test_parse_rejects_forbidden_constructs(source: str, needle: str) -> None:
     )
 
 
+# --- Sequence literals ------------------------------------------------------
+#
+# A writer needs to name a group of characters and a (day, time_index) moment;
+# both were unexpressible before, which left the Condition Builder emitting
+# conditions that could not compile.
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("[JeanGrey, Rogue]", "[JeanGrey, Rogue]"),
+        ("[JeanGrey]", "[JeanGrey]"),
+        ("[]", "[]"),
+        ("[JeanGrey, Rogue,]", "[JeanGrey, Rogue]"),        # trailing comma
+        ("(5, 2)", "(5, 2)"),
+        ("(5,)", "(5,)"),                                    # 1-tuple keeps it
+        ("[get_Location(), JeanGrey.History]", "[get_Location(), JeanGrey.History]"),
+    ],
+)
+def test_parse_sequence_literals(source: str, expected: str) -> None:
+    assert parse_expression(source).to_rpy() == expected
+
+
+def test_parse_list_is_a_list_and_tuple_is_a_tuple() -> None:
+    as_list = parse_expression("[a, b]")
+    as_tuple = parse_expression("(a, b)")
+    assert isinstance(as_list, ListExpr) and not as_list.is_tuple
+    assert isinstance(as_tuple, ListExpr) and as_tuple.is_tuple
+
+
+def test_parse_parenthesised_expression_is_still_a_group_not_a_tuple() -> None:
+    # No comma -> the parens only group; the node must stay the inner
+    # expression so `(a or b) and c` keeps its meaning.
+    grouped = parse_expression("(a or b)")
+    assert isinstance(grouped, BoolOp)
+
+
+def test_parse_sequence_literals_in_a_call() -> None:
+    assert parse_expression(
+        "are_Characters_friends([JeanGrey, Rogue], 2)",
+    ).to_rpy() == "are_Characters_friends([JeanGrey, Rogue], 2)"
+    assert parse_expression(
+        "get_time_since((5, 2)) >= 4",
+    ).to_rpy() == "get_time_since((5, 2)) >= 4"
+
+
+@pytest.mark.parametrize(
+    ("source", "needle"),
+    [
+        ("x[0]", "Indexing"),                    # postfix '[' is still a subscript
+        ("f()[0]", "Indexing"),
+        ("a.b[0]", "Indexing"),
+        ("[a, b][0]", "Indexing"),
+        ("[a, b", "Expected ']'"),
+        ("(5, 2", "Expected ')'"),
+        ("a]", "trailing"),
+    ],
+)
+def test_parse_rejects_malformed_or_subscripted_sequences(
+    source: str, needle: str,
+) -> None:
+    with pytest.raises(CompileError) as excinfo:
+        parse_expression(source)
+    haystack = f"{excinfo.value.message} {excinfo.value.hint or ''}"
+    assert needle in haystack, (
+        f"source={source!r} message={excinfo.value.message!r}"
+    )
+
+
 def test_parse_ternary_via_if_else_is_rejected() -> None:
     with pytest.raises(CompileError):
         parse_expression("a if b else c")
@@ -169,3 +241,51 @@ def test_parse_preserves_col_offset_in_errors() -> None:
     with pytest.raises(CompileError) as excinfo:
         parse_expression("a + 1")
     assert excinfo.value.col == 1 + 2
+
+
+# -- Negative literals --------------------------------------------------------
+
+# A '-' before a number is part of the literal; a '-' anywhere else is
+# arithmetic and stays refused. The distinction is load-bearing rather than
+# cosmetic: the friendship tiers run to -2 (enemies) and -1 (rivals), and
+# every doc that names that scale tells writers to compare against it.
+#
+# This was listed in the table above as an allowed construct with an expected
+# rendering, while the test returned early on it and a comment pointed at a
+# "dedicated test below" that did not exist. It reported PASSED and checked
+# nothing, and the grammar refused `-17` outright the whole time.
+
+
+@pytest.mark.parametrize(("source", "value"), [
+    ("-17", -17),
+    ("-1.25", -1.25),
+    ("- 17", -17),  # whitespace between them is Python-legal too
+])
+def test_negative_literal_is_one_literal(source: str, value: float) -> None:
+    expr = parse_expression(source)
+    assert expr == Literal(value = value, col_offset = 0)
+
+
+@pytest.mark.parametrize("source", [
+    "get_effective_friendship(A, B) >= -1",   # at least rivals
+    "get_Characters_opinion(A, B) > -2",      # better than enemies
+    "x >= -17",
+    "f(-2)",
+    "[-1, 2]",
+    "(-5, 2)",
+])
+def test_negative_literals_are_usable_where_a_number_is(source: str) -> None:
+    assert parse_expression(source).to_rpy() == source
+
+
+@pytest.mark.parametrize("source", [
+    "5 - 3",      # binary minus between literals
+    "x - 1",      # binary minus after a name
+    "-x",         # unary minus on a name
+    "-(3)",       # unary minus on a group
+    "x >= -y",    # unary minus in value position, but not on a number
+])
+def test_arithmetic_minus_is_still_refused(source: str) -> None:
+    with pytest.raises(CompileError) as excinfo:
+        parse_expression(source)
+    assert "Arithmetic is not allowed" in excinfo.value.message

@@ -44,6 +44,7 @@ from .errors import CompileError
 from . import output as out
 from .parser import parse
 from .settings import AppSettings
+from .windows import open_singleton_window
 from .validator import validate
 
 
@@ -507,7 +508,7 @@ class WelcomeScreen(ttk.Frame):
             command=self._create_project,
         ).pack()
 
-        # -- Settings / About -----------------------------------------------
+        # -- Glossary / Settings / About --------------------------------------
         bottom_bar = ttk.Frame(self)
         bottom_bar.pack(fill=tk.X, padx=8, pady=(12, 0))
         ttk.Button(
@@ -518,6 +519,11 @@ class WelcomeScreen(ttk.Frame):
             bottom_bar, text="Settings",
             command=lambda: _SettingsDialog(self, app),
         ).pack(side=tk.RIGHT)
+        # The glossary reads bundled docs and needs no project, so it belongs
+        # here too — the format questions start before a project is opened.
+        ttk.Button(
+            bottom_bar, text="Glossary", command=self._open_glossary,
+        ).pack(side=tk.RIGHT, padx=(0, 4))
 
         # -- Recent projects ------------------------------------------------
         self._recent_entries = _load_recent()
@@ -569,6 +575,10 @@ class WelcomeScreen(ttk.Frame):
             ).pack(side=tk.LEFT, padx=4)
 
     # -- Actions ------------------------------------------------------------
+
+    def _open_glossary(self) -> None:
+        from .glossary import GlossaryDialog
+        open_singleton_window(self, "_glossary", lambda: GlossaryDialog(self))
 
     def _quick_compile(self) -> None:
         self._app.show_quick()
@@ -819,6 +829,18 @@ class QuickScreen(_WorkspaceBase):
             frm, text="Back to home", style="Danger.TButton", command=lambda: self._app.show_welcome(),
         ).pack(side=tk.RIGHT)
 
+        # Reference windows live in the header on every screen, grouped the way
+        # the editor toolbar groups them — they open something to read, they do
+        # not act on the selection below. Quick mode compiles against the base
+        # game alone, which is exactly when "what does the game already accept?"
+        # is the open question.
+        ttk.Button(
+            frm, text="Allowlists", command=self._open_allowlists,
+        ).pack(side=tk.RIGHT, padx=(0, 4))
+        ttk.Button(
+            frm, text="Glossary", command=self._open_glossary,
+        ).pack(side=tk.RIGHT, padx=(0, 4))
+
     def _build_settings(self) -> None:
         frm = ttk.Frame(self)
         frm.pack(fill=tk.X, pady=(0, 4))
@@ -925,6 +947,20 @@ class QuickScreen(_WorkspaceBase):
         )
         validate_btn.pack(side=tk.LEFT)
         self._action_buttons.append(validate_btn)
+
+    def _open_glossary(self) -> None:
+        from .glossary import GlossaryDialog
+        open_singleton_window(self, "_glossary", lambda: GlossaryDialog(self))
+
+    def _open_allowlists(self) -> None:
+        from .allowlist_browser import AllowlistBrowserDialog, default_base_dir
+        # No project layer here, so the browser is read-only throughout.
+        open_singleton_window(
+            self, "_allowlist_browser",
+            lambda: AllowlistBrowserDialog(
+                self, base_dir=default_base_dir(), project_dir=None,
+            ),
+        )
 
     # -- File management ----------------------------------------------------
 
@@ -1435,7 +1471,6 @@ class ProjectScreen(_WorkspaceBase):
             text=f"  ({self._cfg.config_dir})",
             foreground="gray",
         )
-        self._header_path.pack(side=tk.LEFT, padx=(4, 0))
 
         ttk.Button(
             frm, text="Back to home", style="Danger.TButton",
@@ -1446,6 +1481,23 @@ class ProjectScreen(_WorkspaceBase):
             frm, text="Settings",
             command=self._open_settings,
         ).pack(side=tk.RIGHT, padx=(0, 4))
+
+        # Reference windows, grouped as on every other screen.
+        ttk.Button(
+            frm, text="Allowlists",
+            command=self._open_allowlists,
+        ).pack(side=tk.RIGHT, padx=(0, 4))
+
+        ttk.Button(
+            frm, text="Glossary",
+            command=self._open_glossary,
+        ).pack(side=tk.RIGHT, padx=(0, 4))
+
+        # Packed last on purpose: pack hands out width in packing order, and the
+        # project path is the one label here with no bound on its length. Packed
+        # before the buttons it takes what it wants and squeezes them off the
+        # edge; packed after, it gets the remainder and clips instead.
+        self._header_path.pack(side=tk.LEFT, padx=(4, 0))
 
     def _build_scene_list(self) -> None:
         frm = ttk.LabelFrame(self, text="Scene files", padding=4)
@@ -1549,6 +1601,21 @@ class ProjectScreen(_WorkspaceBase):
 
     def _new_scene(self) -> None:
         self._open_editor(None)
+
+    def _open_glossary(self) -> None:
+        from .glossary import GlossaryDialog
+        open_singleton_window(self, "_glossary", lambda: GlossaryDialog(self))
+
+    def _open_allowlists(self) -> None:
+        from .allowlist_browser import AllowlistBrowserDialog
+        open_singleton_window(
+            self, "_allowlist_browser",
+            lambda: AllowlistBrowserDialog(
+                self,
+                base_dir=self._cfg.base_allowlists_dir,
+                project_dir=self._cfg.project_allowlists,
+            ),
+        )
 
     def _open_editor(self, file_path: Path | None) -> None:
         from .editor import EditorContext

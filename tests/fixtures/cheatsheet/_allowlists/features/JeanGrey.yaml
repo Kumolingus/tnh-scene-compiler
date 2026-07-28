@@ -1,0 +1,10 @@
+character: JeanGrey
+source: TNH + Mod
+generated_at: '2026-04-23'
+values:
+- name: date
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/features.rpy
+  source_line: 4
+- name: texting
+  source_file: TheNullHypothesis/game/characters/JeanGrey/definitions/features.rpy
+  source_line: 5

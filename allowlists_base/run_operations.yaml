@@ -13,5 +13,20 @@
 # operations:
 #   - name: give_trait
 #     signature: "<Character>.give_trait(trait_name: str)"
-#     source_file: TheNullHypothesis/game/core/base/character.rpy
-operations: []
+#     source_file: game/core/base/character.rpy
+
+operations:
+  - name: check_if_need_to_change
+    category: Clothing
+    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True)"
+    notes: |
+      PLAY the "fix your outfit / clean up" interaction for the characters
+      who need it — one is skipped when she is comfortable (friends, level
+      >= 2) with everyone arriving, and nothing happens when nobody needs
+      it. This is the side-effecting half of the same base-game function
+      the "Needs to change clothes" condition asks about: use the [[if]] to
+      test, use this to make it happen. The condition's ``check`` argument
+      is deliberately not offered here — omitting it is what runs the
+      interaction.
+    source_file: game/core/mechanics/clothing.rpy
+    source_line: 21

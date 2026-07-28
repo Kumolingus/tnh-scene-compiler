@@ -96,9 +96,8 @@ def test_render_character_skips_empty_subsections() -> None:
     assert "### Rogue" in output
     assert "#### Faces" in output
     assert "| `glare` |" in output
-    # No empty mood/pose/etc. heading should appear.
+    # No empty mood/arms/etc. heading should appear.
     assert "#### Moods" not in output
-    assert "#### Poses" not in output
     assert "#### Arms" not in output
 
 

@@ -126,7 +126,8 @@ class UnaryNot:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
-        return f"not {self.operand.to_rpy()}"
+        operand = parenthesize(self.operand.to_rpy(), self.operand, PRECEDENCE_NOT)
+        return f"not {operand}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,8 +139,11 @@ class BoolOp:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
+        own = PRECEDENCE_OR if self.op == "or" else PRECEDENCE_AND
         sep = f" {self.op} "
-        return sep.join(a.to_rpy() for a in self.operands)
+        return sep.join(
+            parenthesize(a.to_rpy(), a, own) for a in self.operands
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,9 +155,9 @@ class Compare:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
-        out = [self.left.to_rpy()]
+        out = [parenthesize(self.left.to_rpy(), self.left, PRECEDENCE_ATOM)]
         for op, right in self.ops_and_rights:
-            out.append(f" {op} {right.to_rpy()}")
+            out.append(f" {op} {parenthesize(right.to_rpy(), right, PRECEDENCE_ATOM)}")
         return "".join(out)
 
 
@@ -167,10 +171,93 @@ class Member:
     col_offset: int = 0
 
     def to_rpy(self) -> str:
-        return f"{self.left.to_rpy()} {self.op} {self.right.to_rpy()}"
+        left = parenthesize(self.left.to_rpy(), self.left, PRECEDENCE_ATOM)
+        right = parenthesize(self.right.to_rpy(), self.right, PRECEDENCE_ATOM)
+        return f"{left} {self.op} {right}"
 
 
-Expr = Literal | Name | Attribute | Call | UnaryNot | BoolOp | Compare | Member
+@dataclass(frozen=True, slots=True)
+class ListExpr:
+    """A sequence literal — ``[a, b]``, or ``(a, b)`` when ``is_tuple``.
+
+    Produced by the DSL transformation layer (:mod:`dsl`), which builds one
+    when a writer-friendly rewrite targets a base-game function expecting an
+    iterable of characters (``Character.friends_with(Y)`` ->
+    ``are_Characters_friends([Character, Y])``), and by the parser, since a
+    writer needs to name a group of characters (``are_Characters_friends(
+    [JeanGrey, Rogue], 2)``) or a ``(day, time_index)`` moment.
+
+    Tuples reuse this node rather than adding a kind: every consumer that
+    walks the expression tree (codegen, the validator's call and attribute
+    collectors) already descends into ``elements``, and the two differ only
+    in how they render.
+    """
+
+    elements: tuple[Expr, ...]
+    col_offset: int = 0
+    is_tuple: bool = False
+
+    def to_rpy(self) -> str:
+        inner = ", ".join(e.to_rpy() for e in self.elements)
+        if self.is_tuple:
+            # A 1-tuple needs its trailing comma to stay a tuple.
+            return f"({inner},)" if len(self.elements) == 1 else f"({inner})"
+        return f"[{inner}]"
+
+
+Expr = Literal | Name | Attribute | Call | UnaryNot | BoolOp | Compare | Member | ListExpr
+
+
+# --- Operator precedence ------------------------------------------------------
+
+# Binding strength of each operator in the ``[[if]]`` subset, low to high,
+# matching Python's own. The parser does not keep the writer's parentheses —
+# the tree shape is what carries the grouping — so a renderer has to put them
+# back from precedence alone. Without that, ``not (a and b)`` renders as
+# ``not a and b``, which Python reads as ``(not a) and b``: valid Ren'Py, the
+# other branch, and nothing raises anywhere along the way.
+PRECEDENCE_OR: int = 1
+PRECEDENCE_AND: int = 2
+PRECEDENCE_NOT: int = 3
+PRECEDENCE_COMPARISON: int = 4
+PRECEDENCE_ATOM: int = 5
+
+
+def precedence(expr: Expr) -> int:
+    """Return the binding strength of *expr*'s top-level operator.
+
+    Atoms — names, literals, calls, sequence literals — are self-delimiting
+    and never need protecting, so they rank above every operator.
+    """
+    if isinstance(expr, BoolOp):
+        return PRECEDENCE_OR if expr.op == "or" else PRECEDENCE_AND
+    if isinstance(expr, UnaryNot):
+        return PRECEDENCE_NOT
+    if isinstance(expr, (Compare, Member)):
+        return PRECEDENCE_COMPARISON
+    return PRECEDENCE_ATOM
+
+
+def parenthesize(rendered: str, expr: Expr, parent_precedence: int) -> str:
+    """Wrap *rendered* in parentheses when *expr* binds looser than its parent.
+
+    ``rendered`` is *expr* already turned into text by the caller: the two
+    renderers (this module's ``to_rpy`` and :mod:`codegen`, which resolves
+    scene-local names) emit different text for the same node, so the
+    decision is shared but the rendering is not.
+
+    Operands of a comparison or membership test pass
+    :data:`PRECEDENCE_ATOM` rather than :data:`PRECEDENCE_COMPARISON`, so
+    anything that is not an atom gets wrapped. Two reasons: ``(not a) == b``
+    must not flatten to ``not a == b`` (Python reads that as
+    ``not (a == b)``), and ``a == (b in c)`` must not flatten to
+    ``a == b in c``, which Python reads as a *chained* comparison. Neither
+    over-parenthesises real conditions — the grammar only allows an operator
+    there when the writer wrote the parentheses in the first place.
+    """
+    if precedence(expr) < parent_precedence:
+        return f"({rendered})"
+    return rendered
 
 
 # --- Tokeniser ----------------------------------------------------------------
@@ -194,6 +281,8 @@ class _TK:
     IN = "IN"
     LPAREN = "LPAREN"
     RPAREN = "RPAREN"
+    LBRACKET = "LBRACKET"
+    RBRACKET = "RBRACKET"
     COMMA = "COMMA"
     DOT = "DOT"
     EQ = "EQ"       # ==
@@ -213,10 +302,28 @@ class _Tok:
     col: int  # 0-based offset within the expression source
 
 
-_KEYWORDS = {
+# Value literals, spelled exactly as Python spells them. ``TRUE`` is a name,
+# not a boolean: these are values a condition compares *against*, so they
+# belong to the condition, not to the glue between conditions.
+_LITERAL_KEYWORDS: dict[str, tuple[str, bool | None]] = {
     "True": (_TK.TRUE, True),
     "False": (_TK.FALSE, False),
     "None": (_TK.NONE, None),
+}
+
+# Boolean and membership operators, matched **case-insensitively**:
+# ``JeanGrey.nearby AND NOT lied`` and ``JeanGrey.nearby and not lied`` are
+# the same expression. Uppercase is the house style — it reads as glue
+# rather than as part of a condition, and it is what the Condition Builder
+# inserts — but lowercase stays valid, so no existing scene has to change.
+#
+# The AST is unaffected either way: ``_parse_and`` / ``_parse_or`` / the
+# membership branch hardcode the lowercase spelling into the node, so
+# codegen always emits Python regardless of how the writer typed it.
+#
+# The cost, accepted: a scene-local state key can no longer be named `AND`,
+# `Or`, `NOT` or `In` in any casing.
+_OPERATOR_KEYWORDS: dict[str, tuple[str, str]] = {
     "and": (_TK.AND, "and"),
     "or": (_TK.OR, "or"),
     "not": (_TK.NOT, "not"),
@@ -277,8 +384,14 @@ def _scan(text: str) -> list[_Tok]:
             while i < n and (text[i].isalnum() or text[i] == "_"):
                 i += 1
             ident = text[start:i]
-            if ident in _KEYWORDS:
-                kind, _ = _KEYWORDS[ident]
+            # Literals match exactly; operators match in any casing. The
+            # token keeps the source spelling so an error message quotes
+            # the writer's own text back at them.
+            if ident in _LITERAL_KEYWORDS:
+                kind, _ = _LITERAL_KEYWORDS[ident]
+                tokens.append(_Tok(kind, ident, start))
+            elif ident.lower() in _OPERATOR_KEYWORDS:
+                kind, _ = _OPERATOR_KEYWORDS[ident.lower()]
                 tokens.append(_Tok(kind, ident, start))
             elif ident in _RESERVED_WORDS:
                 tokens.append(_Tok(_TK.ILLEGAL, ident, start))
@@ -358,6 +471,10 @@ def _scan(text: str) -> list[_Tok]:
         single: dict[str, str] = {
             "(": _TK.LPAREN,
             ")": _TK.RPAREN,
+            # A leading '[' opens a list literal; a '[' following a value is
+            # indexing, which the parser rejects with the §11.9.1 message.
+            "[": _TK.LBRACKET,
+            "]": _TK.RBRACKET,
             ",": _TK.COMMA,
             ".": _TK.DOT,
             "<": _TK.LT,
@@ -413,6 +530,12 @@ class _ParseState:
         )
 
 
+# Subscripting stays forbidden even though '[' now opens a list literal, so
+# the message lives here for the parser to raise on a postfix '['.
+_INDEXING_MESSAGE = (
+    "Indexing is not allowed. Use an attribute access or register a helper function."
+)
+
 # Reject every forbidden Python operator §11.9.1 lists. Mapping the raw
 # character to the writer-facing message keeps the error text stable.
 _FORBIDDEN_CHAR_MESSAGES: dict[str, str] = {
@@ -421,8 +544,6 @@ _FORBIDDEN_CHAR_MESSAGES: dict[str, str] = {
     "*": "Arithmetic is not allowed in [[if]] expressions.",
     "/": "Arithmetic is not allowed in [[if]] expressions.",
     "%": "Arithmetic is not allowed in [[if]] expressions.",
-    "[": "Indexing is not allowed. Use an attribute access or register a helper function.",
-    "]": "Indexing is not allowed. Use an attribute access or register a helper function.",
     "{": "Set/dict literals are not allowed in [[if]] expressions.",
     "}": "Set/dict literals are not allowed in [[if]] expressions.",
     "&": "Bitwise operators are not allowed.",
@@ -515,6 +636,11 @@ def _parse_compare(state: _ParseState) -> Expr:
 
 def _parse_member(state: _ParseState) -> Expr:
     left = _parse_primary(state)
+    # A '[' that follows a value is a subscript, not a list literal — still
+    # forbidden. Only a '[' in value position (handled by _parse_primary)
+    # opens a list.
+    if state.peek().kind == _TK.LBRACKET:
+        raise state.error(state.peek(), _INDEXING_MESSAGE)
     # Either ``<expr> in <expr>`` or ``<expr> not in <expr>``.
     if state.peek().kind == _TK.IN:
         state.advance()
@@ -532,8 +658,61 @@ def _parse_member(state: _ParseState) -> Expr:
     return left
 
 
+def _parse_sequence_elements(
+    state: _ParseState,
+    closer: str,
+    *,
+    first: Expr | None = None,
+) -> list[Expr]:
+    """Parse the comma-separated elements of a list or tuple literal.
+
+    *first* is the element already consumed by the caller (the tuple case,
+    where the opening expression was parsed before the comma disambiguated
+    it). A trailing comma before *closer* is accepted and ignored, which is
+    also what makes the one-element tuple ``(x,)`` parse.
+    """
+    elements: list[Expr] = [] if first is None else [first]
+    if first is None:
+        elements.append(_parse_expr(state))
+    while state.peek().kind == _TK.COMMA:
+        state.advance()
+        if state.peek().kind == closer:
+            break
+        elements.append(_parse_expr(state))
+    return elements
+
+
+def _expect_close(state: _ParseState, kind: str, message: str) -> None:
+    """Consume the closing bracket of a literal, or raise *message*."""
+    close = state.peek()
+    if close.kind == _TK.ILLEGAL:
+        _raise_illegal(state, close)
+    if close.kind != kind:
+        raise state.error(close, message)
+    state.advance()
+
+
 def _parse_primary(state: _ParseState) -> Expr:
     tok = state.peek()
+
+    # A '-' in *value* position, directly before a number, belongs to the
+    # literal rather than being arithmetic — the same value-position versus
+    # postfix split that lets '[' open a list without allowing subscripting.
+    # It has to be expressible: the friendship tiers run down to -2 (enemies)
+    # and -1 (rivals), and every doc that names that scale tells writers to
+    # compare against it, so `get_effective_friendship(A, B) >= -1` is a
+    # question the format promises. Arithmetic stays refused — a '-' that
+    # *follows* a value never reaches here, and one before a name or a '('
+    # falls through to _raise_illegal below.
+    if tok.kind == _TK.ILLEGAL and tok.value == "-":
+        number = state.peek(1)
+        if number.kind in (_TK.INT, _TK.FLOAT):
+            state.advance()
+            state.advance()
+            magnitude = (
+                int(number.value) if number.kind == _TK.INT else float(number.value)
+            )
+            return Literal(value = -magnitude, col_offset = tok.col)
 
     if tok.kind == _TK.ILLEGAL:
         _raise_illegal(state, tok)
@@ -541,6 +720,14 @@ def _parse_primary(state: _ParseState) -> Expr:
     if tok.kind == _TK.LPAREN:
         state.advance()
         inner = _parse_expr(state)
+        # A comma turns the group into a tuple — the `(day, time_index)`
+        # moment the time functions take.
+        if state.peek().kind == _TK.COMMA:
+            elements = _parse_sequence_elements(state, _TK.RPAREN, first = inner)
+            _expect_close(state, _TK.RPAREN, "Expected ')' to close the tuple.")
+            return ListExpr(
+                elements = tuple(elements), col_offset = tok.col, is_tuple = True,
+            )
         close = state.peek()
         if close.kind == _TK.ILLEGAL:
             _raise_illegal(state, close)
@@ -548,6 +735,16 @@ def _parse_primary(state: _ParseState) -> Expr:
             raise state.error(close, "Expected ')' to close the parenthesised expression.")
         state.advance()
         return inner
+
+    if tok.kind == _TK.LBRACKET:
+        state.advance()
+        elements = (
+            []
+            if state.peek().kind == _TK.RBRACKET
+            else _parse_sequence_elements(state, _TK.RBRACKET)
+        )
+        _expect_close(state, _TK.RBRACKET, "Expected ']' to close the list.")
+        return ListExpr(elements = tuple(elements), col_offset = tok.col)
 
     if tok.kind == _TK.INT:
         state.advance()
@@ -575,6 +772,8 @@ def _parse_primary(state: _ParseState) -> Expr:
     # targeted message rather than "unexpected token".
     if tok.kind == _TK.RPAREN:
         raise state.error(tok, "Unexpected ')'.")
+    if tok.kind == _TK.RBRACKET:
+        raise state.error(tok, "Unexpected ']'.")
     if tok.kind in (_TK.AND, _TK.OR, _TK.NOT, _TK.IN):
         raise state.error(tok, f"'{tok.value}' cannot appear here — expected a value.")
     if tok.kind in _COMP_OPS:

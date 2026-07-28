@@ -1,0 +1,28 @@
+character: KurtWagner
+source: TNH + Mod
+generated_at: '2026-07-25'
+values:
+- name: activity_invite
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 4
+- name: chatting
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 5
+- name: dismiss
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 6
+- name: follow
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 7
+- name: summon
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 8
+- name: texting
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 9
+- name: trivia_classroom_help
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 10
+- name: trust
+  source_file: game/characters/KurtWagner/definitions/features.rpy
+  source_line: 11

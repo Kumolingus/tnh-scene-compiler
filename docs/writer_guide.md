@@ -6,6 +6,11 @@ advanced patterns. No programming experience required.
 For the exact list of valid values (characters, moods, locations, SFX, etc.), see the Cheatsheet included
 in the docs folder, or generate one from the app's project settings. Keep that cheatsheet open alongside this guide.
 
+**In the app:** the "Glossary" button opens a searchable reference window with copy-paste examples for every part of the
+format (title page, dialogue, conditions, directives, …). It's the canonical format reference, browsable and searchable without leaving
+the app — leave it open beside the editor while you write. It sits on every screen — top right, next to "Allowlists", and in the editor
+toolbar — so you can reach it before opening anything.
+
 
 ---
 
@@ -222,7 +227,6 @@ You're a terrible liar, [player.petname].
 | `look`                   | Where they look (at_player, away, down, up...)              |
 | `outfit`                 | Clothing (only when it changes mid-scene)                   |
 | `stage`                  | Position on stage (left, middle, right)                     |
-| `pose`                   | Full-body pose preset                                       |
 
 Exact valid values per character are in the cheatsheet.
 
@@ -306,6 +310,23 @@ I guess it's okay.
 
 [[/if]]
 ```
+
+**In the editor:** the Struct. palette tab's "Condition Builder…" button opens a guided form. Pick a **Category** (Relationships,
+Character state, Story & history, Location & time, Advanced) then a **Condition** within it — every check is listed there under a plain
+name, the built-ins (love/trust, trait, mood, friendship, …) next to ready-made ones like "In a relationship" or "Effective friendship
+(tier)". Fill in the guided fields instead of remembering the exact syntax. Advanced holds a single "Character method (any)" entry, for the
+low-level calls that have no friendlier form; it earns its keep when a built-in can't say what you mean — the History check answers "has she
+ever", but the `History.check` method under Advanced gives you the **count** (compare it, `>= 2` for "at least twice") and a **tracker**
+dropdown to narrow the window to this season, chapter, week or day; `History.check_when` gives you *when* it last happened, which "Periods
+since a date" turns into an age. When a condition is a number (a friendship tier, a count, arousal) rather than a yes/no, a "Compare:" row appears so you can pick
+an operator and value (e.g. `>= 2`) — leave it on "(no comparison)" only if you really want the raw truthy test. Use "+ Add condition" to
+combine as many conditions as you like; each one after the first picks its own AND/OR, and "Remove" drops it. (`and` binds tighter than
+`or`, as in most languages.) The "?" button next to the Category selector opens the Glossary on that category's conditions, with
+explanations and copy-paste examples.
+
+"Character property" checks a read-only stat on a companion (`desire`, `breast_size`, `sex_experience`, …). Only the properties the
+developer has registered are accepted — a bare `Character.<something>` that isn't on the list is now a compile error (with a "did you
+mean" suggestion), so a typo is caught instead of silently compiling.
 
 You can change approval values with named tiers:
 
@@ -554,6 +575,10 @@ the exact syntax when it is needed:
 
 You cannot invent `[[run]]` operations. Each one must be registered by the developer in `run_operations.yaml`.
 
+**In the editor:** operations are grouped by category, then picking one opens a parameter dialog with per-parameter fields
+(defaults pre-filled), the same as FX effects — you don't need to remember argument order. A parameter that expects a character
+(e.g. `Character`) shows a dropdown of registered characters instead of a text box.
+
 
 ---
 
@@ -766,6 +791,16 @@ The compiler ships with a graphical editor. Here are tips that are not obvious f
   shows the associated face thumbnails cycling through, so you can
   preview what expression cluster a mood represents.
 - **FX/SFX hover preview:** in the FX/SFX tab, hovering an effect shows a thumbnail preview of what it looks like.
+- **Insert dialogs preview every visual you pick.** In the character insert
+  form and in `[[show]]`, choosing a face *and* arms shows both thumbnails
+  side by side, each captioned with its slot. A value with no captured image
+  simply has no thumbnail — it is still valid.
+- **"Override each arm"** reveals the `left_arm` / `right_arm` rows, each with
+  its own thumbnail. It does not replace the `Arms` preset — leave the preset
+  set and override one side to say "crossed, but the right arm on the hip".
+  With no preset, a side left empty is posed `neutral`, so name both.
+- **Text message hides the visual rows.** They do not apply to a phone text,
+  so the form shrinks to just the medium instead of greying them out.
 - **Thumbnails are a separate download.** The thumbnail images are
   distributed as `thumbnails.zip` and are not bundled inside the
   `.exe`. Extract the archive next to the editor for previews to

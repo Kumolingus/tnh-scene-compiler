@@ -28,10 +28,21 @@ def test_emits_per_character_paths(mini_context):
             assert f"{character}.{suffix}" in names
 
 
-def test_all_entries_have_builtin_source(mini_context):
+def test_hardcoded_paths_have_builtin_source(mini_context):
     result = interpolation.extract(mini_context)
-    for entry in result.entries:
-        assert entry.source_file == "<builtin>"
+    sources = {entry.name: entry.source_file for entry in result.entries}
+    for name in ("Player.name", "Player.first_name", "day", "chapter"):
+        assert sources[name] == "<builtin>"
+
+
+def test_character_paths_carry_their_character_folder(mini_context):
+    # The browser classifies an entry as game- or project-owned from its
+    # ``source_file``; ``<builtin>`` would file a project's own characters
+    # under the game and render them read-only.
+    result = interpolation.extract(mini_context)
+    sources = {entry.name: entry.source_file for entry in result.entries}
+    assert sources["Alpha.name"] == "mini_tnh/game/characters/Alpha"
+    assert sources["Gamma.petname"].endswith("characters/Gamma")
 
 
 def test_excludes_tnh_characters_when_flag_off(mini_mod_only_context):
@@ -41,3 +52,13 @@ def test_excludes_tnh_characters_when_flag_off(mini_mod_only_context):
     assert "Alpha.name" not in names
     assert "Beta.name" not in names
     assert "Gamma.name" in names
+
+
+def test_omits_builtin_paths_when_flag_off(mini_mod_only_context):
+    # The Player and world paths belong to the base layer, which every
+    # consumer merges in. Re-emitting them mod-side would copy game values
+    # into the project's own file.
+    result = interpolation.extract(mini_mod_only_context)
+    names = {entry.name for entry in result.entries}
+    assert not {"Player.name", "Player.first_name", "day", "chapter"} & names
+    assert not any(entry.source_file == "<builtin>" for entry in result.entries)

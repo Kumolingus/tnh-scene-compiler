@@ -6,73 +6,281 @@
 # Only standalone (non-method) functions are listed here. Character
 # methods like JeanGrey.is_in_normal_mood() are accessed via attribute
 # syntax and validated separately.
+#
+# ``category`` routes the function into a top-level condition category of
+# the editor's Condition Builder (Relationships, Location & time, …), where
+# it becomes an entry of its own in the "Condition type" selector. Every
+# function is promoted this way — one with no ``category`` lands under
+# "Advanced" — so this is the *only* place a writer picks it from; there is
+# no generic "any function" list behind it.
+# ``label`` is the friendly display name shown there (falls back to the
+# function name). Both optional.
 source: TNH base game
 generated_at: '2026-05-13'
 functions:
-  # -- Approval and relationships -----------------------------------------
+  # -- Approval -------------------------------------------------------------
+  # The real function takes three more parameters (extra_condition, multiplier,
+  # default) that are deliberately not declared here: every declared parameter
+  # is emitted into the call, so exposing them would write
+  # `check_approval(A, None, 500, None, 1.0, (0, 0))` for no gain. The defaults
+  # below are load-bearing for the same reason — without them the builder emits
+  # an empty argument (`check_approval(A, , )`) when a field is left untouched.
   - name: check_approval
-    signature: "check_approval(Character, flavor: str | None, threshold: str | int | None) -> bool | int"
+    category: Approval
+    label: "Love / trust (combined or by tier)"
+    signature: "check_approval(Character, flavor: str | None = None, threshold: str | int | None = None) -> bool | int | float"
+    notes: |
+      The full approval check, for what the simple Love / Trust check cannot
+      say. Leave flavor at None to test love and trust ADDED TOGETHER; set it
+      to "love" or "trust" for one axis alone. threshold takes either a plain
+      number, or the name of one of the character's relationship thresholds
+      ("friendship", "dating", "relationship", "love") — the named form checks
+      love AND trust against that tier's own pair of values, which is how the
+      game gates its own content. Left at None it returns the raw number
+      instead, so use the Compare row.
+    param_choices:
+      flavor:
+        - "None"
+        - '"love"'
+        - '"trust"'
+      threshold:
+        - "None"
+        - '"warm"'
+        - '"friendship"'
+        - '"dating"'
+        - '"relationship"'
+        - '"love"'
     source_file: game/core/mechanics/approval.rpy
     source_line: 16
+
+  # -- Relationships ----------------------------------------------------------
   - name: are_Characters_friends
+    category: Relationships
+    label: "Friends (a group, at a tier)"
     signature: "are_Characters_friends(Characters, level: int = 1) -> bool"
+    notes: |
+      True when EVERY pair in the group is friends at least at `level`. The
+      simple Friendship check is this function with two characters at level 1;
+      use this one to check a whole group, or to demand more than plain
+      friendship. Scale: 1 friends, 2 good friends, 3 best friends.
+    param_choices:
+      level:
+        - "1"
+        - "2"
+        - "3"
     source_file: game/core/mechanics/friendship.rpy
     source_line: 15
+  # Two entries, not one. `knows_about` does not refine the question, it
+  # replaces it: left at the game's default the call also walks every OTHER
+  # partner and fails on the first one who has not been told about the
+  # character being asked about. So "is she my girlfriend" returns False for
+  # someone who *is* a partner, as soon as a second partner exists who does
+  # not know. That is a polyamory-disclosure audit — a real thing to ask,
+  # and a different goal, so it gets its own name instead of a boolean the
+  # writer has to know the base game to interpret.
+  #
+  # `Characters` is declared "pick" because this function asks about named
+  # characters. The signature-derived default (a required collection leads
+  # with "everyone present here") is right for are_Characters_friends and
+  # check_if_need_to_change, and here would ask "is everyone in the room my
+  # partner".
   - name: are_Characters_in_Partners
+    category: Relationships
+    label: "In a relationship"
     signature: "are_Characters_in_Partners(Characters, knows_about: bool = True) -> bool"
+    notes: |
+      True if every listed character is one of the player's partners. With
+      knows_about (default True) it also requires the partners to know about
+      each other's relationship with the player; set it False to skip that.
+    param_collection_mode:
+      Characters: pick
+    variants:
+      - label: "In a relationship"
+        fixed:
+          knows_about: "False"
+        notes: |
+          True when every character you list is one of the player's
+          partners. This is the plain "are they together" check — the game
+          asks it as `JeanGrey in Partners` in hundreds of its own
+          conditions. It does not care who else knows.
+      - label: "In a relationship, and the others know"
+        fixed:
+          knows_about: "True"
+        notes: |
+          Everyone you list is a partner of the player AND every other
+          partner has been told about them. Use it for a scene that assumes
+          the situation is out in the open — with only one partner it is the
+          same as the plain check, with two it also asks whether the player
+          has come clean. It is False while a disclosure is still pending,
+          even though the relationship itself is real.
     source_file: game/core/mechanics/friendship.rpy
     source_line: 24
   - name: get_best_Friend
+    category: Relationships
+    label: "Best friend (of a group)"
     signature: "get_best_Friend(Character, Characters) -> Character | None"
+    notes: |
+      Of the characters in the group, the one the first character likes most
+      (highest effective friendship). Returns a Character, or None when the
+      group is empty — in an [[if]] it is truthy once someone qualifies.
     source_file: game/core/mechanics/friendship.rpy
     source_line: 53
   - name: get_worst_Enemy
+    category: Relationships
+    label: "Worst enemy (of a group)"
     signature: "get_worst_Enemy(Character, Characters) -> Character | None"
+    notes: |
+      Of the characters in the group, the one the first character likes least
+      (lowest effective friendship). Returns a Character, or None when the
+      group is empty.
     source_file: game/core/mechanics/friendship.rpy
     source_line: 72
+  # The 4 below return a FriendshipTier (IntEnum: Enemies=-2, Rivals=-1,
+  # Acquaintances=0, Friends=1, GoodFriends=2, BestFriends=3), so a writer
+  # compares against a plain integer, e.g. get_effective_friendship(A, B)
+  # >= 2 for "at least good friends". FriendshipTier.Friends etc. can't be
+  # used as a bare name — the compiler would resolve it as scene-local state.
+  # Params are typed "A: Character, B: Character" (not the bare "Character"
+  # name run_operations.yaml uses) so the editor's per-parameter form renders
+  # a character-picker dropdown for both, not just a first bare-named one.
+  - name: get_effective_friendship
+    category: Relationships
+    label: "Effective friendship (tier)"
+    signature: "get_effective_friendship(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      Returns a tier number — use the Compare row (e.g. `>= 2`). Scale:
+      enemies=-2, rivals=-1, acquaintances=0, friends=1, good friends=2,
+      best friends=3.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 115
+  - name: get_Characters_opinion
+    category: Relationships
+    label: "Opinion of another (tier)"
+    signature: "get_Characters_opinion(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      A's opinion of B (one-directional, not symmetric). Returns a tier
+      number — use the Compare row. Scale: enemies=-2 ... best friends=3.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 102
+  - name: get_base_friendship
+    category: Relationships
+    label: "Base friendship (tier)"
+    signature: "get_base_friendship(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      Baseline tier before temporary mood swings. Returns a tier number —
+      use the Compare row. Scale: enemies=-2 ... best friends=3.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 123
+  - name: get_max_friendship
+    category: Relationships
+    label: "Max friendship reached (tier)"
+    signature: "get_max_friendship(A: Character, B: Character) -> FriendshipTier"
+    notes: |
+      Highest tier the pair ever reached. Returns a tier number — use the
+      Compare row. Scale: enemies=-2 ... best friends=3.
+    source_file: game/core/mechanics/friendship.rpy
+    source_line: 131
 
   # -- Character status ---------------------------------------------------
   - name: seen_Player_recently
+    category: Character status
+    label: "Seen the player recently"
     signature: "seen_Player_recently(Character) -> bool"
+    notes: |
+      True if the character has seen the player this time-of-day period or the
+      previous one — TNH has 4 periods per day, so "recently" means the current
+      or last period, not a number of days.
     source_file: game/core/mechanics/utilities.rpy
     source_line: 143
   - name: Character_is_in_close_proximity
+    category: Character status
     signature: "Character_is_in_close_proximity(Character) -> bool"
     source_file: game/core/mechanics/utilities.rpy
     source_line: 265
 
   # -- Location -----------------------------------------------------------
   - name: get_Location
+    category: Location
+    label: "Get a location"
     signature: "get_Location(location: str | None = None) -> Location | None"
     source_file: game/core/mechanics/utilities.rpy
     source_line: 243
   - name: get_Room_Owner
+    category: Location
+    label: "Room owner"
     signature: "get_Room_Owner(location: str | None = None) -> Character | None"
     source_file: game/core/mechanics/utilities.rpy
     source_line: 258
   - name: get_present_Characters
+    category: Location
+    label: "Characters present"
     signature: "get_present_Characters(Location) -> set[Character]"
+    notes: |
+      The set of characters physically present at a location. Location is
+      required: pick a slugline (e.g. "Jean's Room") or type get_Location()
+      for the current room. In an [[if]] the set is truthy when not empty.
     source_file: game/core/mechanics/characters.rpy
     source_line: 5
   - name: get_visible_Characters
+    category: Location
+    label: "Characters visible"
     signature: "get_visible_Characters(Location) -> set[Character]"
+    notes: |
+      Like "Characters present", plus background characters (minus silhouettes)
+      at the location. Same Location argument rules.
     source_file: game/core/mechanics/characters.rpy
     source_line: 32
 
   # -- Time ---------------------------------------------------------------
   - name: get_time_since
+    category: Time
+    label: "Periods since a date (4/day)"
     signature: "get_time_since(date: tuple[int, int]) -> int"
+    notes: |
+      How long since a past moment, counted in time-of-day slots (about 4 per
+      day, so 4 ≈ one full day — this is NOT a plain day count). Compare it,
+      e.g. >= 4 for "about a day ago". Normally you measure from when an
+      event last happened — pick the character and the event, and the moment
+      is read from her history. Careful: an event that never happened reads as
+      a very long time ago, so check it happened at all first. The "specific
+      day" form is for a day number you already have.
     source_file: game/core/mechanics/time.rpy
     source_line: 3
 
   # -- Clothing (writer-facing checks) ------------------------------------
   - name: check_if_need_to_change
-    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True, check: bool = False) -> bool"
+    category: Clothing
+    label: "Needs to change clothes"
+    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True, check: bool = True) -> bool"
+    notes: |
+      Whether any of the characters needs to fix their outfit (too revealing
+      for who is arriving) or clean up a mess. arriving_Characters are the
+      characters entering the scene; one who is comfortable (friends, level
+      >= 2) with all of them is skipped. Leave check on True: it makes this a
+      pure question. The game's own default is False, which actually PLAYS the
+      change / cleanup interaction — to do that on purpose, use
+      [[run check_if_need_to_change(...)]] instead of an [[if]].
     source_file: game/core/mechanics/clothing.rpy
     source_line: 21
 
   # -- History ------------------------------------------------------------
   - name: chance_of_repeat_Event
+    category: History
+    label: "Chance of a repeat event"
     signature: "chance_of_repeat_Event(History, Item: str, chance: float = 0, limit_day_chance: float = 1.0, limit_day: int = 5) -> float"
+    notes: |
+      Returns a probability (0..1), not a yes/no: how likely a repeatable event
+      should fire again, growing the longer since it last happened. It is 0
+      right after the event, then rises to limit_day_chance (default 1.0) by
+      limit_day days (default 5). Use it to space out a repeat — compare it
+      (e.g. >= 0.5) or roll against it in mod code. Pick whose history to read
+      in the History row; Item is picked from the known history events.
+    param_choices:
+      History:
+        source: characters
+        suffix: ".History"
+      Item:
+        source: history_events
+        quote: true
     source_file: game/core/definitions/history.rpy
     source_line: 128

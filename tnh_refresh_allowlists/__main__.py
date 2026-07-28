@@ -4,7 +4,7 @@ Extractors are split in two groups:
 
 * flat extractors emit a single ``<category>.yaml`` (characters, stages, sfx);
 * per-character extractors emit one file per character under
-  ``<category>/<Character>.yaml`` (faces, poses, arms, outfits).
+  ``<category>/<Character>.yaml`` (faces, arms, outfits).
 """
 
 from __future__ import annotations
@@ -20,21 +20,24 @@ import yaml
 from .extractors import (
     arms,
     characters,
+    clothing_items,
     condition_functions,
     faces,
+    features,
     fx,
     history_events,
     interpolation,
+    inventory_items,
     locations,
     looks,
     moods,
     outfits,
     personalities,
-    poses,
     sfx,
     stages,
     traits,
 )
+from .core_layer import default_core_dir, filter_core_duplicates, load_core_layer
 from .models import ExtractionResult, ScanContext
 from .writer import write_flat, write_flat_fx, write_per_character
 
@@ -53,14 +56,16 @@ _FLAT_EXTRACTORS: tuple[_Extractor, ...] = (
     traits.extract,
     personalities.extract,
     history_events.extract,
+    inventory_items.extract,
 )
 
 _PER_CHARACTER_EXTRACTORS: tuple[_Extractor, ...] = (
     faces.extract,
-    poses.extract,
     arms.extract,
     outfits.extract,
     moods.extract,
+    features.extract,
+    clothing_items.extract,
 )
 
 
@@ -156,6 +161,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--out", type = Path, required = True,
                         help = "Output directory for generated YAML allowlists.")
     parser.add_argument("--no-include-tnh", dest = "include_tnh", action = "store_false")
+    parser.add_argument("--core-allowlists", type = Path, default = None,
+                        help = "Core allowlists layer holding the game's own values "
+                               "(default: the bundled allowlists_base). On a mod-only "
+                               "run, any value this layer already carries is reported "
+                               "and left out of the output.")
     parser.add_argument("--repo-root", type = Path, default = Path.cwd())
     parser.add_argument("--dry-run", action = "store_true")
     parser.add_argument("--verbose", action = "store_true")
@@ -205,6 +215,38 @@ def _write_meta(
         newline = "\n",
     )
     return out_path
+
+
+def _apply_core_filter(results: list[ExtractionResult], core_dir: Path | None) -> None:
+    """Drop the extracted values the core layer already carries, and report them.
+
+    Runs on a mod-only scan only — :mod:`.core_layer` explains why, and owns
+    the rule for what counts as a duplicate. A core layer that cannot be found
+    is reported and skipped rather than fatal: the refresh's job is to extract
+    the mod's values, and every one of them is still correct without the
+    filter — the layers are unioned at validation time either way.
+    """
+    resolved = core_dir or default_core_dir()
+    if resolved is None or not resolved.is_dir():
+        location = f" at {core_dir}" if core_dir is not None else ""
+        print(
+            f"tnh_refresh_allowlists: no core allowlists found{location} — writing "
+            "every extracted value, including any the game already defines",
+            file = sys.stderr,
+        )
+        return
+
+    layer = load_core_layer(resolved, [result.category for result in results])
+    if layer.is_empty():
+        print(
+            f"tnh_refresh_allowlists: the core allowlists at {resolved} carry no "
+            "values for any scanned topic — is this the right directory?",
+            file = sys.stderr,
+        )
+        return
+
+    for warning in filter_core_duplicates(results, layer):
+        print(f"  {warning.message}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -260,6 +302,15 @@ def main(argv: list[str] | None = None) -> int:
         print("tnh_refresh_allowlists: no characters discovered — aborting", file = sys.stderr)
         return 1
 
+    all_results = flat_results + per_character_results
+
+    # After the abort check above, which asks whether the scan found a game at
+    # all: a mod that adds no character of its own is legitimate, and every one
+    # of its characters would be filtered out here. Before the dry-run summary,
+    # so the counts it announces are the ones a real run would write.
+    if not args.include_tnh:
+        _apply_core_filter(all_results, args.core_allowlists)
+
     if args.dry_run:
         print("tnh_refresh_allowlists: dry-run summary")
         for result in flat_results:
@@ -286,7 +337,6 @@ def main(argv: list[str] | None = None) -> int:
 
     files_written += _ensure_manual_scaffolds(out)
 
-    all_results = flat_results + per_character_results
     _write_meta(out, context = context, results = all_results, generated_at = generated_at)
     files_written += 1
 

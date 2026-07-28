@@ -1,93 +1,123 @@
 source: TNH + Mod
-generated_at: '2026-05-14'
+generated_at: '2026-07-22'
 values:
 - name: AlexanderSummers
-  source_file: TheNullHypothesis/game/characters/AlexanderSummers
+  source_file: game/characters/AlexanderSummers
+  source_line: 1
+- name: AlisonBlaire
+  source_file: game/characters/AlisonBlaire
   source_line: 1
 - name: AmahlFarouk
-  source_file: TheNullHypothesis/game/characters/AmahlFarouk
+  source_file: game/characters/AmahlFarouk
   source_line: 1
 - name: AngeloEspinosa
-  source_file: TheNullHypothesis/game/characters/AngeloEspinosa
+  source_file: game/characters/AngeloEspinosa
   source_line: 1
 - name: ArleeHicks
-  source_file: TheNullHypothesis/game/characters/ArleeHicks
+  source_file: game/characters/ArleeHicks
   source_line: 1
 - name: ArmandoMunoz
-  source_file: TheNullHypothesis/game/characters/ArmandoMunoz
+  source_file: game/characters/ArmandoMunoz
+  source_line: 1
+- name: Balrog
+  source_file: game/characters/Balrog
   source_line: 1
 - name: CainMarko
-  source_file: TheNullHypothesis/game/characters/CainMarko
+  source_file: game/characters/CainMarko
   source_line: 1
 - name: CeciliaReyes
-  source_file: TheNullHypothesis/game/characters/CeciliaReyes
+  source_file: game/characters/CeciliaReyes
   source_line: 1
 - name: CharlesXavier
-  source_file: TheNullHypothesis/game/characters/CharlesXavier
+  source_file: game/characters/CharlesXavier
   source_line: 1
 - name: Dek8000
-  source_file: TheNullHypothesis/game/characters/Silhouettes/Dek8000
+  source_file: game/characters/Silhouettes/Dek8000
   source_line: 1
 - name: DerpNibbles
-  source_file: TheNullHypothesis/game/characters/Silhouettes/DerpNibbles
+  source_file: game/characters/Silhouettes/DerpNibbles
+  source_line: 1
+- name: EmmaFrost
+  source_file: game/characters/EmmaFrost
   source_line: 1
 - name: EvanDaniels
-  source_file: TheNullHypothesis/game/characters/EvanDaniels
+  source_file: game/characters/EvanDaniels
+  source_line: 1
+- name: Floogle
+  source_file: game/characters/Silhouettes/Floogle
   source_line: 1
 - name: Gaspka
-  source_file: TheNullHypothesis/game/characters/Silhouettes/Gaspka
+  source_file: game/characters/Silhouettes/Gaspka
+  source_line: 1
+- name: Ghostjumperfam
+  source_file: game/characters/Silhouettes/Ghostjumperfam
   source_line: 1
 - name: HankMcCoy
-  source_file: TheNullHypothesis/game/characters/HankMcCoy
+  source_file: game/characters/HankMcCoy
   source_line: 1
 - name: JeanGrey
-  source_file: TheNullHypothesis/game/characters/JeanGrey
+  source_file: game/characters/JeanGrey
   source_line: 1
 - name: JohnProudstar
-  source_file: TheNullHypothesis/game/characters/JohnProudstar
+  source_file: game/characters/JohnProudstar
   source_line: 1
 - name: KittyPryde
-  source_file: TheNullHypothesis/game/characters/KittyPryde
+  source_file: game/characters/KittyPryde
   source_line: 1
 - name: KurtWagner
-  source_file: TheNullHypothesis/game/characters/KurtWagner
+  source_file: game/characters/KurtWagner
   source_line: 1
 - name: LauraKinney
-  source_file: TheNullHypothesis/game/characters/LauraKinney
+  source_file: game/characters/LauraKinney
   source_line: 1
 - name: LoganHowlett
-  source_file: TheNullHypothesis/game/characters/LoganHowlett
+  source_file: game/characters/LoganHowlett
   source_line: 1
 - name: Narrator
   source_file: <builtin>
   source_line: 0
 - name: NegaNexus
-  source_file: TheNullHypothesis/game/characters/Silhouettes/NegaNexus
+  source_file: game/characters/Silhouettes/NegaNexus
+  source_line: 1
+- name: Nexu
+  source_file: game/characters/Nexu
   source_line: 1
 - name: OroroMunroe
-  source_file: TheNullHypothesis/game/characters/OroroMunroe
+  source_file: game/characters/OroroMunroe
   source_line: 1
 - name: PiotrRasputin
-  source_file: TheNullHypothesis/game/characters/PiotrRasputin
+  source_file: game/characters/PiotrRasputin
   source_line: 1
 - name: Player
-  source_file: TheNullHypothesis/game/characters/Player
+  source_file: game/characters/Player
   source_line: 1
 - name: PurePazaak
-  source_file: TheNullHypothesis/game/characters/Silhouettes/PurePazaak
+  source_file: game/characters/Silhouettes/PurePazaak
   source_line: 1
 - name: RandallSlavin
-  source_file: TheNullHypothesis/game/characters/RandallSlavin
+  source_file: game/characters/RandallSlavin
   source_line: 1
 - name: Rogue
-  source_file: TheNullHypothesis/game/characters/Rogue
+  source_file: game/characters/Rogue
   source_line: 1
 - name: Samson
-  source_file: TheNullHypothesis/game/events/prologue/prologue.rpy
+  source_file: game/events/prologue/prologue.rpy
   source_line: 2
 - name: ScottSummers
-  source_file: TheNullHypothesis/game/characters/ScottSummers
+  source_file: game/characters/ScottSummers
   source_line: 1
 - name: Sentinel
-  source_file: TheNullHypothesis/game/characters/Sentinel
+  source_file: game/characters/Sentinel
+  source_line: 1
+- name: SliferTheSkyDragon
+  source_file: game/characters/SliferTheSkyDragon
+  source_line: 1
+- name: Spinosaurus
+  source_file: game/characters/Spinosaurus
+  source_line: 1
+- name: XenomorphDrone
+  source_file: game/characters/XenomorphDrone
+  source_line: 1
+- name: XenomorphKing
+  source_file: game/characters/XenomorphKing
   source_line: 1

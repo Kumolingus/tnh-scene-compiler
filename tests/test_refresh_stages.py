@@ -11,9 +11,17 @@ from tnh_refresh_allowlists.models import ScanContext
 def test_extracts_stage_constants(mini_context):
     result = stages.extract(mini_context)
     names = {entry.name for entry in result.entries}
-    assert {"stage_far_left", "stage_left", "stage_center", "stage_middle", "stage_right", "stage_far_right"}.issubset(
-        names,
-    )
+    assert {"stage_left", "stage_center", "stage_right"} == names
+
+
+def test_excludes_far_stages(mini_context):
+    # Far-stage coordinates are valid TNH defines but have no add_Characters
+    # emission path, so the extractor must drop them from the allowlist.
+    result = stages.extract(mini_context)
+    names = {entry.name for entry in result.entries}
+    assert "stage_far_left" not in names
+    assert "stage_far_right" not in names
+    assert "stage_middle" not in names
 
 
 def test_ignores_non_stage_defines(mini_context):
@@ -36,8 +44,8 @@ def test_ignores_docstring_contents(mini_context):
 
 def test_captures_line_numbers(mini_context):
     result = stages.extract(mini_context)
-    far_left = next(entry for entry in result.entries if entry.name == "stage_far_left")
-    assert far_left.source_line == 3
+    stage_left = next(entry for entry in result.entries if entry.name == "stage_left")
+    assert stage_left.source_line == 4
 
 
 def test_no_extraction_when_include_tnh_is_false(mini_mod_only_context):

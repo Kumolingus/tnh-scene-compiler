@@ -20,6 +20,10 @@ Rules (spec §5.2):
   overwritten on subsequent runs, for manual slugline-to-location_id
   overrides a project may need.
 
+- A slugline is emitted once. When two locations declare the same ``name``
+  the first declaration keeps the slugline and the other is reported as a
+  warning, since a scene addresses a location by slugline and nothing else.
+
 Limitations (V2):
 
 - Locations declared as ``all_Locations["loc_x"] = all_Locations["loc_y"].copy()``
@@ -68,6 +72,9 @@ def extract(context: ScanContext) -> ExtractionResult:
     """Return an :class:`ExtractionResult` with one slugline entry per location."""
     result = ExtractionResult(category = "locations")
     seen_ids: set[str] = set()
+    # slugline -> the location_id that claimed it. A slugline is the only
+    # handle a scene has on a location, so it must map to exactly one id.
+    seen_sluglines: dict[str, str] = {}
 
     for path in iter_all_rpy(context):
         text = safe_read_text(path)
@@ -108,6 +115,28 @@ def extract(context: ScanContext) -> ExtractionResult:
             slugline = display_name.upper()
             line = cleaned[: match.start()].count("\n") + 1
 
+            # Two locations can carry the same "name" — TNH gives
+            # loc_PlayerShower the bedroom's display name. Emitting both
+            # would leave the winner to dict-insertion order in
+            # ``Allowlists._build_location_map``, which silently sends a
+            # writer's slugline to whichever was read last. The first
+            # declaration keeps the slugline; the other is reported.
+            claimed_by = seen_sluglines.get(slugline)
+            if claimed_by is not None:
+                result.warnings.append(
+                    Warning(
+                        message = (
+                            f"Location {location_id} declares the same name as {claimed_by}, "
+                            f"so both derive the slugline {slugline!r}. {claimed_by} keeps it. "
+                            f"Give {location_id} its own slugline in locations_overrides.yaml "
+                            f"if a scene needs to open there."
+                        ),
+                        source_file = f"{context.relative(path)}:{line}",
+                    ),
+                )
+                seen_ids.add(location_id)
+                continue
+
             result.entries.append(
                 AllowlistEntry(
                     name = slugline,
@@ -120,6 +149,7 @@ def extract(context: ScanContext) -> ExtractionResult:
                 ),
             )
             seen_ids.add(location_id)
+            seen_sluglines[slugline] = location_id
 
         # .copy()-style locations — warn and skip for V1.
         for match in _COPY_LOCATION_RE.finditer(cleaned):

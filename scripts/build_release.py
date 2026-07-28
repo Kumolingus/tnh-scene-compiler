@@ -69,7 +69,11 @@ def main() -> int:
         shutil.move(str(exe_src), str(release_dir / exe_name))
 
     # --- Copy docs (exclude dev-only files) ---
-    _DEV_ONLY_DOCS = {"dev_guide.md"}
+    _DEV_ONLY_DOCS = {
+        "dev_guide.md",
+        "condition_function_audit.md",
+        "condition_builder_comparison_plan.md",
+    }
     docs_src = REPO_ROOT / "docs"
     if docs_src.is_dir():
         docs_dst = release_dir / "docs"
@@ -80,6 +84,12 @@ def main() -> int:
         print(f"Copied docs/ ({len(list(docs_dst.iterdir()))} files)")
 
     # --- Package thumbnails ---
+    #
+    # Shipped as a zip, not extracted and not embedded in the exe (the spec
+    # stopped embedding it in 26b9f45 — 35 MB of PNGs is a separate download).
+    # Note that the build above wipes dist/ wholesale, so a copy unzipped next
+    # to the exe after a previous build does not survive: unzip again after
+    # every build, or the app shows no thumbnails at all.
     if thumbnails_dir.is_dir():
         print("\nPackaging thumbnails.zip...")
         shutil.make_archive(str(release_dir / "thumbnails"), "zip", str(REPO_ROOT), "thumbnails")

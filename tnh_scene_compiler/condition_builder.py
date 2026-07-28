@@ -1,32 +1,109 @@
 """Condition builder dialog for the scene editor.
 
 Guided UI that helps writers discover and construct condition
-expressions for ``[[if]]``, ``[[elif]]``, and choice guards.
+expressions for ``[[if]]``, ``[[elif]]``, and choice guards. Any number of
+clauses can be added, each (after the first) joined with ``and``/``or``, so
+a compound condition is built without hand-typing the boolean expression.
 
-The pure-logic helpers (``build_condition``, ``wrap_condition``) are
-importable and testable without Tkinter.
+The pure-logic helpers (``build_condition``, ``join_conditions``,
+``wrap_condition``) are importable and testable without Tkinter.
 """
 
 from __future__ import annotations
 
 import tkinter as tk
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from tkinter import ttk
 from typing import Any
 
-from .allowlists import Allowlists
+from .allowlists import (
+    Allowlists,
+    ConditionVariant,
+    group_by_category,
+    is_character_collection_param,
+    is_character_param,
+    is_location_param,
+    parse_signature_params,
+    return_is_comparable,
+    type_is_comparable,
+)
 
 # -- Constants ---------------------------------------------------------------
 
+# Top-level condition categories, in display order. The "Condition type"
+# selector is two-level (Category -> Condition); these group the built-in
+# checks and route allowlist functions in by their own category.
+CONDITION_CATEGORIES: list[str] = [
+    "Relationships",
+    "Character state",
+    "Story & history",
+    "Location & time",
+    "Advanced",
+]
+
+# Built-in condition types: (kind, top-level category, label). These are the
+# DSL-sugar checks (universal to TNH), hardcoded here; allowlist functions are
+# layered in on top by :func:`build_condition_catalog`.
+_BUILTIN_TYPES: list[tuple[str, str, str]] = [
+    ("approval",    "Relationships",   "Love / Trust check"),
+    ("friendship",  "Relationships",   "Friendship check"),
+    ("trait",       "Character state", "Trait check"),
+    ("mood",        "Character state", "Mood check"),
+    ("personality", "Character state", "Personality check"),
+    ("nearby",      "Character state", "Nearby check"),
+    ("property",    "Character state", "Character property"),
+    ("history",     "Story & history", "History check"),
+    ("method",      "Advanced",        "Character method (any)"),
+]
+# There is deliberately no generic "Standalone function (any)" entry here.
+# :func:`build_condition_catalog` promotes *every* allowlist function to its own
+# entry (an uncategorised one falls to "Advanced"), so a generic picker reached
+# nothing that was not already one click away — under raw names, and grouped by
+# the raw allowlist ``category`` field, which put the same function under a
+# second, conflicting taxonomy ("Approval" vs "Relationships", …). Character
+# methods still need their generic picker: they are never promoted individually.
+
+# Allowlist function category -> top-level condition category.
+_FUNC_CATEGORY_TO_TOP: dict[str, str] = {
+    "Approval": "Relationships",
+    "Relationships": "Relationships",
+    "Character status": "Character state",
+    "Clothing": "Character state",
+    "History": "Story & history",
+    "Mod state": "Story & history",
+    "Location": "Location & time",
+    "Time": "Location & time",
+}
+
+# Functions a friendlier built-in type covers *entirely* — not surfaced
+# individually, since the entry would duplicate the sugar check.
+#
+# Only an exact duplicate belongs here. check_approval and
+# are_Characters_friends were listed too, but each built-in reaches a strict
+# subset: "Love / Trust check" emits one axis against a literal number, while
+# check_approval also does combined love+trust and named thresholds; the
+# "Friendship check" sugar hardcodes two characters and never emits `level`,
+# while the function takes any number at any tier. Both are promoted instead,
+# under labels that say what they add.
+_SUGAR_DUPLICATE_FUNCTIONS: frozenset[str] = frozenset({
+    "Character_is_in_close_proximity",   # Nearby check — same single argument
+})
+
+# Top-level category -> glossary search term for the "?" quick-access button.
+# The terms hit the enriched cheatsheet's per-family Conditions subsections.
+_GLOSSARY_SEARCH_BY_CATEGORY: dict[str, str] = {
+    "Relationships": "relationship conditions",
+    "Character state": "character-state conditions",
+    "Story & history": "story, location",
+    "Location & time": "story, location",
+    "Advanced": "conditions",
+}
+
+# Kept for backward reference; the flat type list is now derived from the
+# catalog. Order matches _BUILTIN_TYPES.
 CONDITION_TYPES: list[tuple[str, str]] = [
-    ("Love / Trust check", "approval"),
-    ("Trait check", "trait"),
-    ("History check", "history"),
-    ("Mood check", "mood"),
-    ("Friendship check", "friendship"),
-    ("Nearby check", "nearby"),
-    ("Personality check", "personality"),
-    ("Standalone function", "function"),
+    (label, kind) for kind, _cat, label in _BUILTIN_TYPES
 ]
 
 AXES: list[str] = ["love", "trust"]
@@ -38,6 +115,83 @@ WRAP_MODES: list[tuple[str, str]] = [
     ("Expression only", "bare"),
 ]
 
+# Boolean operators offered before each clause after the first, when
+# combining several conditions into one expression.
+COMBINE_OPERATORS: list[str] = ["AND", "OR"]
+
+
+@dataclass(frozen=True)
+class ConditionEntry:
+    """One pick in the two-level "Condition type" selector.
+
+    ``kind`` is the underlying condition kind (``approval``, ``function``…).
+    ``target`` is empty for a built-in check or the generic function/method
+    pickers; for a *promoted* standalone function it holds that function's
+    name, so the panel jumps straight to its parameter form.
+
+    ``variant`` indexes into that function's declared variants, or is -1
+    when it has none. A function with variants contributes one entry per
+    variant and none of its own: the variants *are* the questions it can
+    answer, so listing the unpinned form beside them would offer a third
+    entry whose meaning depends on a default the writer cannot see.
+    """
+
+    label: str
+    kind: str
+    target: str = ""
+    variant: int = -1
+
+
+def build_condition_catalog(allow: Allowlists) -> dict[str, list[ConditionEntry]]:
+    """Group condition entries by top-level category for the selector.
+
+    Built-in checks land in their assigned category; each allowlist function
+    (minus the sugar duplicates) is surfaced individually under the top-level
+    category its own ``category`` maps to, labelled by its ``label`` (or its
+    name). Categories are returned in :data:`CONDITION_CATEGORIES` order,
+    empty ones dropped; within a category the built-ins keep their order and
+    the promoted functions follow, sorted by label.
+
+    A function declaring ``variants`` contributes **one entry per variant
+    instead of one of its own** — see :class:`ConditionEntry`.
+    """
+    builtins: dict[str, list[ConditionEntry]] = {c: [] for c in CONDITION_CATEGORIES}
+    for kind, category, label in _BUILTIN_TYPES:
+        builtins[category].append(ConditionEntry(label, kind, ""))
+
+    functions: dict[str, list[ConditionEntry]] = {c: [] for c in CONDITION_CATEGORIES}
+    for name in allow.condition_functions:
+        if name in _SUGAR_DUPLICATE_FUNCTIONS:
+            continue
+        top = _FUNC_CATEGORY_TO_TOP.get(
+            allow.condition_function_categories.get(name, ""), "Advanced",
+        )
+        variants = allow.condition_function_variants.get(name, [])
+        if variants:
+            for index, variant in enumerate(variants):
+                functions[top].append(
+                    ConditionEntry(variant.label, "function", name, index),
+                )
+            continue
+        label = allow.condition_function_labels.get(name, name)
+        functions[top].append(ConditionEntry(label, "function", name))
+
+    catalog: dict[str, list[ConditionEntry]] = {}
+    for category in CONDITION_CATEGORIES:
+        entries = builtins[category] + sorted(
+            functions[category], key=lambda e: e.label.lower(),
+        )
+        if entries:
+            catalog[category] = entries
+    return catalog
+
+# Operator choices shown for a comparable (tier/int/float) function or method
+# return. The first entry inserts a bare call (empty operator); the rest
+# append `<op> <value>`. Default selection is ">=" so the common case nudges
+# the writer toward a comparison rather than the truthy-when-nonzero footgun.
+COMPARE_OPS: list[str] = ["(no comparison)", ">=", ">", "<=", "<", "==", "!="]
+_BARE_COMPARE_LABEL = "(no comparison)"
+
 _REQUIRED_VARS: dict[str, list[str]] = {
     "approval": ["character", "threshold"],
     "trait": ["character", "trait"],
@@ -46,6 +200,8 @@ _REQUIRED_VARS: dict[str, list[str]] = {
     "friendship": ["character", "other_character"],
     "nearby": ["character"],
     "personality": ["character", "trait"],
+    "property": ["character", "property_name"],
+    "method": ["character", "method_name"],
     "function": ["func_name"],
 }
 
@@ -62,7 +218,10 @@ _DESCRIPTIONS: dict[str, str] = {
     ),
     "history": (
         "Checks if the character has done this event\n"
-        "at least once (e.g. kissed_player, fought_villain)."
+        "at least once (e.g. kissed_player, fought_villain).\n"
+        "Uses the permanent history — once recorded it\n"
+        "stays true for the rest of the save, unless the\n"
+        "mod explicitly clears the event."
     ),
     "mood": (
         "Checks the character’s current mood.\n"
@@ -74,13 +233,30 @@ _DESCRIPTIONS: dict[str, str] = {
         "proximity to the player."
     ),
     "personality": (
-        "Checks a character’s personality trait.\n"
-        "Optional numeric threshold for comparison."
+        "Checks a character’s personality score for a\n"
+        "trait (e.g. dominant, submissive, protective).\n"
+        "Scores are small integers (commonly -1, 0, 1;\n"
+        "higher = stronger). With a threshold it checks\n"
+        "score >= threshold; give one (e.g. 1) for a\n"
+        "clear yes/no — an empty threshold returns the\n"
+        "raw score, which reads as true for -1 too."
+    ),
+    "property": (
+        "Checks a read-only character property\n"
+        "(e.g. desire, breast_size, sex_experience).\n"
+        "These return a number — pick an operator and\n"
+        "value in the Compare row."
+    ),
+    "method": (
+        "Checks a low-level, read-only character method\n"
+        "(e.g. check_trait, get_status, History.check).\n"
+        "Arguments are pre-filled from the method's signature\n"
+        "once you pick one."
     ),
     "function": (
-        "Standalone functions from the\n"
-        "condition_functions allowlist.\n"
-        "Arguments are free-text (e.g. JeanGrey)."
+        "A ready-made check the game provides as a\n"
+        "standalone function. Its arguments are pre-filled\n"
+        "from the signature the allowlist declares for it."
     ),
 }
 
@@ -99,6 +275,11 @@ def build_condition(
     other_character: str = "",
     func_name: str = "",
     func_args: str = "",
+    method_path: str = "",
+    method_args: str = "",
+    property_name: str = "",
+    compare_op: str = "",
+    compare_value: str = "",
 ) -> str:
     """Return the DSL condition expression for the given parameters.
 
@@ -110,6 +291,19 @@ def build_condition(
         For ``approval``: a numeric value (e.g. ``"500"``) or a tier
         name (``"medium"``).  For ``personality``: optional numeric
         threshold.
+    method_path
+        For ``method``: the attribute chain to call on ``character``,
+        e.g. ``"check_trait"`` or ``"History.check"`` — resolved by the
+        caller from the method's ``Character.<path>(...)`` signature
+        (see :func:`resolve_method_path`), since most methods hang
+        directly off the character but a few (``History.check``) need an
+        extra hop.
+    compare_op / compare_value
+        For ``function`` / ``method`` whose return value is a number worth
+        comparing (a tier/int/float — see :func:`return_is_comparable`): the
+        operator and right-hand value appended to the call, e.g.
+        ``get_effective_friendship(A, B) >= 2``. An empty ``compare_op`` (or
+        empty ``compare_value``) leaves the call bare.
 
     Returns
     -------
@@ -132,11 +326,145 @@ def build_condition(
         if threshold:
             return f'{character}.personality("{trait}", {threshold})'
         return f'{character}.personality("{trait}")'
+    if kind == "property":
+        return _append_comparison(
+            f"{character}.{property_name}", compare_op, compare_value,
+        )
+    if kind == "method":
+        call = (
+            f"{character}.{method_path}({method_args})"
+            if method_args else f"{character}.{method_path}()"
+        )
+        return _append_comparison(call, compare_op, compare_value)
     if kind == "function":
-        if func_args:
-            return f"{func_name}({func_args})"
-        return f"{func_name}()"
+        call = f"{func_name}({func_args})" if func_args else f"{func_name}()"
+        return _append_comparison(call, compare_op, compare_value)
     return ""
+
+
+def _append_comparison(expr: str, op: str, value: str) -> str:
+    """Return ``"<expr> <op> <value>"`` when both op and value are set, else ``expr``.
+
+    The bare fallback covers a boolean-returning call (no comparison
+    needed) and the in-progress state where the writer picked an operator
+    but hasn't typed a value yet.
+    """
+    op = op.strip()
+    value = value.strip()
+    if op and value:
+        return f"{expr} {op} {value}"
+    return expr
+
+
+def resolve_method_path(signature: str, method_name: str) -> str:
+    """Return the attribute chain after ``Character.`` from a method signature.
+
+    ``"Character.History.check(...)"`` -> ``"History.check"``.
+    ``"Character.check_trait(...)"`` -> ``"check_trait"``.
+    Falls back to the bare *method_name* when *signature* is empty or does
+    not start with the expected ``Character.`` call path — this happens for
+    the free-text fallback used when no ``character_methods.yaml`` is
+    loaded.
+    """
+    if not signature:
+        return method_name
+    paren = signature.find("(")
+    head = (signature[:paren] if paren >= 0 else signature).strip()
+    prefix = "Character."
+    if head.startswith(prefix):
+        return head[len(prefix):]
+    return method_name
+
+
+def join_conditions(clauses: list[tuple[str, str]]) -> str:
+    """Join clauses into one expression: ``[(op, cond), ...]``.
+
+    Each clause is an ``(operator, condition)`` pair; the first clause's
+    operator is ignored (there's nothing before it). Empty conditions are
+    skipped, so an in-progress clause the writer hasn't filled yet doesn't
+    break the preview, and the operator that follows a skipped clause still
+    joins the next one. Operators are inserted verbatim, uppercase (``AND``
+    / ``OR``) being what the dialog offers and what the grammar now reads as
+    the house style; note ``and`` binds tighter than ``or``, whatever the
+    casing, so a mixed chain follows that precedence.
+    """
+    parts: list[str] = []
+    for op, cond in clauses:
+        if not cond:
+            continue
+        if parts:
+            parts.append(op or "AND")
+        parts.append(cond)
+    return " ".join(parts)
+
+
+# ``Narrator`` is the compiler's own speaker label for narration lines, not a
+# game object: it appears nowhere in the base game, so `Narrator.anything` and
+# `f(Narrator)` are both meaningless. It is filtered out of every character
+# picker.
+NARRATOR_NAME: str = "Narrator"
+
+# ``Player`` is filtered from pickers that fill a function *argument*, and kept
+# in pickers that name the *subject* of an attribute or method.
+PLAYER_NAME: str = "Player"
+
+
+def non_narrator(names: Iterable[str]) -> list[str]:
+    """*names* without the narrator, sorted — see :data:`NARRATOR_NAME`."""
+    return sorted(name for name in names if name != NARRATOR_NAME)
+
+
+def selectable_characters(allow: Allowlists) -> list[str]:
+    """Every character a picker may offer, sorted.
+
+    Only ``Narrator`` is dropped, and it is dropped everywhere — see
+    :data:`NARRATOR_NAME`.
+    """
+    return non_narrator(allow.characters)
+
+
+def non_player_characters(names: Iterable[str]) -> list[str]:
+    """*names* without the player — for a picker filling a function argument.
+
+    In TNH the player is the implicit subject of every relationship, never a
+    participant you name. `Partners` **is** the player's set of partners;
+    `love`/`trust` live on the companion and already measure how she feels
+    about the player; and the friendship functions only ever describe
+    companion-to-companion ties, because `register_Friendships` walks
+    `all_Companions` and `Player` is not in `all_Characters` at all
+    (`definitions.rpy` keeps `all_Characters_plus_Player` separate). Passing
+    the player returns 0 / False forever, silently.
+
+    So naming the player as an argument is a category error, not a value that
+    happens to fail — and the base game agrees: across ~2000 calls it never
+    passes ``Player`` to one of these. The pickers stop offering what can
+    never mean anything.
+
+    The player stays offered wherever it is the **subject** rather than an
+    argument: ``Player.check_trait(...)`` (109 uses in the base game) and
+    ``Player.History`` (316) are ordinary things to ask about.
+    """
+    return [name for name in names if name != PLAYER_NAME]
+
+
+def default_collection_mode(pdefault: str, declared: str = "") -> str:
+    """Which form a character-collection field opens on.
+
+    A *declared* ``param_collection_mode`` wins outright — it is the only
+    way to say "this one asks about named characters", which no signature
+    reveals. An unknown key falls through to the derivation rather than
+    failing: a typo in an allowlist should not empty the field.
+
+    Otherwise it is derived. A **required** collection is one the game
+    itself fills from a location (`are_Characters_friends`,
+    `check_if_need_to_change`), so it leads with "present here". An
+    **optional** one (it has a default, e.g. ``arriving_Characters = None``)
+    starts on the explicit pick, because presuming everyone present would
+    change the question being asked.
+    """
+    if declared and declared in COLLECTION_MODE_BY_KEY:
+        return COLLECTION_MODE_BY_KEY[declared]
+    return COLLECTION_MODE_PICK if pdefault.strip() else COLLECTION_MODE_PRESENT
 
 
 def wrap_condition(condition: str, mode: str) -> str:
@@ -158,121 +486,467 @@ def wrap_condition(condition: str, mode: str) -> str:
     return condition
 
 
-# -- Dialog ------------------------------------------------------------------
+# -- Parameter widget selection (pure) ---------------------------------------
 
-class ConditionBuilderDialog(tk.Toplevel):
-    """Modal dialog that guides writers through building a condition."""
+# Widget kinds a signature parameter can map to in the guided form. Picking one
+# per parameter decides whether the writer types freely or picks from a
+# constrained control.
+PARAM_WIDGET_CHOICES = "choices"              # declared param_choices -> editable combo
+PARAM_WIDGET_CHARACTER = "character"          # single Character -> readonly combo
+PARAM_WIDGET_CHARACTER_SET = "character_set"  # several Characters -> multi-select
+PARAM_WIDGET_LOCATION = "location"            # single location -> editable slugline combo
+PARAM_WIDGET_BOOL = "bool"                    # bool -> True/False combo
+PARAM_WIDGET_DATE = "date"                    # (day, period) tuple -> Day + period fields
+PARAM_WIDGET_TEXT = "text"                    # anything else -> free text
+# Pinned by the selected variant: carries its value into the call in
+# signature order but draws nothing. Never returned by param_widget_kind —
+# it is chosen by the entry, not derived from the parameter's type.
+PARAM_WIDGET_FIXED = "fixed"
+
+# TNH time-of-day periods, in ``time_index`` order (see the base game's
+# ``time_options``). A "date" is a ``(day, time_index)`` pair; the date widget
+# shows these names and emits the index.
+_TIME_PERIODS: list[str] = ["Morning", "Midday", "Evening", "Night", "Late Night"]
+
+# The two forms a ``(day, time_index)`` date field offers. The event form is
+# the default: a date the writer types by hand only makes sense against a day
+# number they cannot know, while the moment an event last happened is the one
+# a scene actually has ("has it been a day since she kissed me?").
+DATE_MODE_EVENT: str = "When an event last happened"
+DATE_MODE_DAY: str = "A specific day"
+_DATE_MODES: list[str] = [DATE_MODE_EVENT, DATE_MODE_DAY]
+
+
+def is_bool_param(type_hint: str, default: str) -> bool:
+    """Return ``True`` for a boolean parameter (typed ``bool`` or defaulting to one)."""
+    if type_hint.strip() == "bool":
+        return True
+    return default.strip() in ("True", "False")
+
+
+def is_date_tuple_param(type_hint: str) -> bool:
+    """Return ``True`` for a ``(day, time_index)`` date parameter (``tuple[int, int]``).
+
+    The Condition Builder gives these a plain-language Day + time-of-day form
+    instead of a raw ``(int, int)`` text field, so a non-developer knows what to
+    enter.
+    """
+    return type_hint.replace(" ", "") == "tuple[int,int]"
+
+
+def param_widget_kind(
+    name: str,
+    type_hint: str,
+    default: str,
+    *,
+    has_choices: bool,
+) -> str:
+    """Pick the input widget kind for one signature parameter.
+
+    Precedence, most specific first:
+
+    1. ``has_choices`` — the entry declared ``param_choices`` for this
+       parameter; the writer picks from that curated list (still editable).
+    2. a single ``Character`` (:func:`is_character_param`).
+    3. a collection of ``Character`` (:func:`is_character_collection_param`) —
+       a multi-select producing a set literal.
+    4. a single location (:func:`is_location_param`) — an editable combo of the
+       known sluglines, inserted **quoted** (the base-game functions accept a
+       slugline ``str``).
+    5. a ``bool`` (:func:`is_bool_param`) — a ``True`` / ``False`` picker.
+    6. otherwise free text.
+
+    Event / other free-string parameters are not inferred (their value set is
+    project-specific and needs quoting) — declare ``param_choices`` for them.
+    """
+    if has_choices:
+        return PARAM_WIDGET_CHOICES
+    if is_character_param(name, type_hint):
+        return PARAM_WIDGET_CHARACTER
+    if is_character_collection_param(name, type_hint):
+        return PARAM_WIDGET_CHARACTER_SET
+    if is_location_param(name, type_hint):
+        return PARAM_WIDGET_LOCATION
+    if is_bool_param(type_hint, default):
+        return PARAM_WIDGET_BOOL
+    if is_date_tuple_param(type_hint):
+        return PARAM_WIDGET_DATE
+    return PARAM_WIDGET_TEXT
+
+
+def format_character_collection(characters: list[str]) -> str:
+    """Return a list literal for the picked characters.
+
+    ``["JeanGrey", "Rogue"]`` -> ``"[JeanGrey, Rogue]"``; no picks -> ``"[]"``.
+    Bare names are emitted, matching how single-``Character`` params insert —
+    they resolve to the game's defined character store variables.
+
+    A **list**, not a set: the ``[[if]]`` grammar has no set literal (``{…}``
+    is rejected outright, and ``set()`` is not a registered function), while
+    the base game types every one of these parameters ``Iterable[Character]``.
+    """
+    picked = [c for c in characters if c]
+    return "[" + ", ".join(picked) + "]"
+
+
+# How a character-collection parameter is filled. "Pick characters" writes the
+# names out; the other two defer to the game, which is how these arguments are
+# actually produced at runtime.
+COLLECTION_MODE_PICK: str = "Pick characters"
+COLLECTION_MODE_PRESENT: str = "Characters present here"
+COLLECTION_MODE_VISIBLE: str = "Characters visible here"
+_COLLECTION_MODES: list[str] = [
+    COLLECTION_MODE_PRESENT, COLLECTION_MODE_VISIBLE, COLLECTION_MODE_PICK,
+]
+# The ``param_collection_mode`` values an allowlist entry may declare, mapped
+# to the mode they select. Short keys because they are typed by hand in YAML.
+COLLECTION_MODE_BY_KEY: dict[str, str] = {
+    "pick": COLLECTION_MODE_PICK,
+    "present": COLLECTION_MODE_PRESENT,
+    "visible": COLLECTION_MODE_VISIBLE,
+}
+
+_COLLECTION_MODE_FUNCTIONS: dict[str, str] = {
+    COLLECTION_MODE_PRESENT: "get_present_Characters",
+    COLLECTION_MODE_VISIBLE: "get_visible_Characters",
+}
+
+
+def location_argument(current: bool, slugline: str) -> str:
+    """Render a location choice: the current room, or an explicit slugline.
+
+    Shared by the location parameter widget and the character-collection
+    modes, which ask the writer the same "here, or which room?" question.
+    """
+    return "get_Location()" if current else slugline
+
+
+def flow_text(text: str) -> str:
+    """Collapse a help string's soft line breaks so a wrapping label can reflow it.
+
+    Whitespace within each paragraph is squeezed to single spaces (dropping the
+    hand-inserted ``\\n`` that would otherwise fight the label's own
+    ``wraplength`` and leave ragged breaks); blank-line paragraph separations
+    are kept. Idempotent on already-flowed text.
+    """
+    paragraphs = text.split("\n\n")
+    return "\n\n".join(" ".join(p.split()) for p in paragraphs)
+
+
+# Named allowlist sets a dynamic ``param_choices`` source can pull from. Each
+# takes the allowlists and the clause's currently-selected character; a source
+# whose values are the same for everyone ignores the second argument.
+_CHOICE_SOURCES: dict[str, Callable[[Allowlists, str], list[str]]] = {
+    "history_events": lambda a, _c: sorted(a.history_events),
+    "traits": lambda a, _c: sorted(a.traits),
+    "personalities": lambda a, _c: sorted(a.personalities),
+    # Keeps the player: this source feeds the ``History`` parameter (declared
+    # with a ``.History`` suffix), and `Player.History` is used 316 times in
+    # the base game. Only the narrator drops out.
+    "characters": lambda a, _c: selectable_characters(a),
+    "locations": lambda a, _c: sorted(a.locations),
+    "looks": lambda a, _c: sorted(a.looks),
+    "stages": lambda a, _c: sorted(a.stages),
+    "sfx": lambda a, _c: sorted(a.sfx),
+    "inventory_items": lambda a, _c: sorted(a.inventory_items),
+    "features": lambda a, c: character_features(a, c),
+    "clothing_items": lambda a, c: character_clothing_items(a, c),
+    "inventory_strings": lambda a, c: character_inventory_strings(a, c),
+}
+
+# Sources whose values change with the selected character. A field fed by one
+# of these is re-populated when the character row changes, the way the
+# built-in mood check re-populates its own combo.
+_PER_CHARACTER_SOURCES: frozenset[str] = frozenset({
+    "features", "clothing_items", "inventory_strings",
+})
+
+
+def character_features(allow: Allowlists, character: str) -> list[str]:
+    """Return *character*'s supported features, else every known feature.
+
+    The per-character sets overlap only partly and share no common value at
+    all, so flattening them would offer "date" for a character who does not
+    support it. When the character is unknown, though — nothing picked yet, or
+    a project character absent from the allowlists — the union is a more
+    useful answer than an empty dropdown, and the combo stays editable either
+    way.
+    """
+    if character in allow.char_features:
+        return sorted(allow.char_features[character])
+    if not allow.char_features:
+        return []
+    return sorted(set().union(*allow.char_features.values()))
+
+
+def character_clothing_items(allow: Allowlists, character: str) -> list[str]:
+    """Return *character*'s clothing inventory keys, else every known one.
+
+    Same resolution rule as :func:`character_features`: a character's own
+    wardrobe when we know who it is, the union as a fallback so the dropdown
+    is never empty before a character is picked. The keys already carry their
+    owner's tag (``JeanGrey_beige_cargo_pants``), so the union stays
+    unambiguous.
+    """
+    if character in allow.char_clothing_items:
+        return sorted(allow.char_clothing_items[character])
+    if not allow.char_clothing_items:
+        return []
+    return sorted(set().union(*allow.char_clothing_items.values()))
+
+
+def character_inventory_strings(allow: Allowlists, character: str) -> list[str]:
+    """Return everything ``Character.Inventory.get*(string)`` can match on.
+
+    An inventory holds two kinds of thing under one mapping: plain items keyed
+    by ``Item.string`` (the flat ``inventory_items`` allowlist) and clothing
+    keyed by ``Item.tag`` (the per-character ``clothing_items``). One lookup
+    reaches both, so one dropdown offers both.
+    """
+    return sorted(
+        set(allow.inventory_items) | set(character_clothing_items(allow, character)),
+    )
+
+
+def param_choices_is_per_character(spec: list[str] | dict[str, Any]) -> bool:
+    """Return ``True`` if a declared ``param_choices`` value varies by character."""
+    return (
+        isinstance(spec, dict)
+        and str(spec.get("source", "")) in _PER_CHARACTER_SOURCES
+    )
+
+
+def resolve_param_choices(
+    spec: list[str] | dict[str, Any], allow: Allowlists, character: str = "",
+) -> list[str]:
+    """Resolve a declared ``param_choices`` value into the dropdown options.
+
+    A plain list is returned as-is. A dynamic-source mapping
+    (``{source: "history_events", quote: true, suffix: ".History"}``) pulls the
+    named allowlist set from *allow*, appends the optional ``suffix``, and wraps
+    each value in double quotes when ``quote`` is set — so e.g. a history-event
+    parameter suggests every known event as a valid quoted string literal, kept
+    in sync with the data instead of copied into the allowlist entry. An
+    unknown source resolves to no options (the combo stays free text).
+
+    *character* narrows a per-character source (see
+    :func:`param_choices_is_per_character`) to the clause's selected character;
+    the flat sources ignore it.
+    """
+    if isinstance(spec, list):
+        return list(spec)
+    if not isinstance(spec, dict):
+        return []
+    source = _CHOICE_SOURCES.get(str(spec.get("source", "")), lambda _a, _c: [])
+    values = source(allow, character)
+    suffix = str(spec.get("suffix", ""))
+    quote = bool(spec.get("quote", False))
+    return [f'"{v}{suffix}"' if quote else f"{v}{suffix}" for v in values]
+
+
+@dataclass
+class _ParamField:
+    """One signature parameter's live input state in the guided form.
+
+    ``kind`` is a ``PARAM_WIDGET_*`` constant. Single-value widgets keep their
+    ``tk.StringVar`` in ``var``; the multi-select keeps ``(character,
+    BooleanVar)`` pairs in ``char_vars``; a location field also keeps a
+    "current location?" toggle in ``current_var``. :meth:`value` returns the
+    argument string to splice into the call, in signature order.
+    """
+
+    name: str
+    default: str
+    kind: str
+    var: tk.StringVar | None = None
+    char_vars: list[tuple[str, tk.BooleanVar]] | None = None
+    current_var: tk.BooleanVar | None = None
+    # Location only: this param takes an *optional* location, so "current" means
+    # "no argument" (drop it) rather than passing get_Location() explicitly.
+    omit_when_current: bool = False
+    # Date only: the time-of-day period name (``var`` holds the day number).
+    period_var: tk.StringVar | None = None
+    # Date only: which of the two date forms is showing, plus the character and
+    # history event the "when an event last happened" form reads.
+    mode_var: tk.StringVar | None = None
+    date_char_var: tk.StringVar | None = None
+    date_event_var: tk.StringVar | None = None
+
+    def value(self) -> str:
+        """Return the current argument string (``""`` -> caller falls back to default)."""
+        if self.kind == PARAM_WIDGET_CHARACTER_SET:
+            mode = self.mode_var.get() if self.mode_var is not None else COLLECTION_MODE_PICK
+            func = _COLLECTION_MODE_FUNCTIONS.get(mode)
+            if func is not None:
+                current = self.current_var.get() if self.current_var is not None else True
+                slugline = self.var.get() if self.var is not None else ""
+                return f"{func}({location_argument(current, slugline)})"
+            picked = [c for c, v in (self.char_vars or []) if v.get()]
+            return format_character_collection(picked)
+        if self.kind == PARAM_WIDGET_LOCATION and self.current_var is not None:
+            if self.current_var.get():
+                # Optional param -> "" so it drops out (the assembler omits a
+                # trailing current-location arg); required -> the current room.
+                return "" if self.omit_when_current else "get_Location()"
+            return self.var.get() if self.var is not None else ""
+        if self.kind == PARAM_WIDGET_DATE:
+            if self.mode_var is not None and self.mode_var.get() == DATE_MODE_EVENT:
+                # `Char.History.check_when("event")` returns the very
+                # (day, time_index) tuple this parameter wants. Empty while
+                # either half is unpicked, so is_valid refuses to insert.
+                char = self.date_char_var.get() if self.date_char_var else ""
+                event = self.date_event_var.get() if self.date_event_var else ""
+                if not char or not event:
+                    return ""
+                return f'{char}.History.check_when("{event}")'
+            day = (self.var.get().strip() if self.var is not None else "") or "0"
+            period = self.period_var.get() if self.period_var is not None else ""
+            index = _TIME_PERIODS.index(period) if period in _TIME_PERIODS else 0
+            return f"({day}, {index})"
+        return self.var.get() if self.var is not None else ""
+
+
+# -- Single-clause panel ------------------------------------------------------
+
+class _ConditionClausePanel(ttk.Frame):
+    """One condition's worth of guided UI: type selector + dynamic params.
+
+    Embedded once (always) or twice (when the dialog's Combine mode is
+    AND/OR) inside :class:`ConditionBuilderDialog`. Owns none of the
+    wrap-mode / insert-button / combine-mode state — that stays in the
+    dialog, which reads this panel back via :meth:`get_condition` and
+    :meth:`is_valid`.
+
+    The change callback is wired via :meth:`set_on_change` *after*
+    construction rather than passed into ``__init__`` — the panel builds
+    its own initial parameter fields as part of construction (so it opens
+    pre-populated), and at that point the dialog's own preview/insert-button
+    widgets do not exist yet to be safely notified.
+    """
 
     def __init__(
         self,
         master: tk.Widget,
         allow: Allowlists,
-        insert_cb: Callable[[str], None],
-        *,
-        characters: list[str] | None = None,
+        characters: list[str],
     ) -> None:
         super().__init__(master)
-        self.title("Condition Builder")
-        self.resizable(False, False)
-        self.grab_set()
-
-        self._insert = insert_cb
         self._allow = allow
-        self._characters = sorted(characters) if characters else (
-            sorted(allow.characters) if allow.characters else []
-        )
+        self._characters = characters
+        self._on_change: Callable[[], None] | None = None
         self._vars: dict[str, tk.StringVar] = {}
         self._mood_combo_widget: ttk.Combobox | None = None
+        self._func_params: list[_ParamField] = []
+        self._method_params: list[_ParamField] = []
+        # Dropdowns fed by a per-character source, re-populated when the
+        # character row changes: (combo, declared spec).
+        self._per_char_choice_widgets: list[tuple[ttk.Combobox, Any]] = []
+        # Comparison affordance for a comparable function/method return
+        # (tier/int/float). Non-None only while such an entry is selected.
+        self._compare_op_var: tk.StringVar | None = None
+        self._compare_value_var: tk.StringVar | None = None
         self._current_kind: str | None = None
+        # The selected standalone function's name. Every allowlist function is
+        # promoted to its own selector entry, so this is always set while the
+        # kind is "function" — _params_function has no generic picker to fall
+        # back on.
+        self._preset_func: str = ""
+        # Which of that function's variants the selected entry stands for,
+        # or -1 when it declares none. See :class:`ConditionEntry`.
+        self._preset_variant: int = -1
 
-        body = ttk.Frame(self, padding=12)
-        body.pack(fill=tk.BOTH, expand=True)
+        # -- Two-level condition-type selector (Category -> Condition) -------
+        self._catalog = build_condition_catalog(allow)
+        self._categories = list(self._catalog.keys())
 
-        # -- Condition type selector -----------------------------------------
         ttk.Label(
-            body, text="Condition type:", font=("Segoe UI", 10, "bold"),
+            self, text="Condition type:", font=("Segoe UI", 10, "bold"),
         ).pack(anchor=tk.W)
 
-        type_labels = [label for label, _ in CONDITION_TYPES]
-        self._type_label_to_key = {label: key for label, key in CONDITION_TYPES}
-        self._type_var = tk.StringVar(value=type_labels[0])
-        type_combo = ttk.Combobox(
-            body, textvariable=self._type_var,
-            values=type_labels, state="readonly", width=28,
+        selector = ttk.Frame(self)
+        selector.pack(fill=tk.X, pady=(2, 8))
+        selector.columnconfigure(1, weight=1)
+
+        ttk.Label(selector, text="Category:").grid(row=0, column=0, sticky=tk.W, padx=(0, 6))
+        self._category_var = tk.StringVar(value=self._categories[0])
+        ttk.Combobox(
+            selector, textvariable=self._category_var, values=self._categories,
+            state="readonly",
+        ).grid(row=0, column=1, sticky=tk.EW, pady=(0, 2))
+        self._category_var.trace_add("write", self._on_category_select)
+        # Quick access to the glossary, opened on the current category's
+        # conditions section.
+        ttk.Button(
+            selector, text="?", width=2, command=self._open_glossary,
+        ).grid(row=0, column=2, rowspan=2, sticky=tk.NS, padx=(6, 0))
+
+        ttk.Label(selector, text="Condition:").grid(row=1, column=0, sticky=tk.W, padx=(0, 6))
+        self._condition_var = tk.StringVar()
+        self._condition_combo = ttk.Combobox(
+            selector, textvariable=self._condition_var, state="readonly",
         )
-        type_combo.pack(fill=tk.X, pady=(2, 8))
-        type_combo.bind("<<ComboboxSelected>>", self._on_type_select)
+        self._condition_combo.grid(row=1, column=1, sticky=tk.EW)
+        self._condition_var.trace_add("write", self._on_condition_select)
 
-        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(0, 8))
-
-        # -- Dynamic parameter area ------------------------------------------
-        self._param_container = ttk.Frame(body)
+        # -- Dynamic parameter area ---------------------------------------
+        self._param_container = ttk.Frame(self)
         self._param_container.pack(fill=tk.BOTH, expand=True)
         self._param_frame: ttk.Frame | None = None
 
-        # -- Wrap mode -------------------------------------------------------
-        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
+        # Populate the first category's conditions and build the first one
+        # (silent — no on_change wired yet; see set_on_change).
+        self._refresh_condition_choices()
 
-        wrap_frame = ttk.Frame(body)
-        wrap_frame.pack(fill=tk.X)
-        ttk.Label(wrap_frame, text="Insert as:").pack(side=tk.LEFT, padx=(0, 4))
+    def set_on_change(self, callback: Callable[[], None]) -> None:
+        """Wire the change notification. Call after construction."""
+        self._on_change = callback
 
-        wrap_labels = [label for label, _ in WRAP_MODES]
-        self._wrap_label_to_key = {label: key for label, key in WRAP_MODES}
-        self._wrap_var = tk.StringVar(value=wrap_labels[0])
-        wrap_combo = ttk.Combobox(
-            wrap_frame, textvariable=self._wrap_var,
-            values=wrap_labels, state="readonly", width=28,
+    def _notify_change(self) -> None:
+        if self._on_change is not None:
+            self._on_change()
+
+    # -- Type selection --------------------------------------------------
+
+    def _current_entry(self) -> ConditionEntry | None:
+        """Return the catalog entry for the current Category + Condition pick."""
+        entries = self._catalog.get(self._category_var.get(), [])
+        label = self._condition_var.get()
+        for entry in entries:
+            if entry.label == label:
+                return entry
+        return None
+
+    def _refresh_condition_choices(self) -> None:
+        """Fill the Condition combo for the selected category and pick the first."""
+        entries = self._catalog.get(self._category_var.get(), [])
+        labels = [e.label for e in entries]
+        self._condition_combo.configure(values=labels)
+        # Setting the var fires _on_condition_select (which builds the params).
+        self._condition_var.set(labels[0] if labels else "")
+
+    def _on_category_select(self, *_a: Any) -> None:
+        self._refresh_condition_choices()
+
+    def _open_glossary(self) -> None:
+        """Open the glossary pre-filtered to the current category's section.
+
+        Modal because the Condition Builder itself holds a grab; the grab
+        returns to the builder when the glossary closes.
+        """
+        from .glossary import GlossaryDialog
+        search = _GLOSSARY_SEARCH_BY_CATEGORY.get(
+            self._category_var.get(), "conditions",
         )
-        wrap_combo.pack(side=tk.LEFT)
-        wrap_combo.bind("<<ComboboxSelected>>", lambda _: self._update_preview())
+        GlossaryDialog(self.winfo_toplevel(), search=search, modal=True)
 
-        # -- Preview ---------------------------------------------------------
-        preview_frame = ttk.Frame(body)
-        preview_frame.pack(fill=tk.X, pady=(8, 0))
-        ttk.Label(
-            preview_frame, text="Preview:", font=("Segoe UI", 9, "bold"),
-        ).pack(anchor=tk.W)
-        self._preview_var = tk.StringVar()
-        ttk.Label(
-            preview_frame, textvariable=self._preview_var,
-            font=("Consolas", 10), foreground="#A0E8C0",
-            wraplength=450, justify=tk.LEFT,
-        ).pack(anchor=tk.W, pady=(2, 0))
-
-        # -- Buttons ---------------------------------------------------------
-        btn_frame = ttk.Frame(body)
-        btn_frame.pack(fill=tk.X, pady=(12, 0))
-        ttk.Button(
-            btn_frame, text="Cancel", style="Danger.TButton",
-            command=self.destroy,
-        ).pack(side=tk.RIGHT, padx=(4, 0))
-        self._insert_btn = ttk.Button(
-            btn_frame, text="Insert", style="Compile.TButton",
-            command=self._do_insert, state=tk.DISABLED,
-        )
-        self._insert_btn.pack(side=tk.RIGHT)
-
-        self.bind("<Return>", lambda e: self._do_insert())
-        self.bind("<Escape>", lambda e: self.destroy())
-
-        # Build initial params for the first type
-        self._on_type_select()
-
-        # Center on parent
-        self.update_idletasks()
-        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
-        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 2
-        self.geometry(f"+{max(0, x)}+{max(0, y)}")
-
-    # -- Type selection ------------------------------------------------------
-
-    def _on_type_select(self, _event: Any = None) -> None:
-        kind = self._type_label_to_key.get(self._type_var.get())
-        if kind is None or kind == self._current_kind:
+    def _on_condition_select(self, *_a: Any) -> None:
+        entry = self._current_entry()
+        if entry is None:
             return
-        self._current_kind = kind
-        self._build_params(kind)
+        self._current_kind = entry.kind
+        self._preset_func = entry.target if entry.kind == "function" else ""
+        self._preset_variant = entry.variant if entry.kind == "function" else -1
+        self._build_params(entry.kind)
 
     def _build_params(self, kind: str) -> None:
         """Destroy old parameter widgets and build new ones for *kind*."""
@@ -283,14 +957,19 @@ class ConditionBuilderDialog(tk.Toplevel):
         self._param_frame.pack(fill=tk.BOTH, expand=True)
         self._vars.clear()
         self._mood_combo_widget = None
+        self._func_params = []
+        self._method_params = []
+        self._per_char_choice_widgets = []
+        self._compare_op_var = None
+        self._compare_value_var = None
 
         builder = getattr(self, f"_params_{kind}", None)
         if builder:
             builder(self._param_frame)
 
-        self._update_preview()
+        self._notify_change()
 
-    # -- Field helpers -------------------------------------------------------
+    # -- Field helpers -----------------------------------------------------
 
     def _add_character_field(
         self,
@@ -298,18 +977,27 @@ class ConditionBuilderDialog(tk.Toplevel):
         label: str,
         row: int,
         var_key: str = "character",
+        as_argument: bool = False,
     ) -> int:
-        """Add a character-selection row. Returns the next row index."""
+        """Add a character-selection row. Returns the next row index.
+
+        *as_argument* when the pick lands as an argument to a function rather
+        than as the subject of an attribute or method — it drops the player
+        from the list, see :func:`non_player_characters`. The default is
+        False because most built-in checks compile to ``Char.something()``,
+        which the player answers as well as anyone.
+        """
         ttk.Label(parent, text=f"{label}:").grid(
             row=row, column=0, sticky=tk.W, pady=2, padx=(0, 8),
         )
-        default = self._characters[0] if self._characters else ""
+        names = non_player_characters(self._characters) if as_argument else self._characters
+        default = names[0] if names else ""
         var = tk.StringVar(value=default)
 
-        if self._characters:
+        if names:
             widget = ttk.Combobox(
                 parent, textvariable=var,
-                values=self._characters, state="readonly", width=20,
+                values=names, state="readonly", width=20,
             )
             widget.bind(
                 "<<ComboboxSelected>>",
@@ -320,7 +1008,7 @@ class ConditionBuilderDialog(tk.Toplevel):
 
         widget.grid(row=row, column=1, sticky=tk.W, pady=2)
         self._vars[var_key] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         return row + 1
 
     def _add_text_field(
@@ -340,7 +1028,7 @@ class ConditionBuilderDialog(tk.Toplevel):
             row=row, column=1, sticky=tk.W, pady=2,
         )
         self._vars[var_key] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         return row + 1
 
     def _add_combo_field(
@@ -362,7 +1050,7 @@ class ConditionBuilderDialog(tk.Toplevel):
             state="readonly", width=20,
         ).grid(row=row, column=1, sticky=tk.W, pady=2)
         self._vars[var_key] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         return row + 1
 
     def _add_description(self, parent: ttk.Frame, row: int, kind: str) -> int:
@@ -370,8 +1058,9 @@ class ConditionBuilderDialog(tk.Toplevel):
         text = _DESCRIPTIONS.get(kind, "")
         if text:
             ttk.Label(
-                parent, text=text,
+                parent, text=flow_text(text),
                 foreground="#808080", font=("Segoe UI", 8),
+                wraplength=360, justify=tk.LEFT,
             ).grid(
                 row=row, column=0, columnspan=2,
                 sticky=tk.W, pady=(12, 0),
@@ -379,12 +1068,97 @@ class ConditionBuilderDialog(tk.Toplevel):
             return row + 1
         return row
 
-    # -- Character-change callback -------------------------------------------
+    def _make_note_label(self, parent: ttk.Frame, row: int) -> ttk.Label:
+        """Create an empty, per-selection note label and return it.
+
+        Distinct from ``_add_description`` (static per condition-type text):
+        the returned label is updated with the currently-selected
+        function/method's ``notes:`` each time the selection changes, so a
+        writer sees e.g. the "this returns a tier, compare it" warning on
+        the tier-returning friendship functions. Warmer colour than the
+        grey description so it reads as a heads-up, not boilerplate.
+        """
+        label = ttk.Label(
+            parent, text="", foreground="#E0A030", font=("Segoe UI", 8),
+            wraplength=360, justify=tk.LEFT,
+        )
+        label.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(6, 0))
+        return label
+
+    def _build_comparison(self, compare_frame: ttk.Frame, is_comparable: bool) -> None:
+        """(Re)build the operator + value widgets when *is_comparable*.
+
+        Clears *compare_frame* and, when *is_comparable*, lays out an operator
+        combo (default ``>=``) and a value entry, stored on
+        ``self._compare_op_var`` / ``self._compare_value_var``. Otherwise it
+        leaves both ``None`` so the call/property inserts bare. Callers decide
+        comparability: ``return_is_comparable(signature)`` for a function/
+        method return, ``type_is_comparable(type)`` for a property. Called
+        from the selection callbacks (comparability changes with the pick).
+        """
+        for widget in compare_frame.winfo_children():
+            widget.destroy()
+        self._compare_op_var = None
+        self._compare_value_var = None
+        if not is_comparable:
+            return
+
+        ttk.Label(compare_frame, text="Compare:").grid(
+            row=0, column=0, sticky=tk.W, pady=(4, 0), padx=(0, 8),
+        )
+        op_var = tk.StringVar(value=">=")
+        self._compare_op_var = op_var
+        ttk.Combobox(
+            compare_frame, textvariable=op_var, values=COMPARE_OPS,
+            state="readonly", width=15,
+        ).grid(row=0, column=1, sticky=tk.W, pady=(4, 0))
+        value_var = tk.StringVar(value="")
+        self._compare_value_var = value_var
+        ttk.Entry(compare_frame, textvariable=value_var, width=10).grid(
+            row=0, column=2, sticky=tk.W, pady=(4, 0), padx=(4, 0),
+        )
+        op_var.trace_add("write", lambda *_: self._notify_change())
+        value_var.trace_add("write", lambda *_: self._notify_change())
+
+    def _current_comparison(self) -> tuple[str, str]:
+        """Return the (operator, value) for the current comparison, or ("", "").
+
+        Maps the bare "(no comparison)" choice to an empty operator so the
+        call is inserted without a trailing comparison.
+        """
+        if self._compare_op_var is None or self._compare_value_var is None:
+            return ("", "")
+        op = self._compare_op_var.get()
+        if op == _BARE_COMPARE_LABEL:
+            op = ""
+        return (op, self._compare_value_var.get())
+
+    # -- Character-change callback -----------------------------------------
+
+    def _current_character(self) -> str:
+        """The clause's selected character, or ``""`` when the form has no character row."""
+        return self._get_var("character")
 
     def _on_character_changed(self) -> None:
-        """Refresh mood values when the character changes in mood mode."""
+        """Refresh whatever depends on the selected character."""
         if self._current_kind == "mood":
             self._refresh_mood_values()
+        self._refresh_per_character_choices()
+
+    def _refresh_per_character_choices(self) -> None:
+        """Re-populate the dropdowns whose values depend on the character.
+
+        Only the *options* change. The current value is left alone even when
+        the new character does not offer it: these combos are editable
+        suggestion lists, so a writer may legitimately have typed a value the
+        allowlists do not carry, and silently rewriting their input would be
+        worse than showing a value the dropdown no longer suggests. (The
+        built-in mood combo does reset, but it is ``readonly`` — there the
+        value can only ever come from the list.)
+        """
+        character = self._current_character()
+        for combo, spec in self._per_char_choice_widgets:
+            combo.configure(values=resolve_param_choices(spec, self._allow, character))
 
     def _refresh_mood_values(self) -> None:
         """Update the mood combo with values for the selected character."""
@@ -401,7 +1175,10 @@ class ConditionBuilderDialog(tk.Toplevel):
     # -- Per-type parameter builders -----------------------------------------
 
     def _params_approval(self, parent: ttk.Frame) -> None:
-        row = self._add_character_field(parent, "Character", 0)
+        # Written as `Char.love >= tier`, but dsl.py rewrites it to
+        # check_approval(Char, ...) — so it is an argument, and the function
+        # returns 0 for anyone outside all_Companions.
+        row = self._add_character_field(parent, "Character", 0, as_argument=True)
         row = self._add_combo_field(parent, "Axis", row, "axis", AXES)
         row = self._add_text_field(
             parent, "Threshold", row, "threshold", default="500",
@@ -454,35 +1231,40 @@ class ConditionBuilderDialog(tk.Toplevel):
         )
         self._mood_combo_widget.grid(row=row, column=1, sticky=tk.W, pady=2)
         self._vars["mood"] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         row += 1
 
         self._add_description(parent, row, "mood")
 
     def _params_friendship(self, parent: ttk.Frame) -> None:
-        row = self._add_character_field(parent, "Character", 0)
-        default_other = self._characters[1] if len(self._characters) > 1 else ""
+        # `A.friends_with(B)` becomes are_Characters_friends([A, B]) — both
+        # sides are arguments, and friendships exist only between companions.
+        row = self._add_character_field(parent, "Character", 0, as_argument=True)
+        others = non_player_characters(self._characters)
+        default_other = others[1] if len(others) > 1 else ""
         ttk.Label(parent, text="With:").grid(
             row=row, column=0, sticky=tk.W, pady=2, padx=(0, 8),
         )
         var = tk.StringVar(value=default_other)
-        if self._characters:
+        if others:
             ttk.Combobox(
                 parent, textvariable=var,
-                values=self._characters, state="readonly", width=20,
+                values=others, state="readonly", width=20,
             ).grid(row=row, column=1, sticky=tk.W, pady=2)
         else:
             ttk.Entry(parent, textvariable=var, width=22).grid(
                 row=row, column=1, sticky=tk.W, pady=2,
             )
         self._vars["other_character"] = var
-        var.trace_add("write", lambda *_: self._update_preview())
+        var.trace_add("write", lambda *_: self._notify_change())
         row += 1
 
         self._add_description(parent, row, "friendship")
 
     def _params_nearby(self, parent: ttk.Frame) -> None:
-        row = self._add_character_field(parent, "Character", 0)
+        # Character_is_in_close_proximity(Char) — an argument, and asking it
+        # about the player would ask whether the player is where they are.
+        row = self._add_character_field(parent, "Character", 0, as_argument=True)
         self._add_description(parent, row, "nearby")
 
     def _params_personality(self, parent: ttk.Frame) -> None:
@@ -501,28 +1283,610 @@ class ConditionBuilderDialog(tk.Toplevel):
         )
         self._add_description(parent, row, "personality")
 
-    def _params_function(self, parent: ttk.Frame) -> None:
-        funcs = sorted(self._allow.condition_functions) if self._allow.condition_functions else []
-        if funcs:
-            row = self._add_combo_field(
-                parent, "Function", 0, "func_name", funcs,
+    def _params_property(self, parent: ttk.Frame) -> None:
+        row = self._add_character_field(parent, "Character", 0)
+        # Only the bare-usable subset: a property flagged ``usable_bare: false``
+        # is accepted by the validator (it is a function argument, e.g.
+        # ``Character.History``) but reads as an always-true check on its own,
+        # so offering it here would be a trap.
+        props = self._allow.character_properties_bare
+        if not props:
+            row = self._add_text_field(
+                parent, "Property", row, "property_name", default="desire",
             )
-        else:
-            row = self._add_text_field(parent, "Function", 0, "func_name")
-        row = self._add_text_field(parent, "Arguments", row, "func_args")
-        self._add_description(parent, row, "function")
+            self._add_description(parent, row, "property")
+            return
 
-    # -- Preview and insertion -----------------------------------------------
+        grouped = group_by_category(props, self._allow.character_property_categories)
+        cat_names = list(grouped.keys())
+
+        row = self._add_combo_field(parent, "Category", row, "property_category", cat_names)
+        prop_row = row
+        row = self._add_combo_field(
+            parent, "Property", row, "property_name", grouped[cat_names[0]],
+        )
+        compare_frame = ttk.Frame(parent)
+        compare_frame.grid(row=row, column=0, columnspan=3, sticky=tk.W)
+        row += 1
+        note_label = self._make_note_label(parent, row)
+        row += 1
+
+        def _on_category_change(*_a: Any) -> None:
+            names = grouped.get(self._get_var("property_category"), [])
+            widget = parent.grid_slaves(row=prop_row, column=1)
+            if widget:
+                widget[0].configure(values=names)
+            if names:
+                self._vars["property_name"].set(names[0])
+
+        def _on_property_change(*_a: Any) -> None:
+            name = self._get_var("property_name")
+            note_label.configure(text=flow_text(self._allow.character_property_notes.get(name, "")))
+            ptype = self._allow.character_property_types.get(name, "")
+            self._build_comparison(compare_frame, type_is_comparable(ptype))
+            self._notify_change()
+
+        self._vars["property_category"].trace_add("write", _on_category_change)
+        self._vars["property_name"].trace_add("write", _on_property_change)
+        _on_property_change()
+
+        self._add_description(parent, row, "property")
+
+    def _params_method(self, parent: ttk.Frame) -> None:
+        row = self._add_character_field(parent, "Character", 0)
+        known_methods = sorted(self._allow.character_methods) if self._allow.character_methods else []
+        if not known_methods:
+            row = self._add_text_field(
+                parent, "Method", row, "method_name", default="check_trait",
+            )
+            self._add_description(parent, row, "method")
+            return
+
+        grouped = group_by_category(
+            self._allow.character_methods, self._allow.character_method_categories,
+        )
+        cat_names = list(grouped.keys())
+
+        row = self._add_combo_field(parent, "Category", row, "method_category", cat_names)
+        method_row = row
+        row = self._add_combo_field(
+            parent, "Method", row, "method_name", grouped[cat_names[0]],
+        )
+        params_frame = ttk.Frame(parent)
+        params_frame.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(4, 0))
+        row += 1
+        compare_frame = ttk.Frame(parent)
+        compare_frame.grid(row=row, column=0, columnspan=3, sticky=tk.W)
+        row += 1
+        note_label = self._make_note_label(parent, row)
+        row += 1
+
+        def _on_category_change(*_a: Any) -> None:
+            names = grouped.get(self._get_var("method_category"), [])
+            widget = parent.grid_slaves(row=method_row, column=1)
+            if widget:
+                widget[0].configure(values=names)
+            if names:
+                self._vars["method_name"].set(names[0])
+
+        def _on_method_change(*_a: Any) -> None:
+            for widget in params_frame.winfo_children():
+                widget.destroy()
+            self._method_params.clear()
+            # The combos just destroyed must go with them, or the next
+            # character change reconfigures a dead widget.
+            self._per_char_choice_widgets.clear()
+
+            name = self._get_var("method_name")
+            note_label.configure(text=flow_text(self._allow.character_method_notes.get(name, "")))
+            sig = self._allow.character_method_signatures.get(name, "")
+            self._build_comparison(compare_frame, return_is_comparable(sig))
+            choices_map = self._allow.character_method_param_choices.get(name, {})
+            for i, (pname, ptype, pdefault) in enumerate(parse_signature_params(sig)):
+                self._method_params.append(
+                    self._build_param_field(
+                        params_frame, i, pname, ptype, pdefault, choices_map.get(pname),
+                    ),
+                )
+            self._notify_change()
+
+        self._vars["method_category"].trace_add("write", _on_category_change)
+        self._vars["method_name"].trace_add("write", _on_method_change)
+        _on_method_change()
+
+        self._add_description(parent, row, "method")
+
+    def _build_param_field(
+        self,
+        parent: ttk.Frame,
+        row: int,
+        pname: str,
+        ptype: str,
+        pdefault: str,
+        choices: list[str] | dict[str, Any] | None,
+        collection_mode: str = "",
+    ) -> _ParamField:
+        """Build the label + input widget for one signature parameter.
+
+        The widget kind follows :func:`param_widget_kind`: a declared-choice or
+        boolean parameter gets an editable combobox (a suggestion list, not a
+        whitelist — another creator may need an off-list value), a single
+        ``Character`` a readonly picker, a ``Character`` collection a row of
+        checkbuttons that assemble a set literal, everything else a free-text
+        entry. Every value change notifies the dialog so the preview and
+        Insert-button state stay live. Returns the field capturing its value.
+        """
+        hint = pname + (f"  ({ptype})" if ptype else "")
+        ttk.Label(parent, text=f"{hint}:").grid(
+            row=row, column=0, sticky=tk.W, pady=1, padx=(0, 8),
+        )
+        kind = param_widget_kind(pname, ptype, pdefault, has_choices=bool(choices))
+        # A signature-derived Character field is always an argument, so the
+        # player is not on offer — see :func:`non_player_characters`. (A
+        # ``History`` parameter is not this kind: it reaches its character
+        # through declared param_choices with a ``.History`` suffix, where
+        # the player is legitimate and stays listed.)
+        npcs = non_player_characters(self._characters)
+        # No character list to pick from (no allowlist) -> fall back to free text
+        # so the writer can still type a set literal by hand.
+        if kind == PARAM_WIDGET_CHARACTER_SET and not npcs:
+            kind = PARAM_WIDGET_TEXT
+
+        if kind == PARAM_WIDGET_CHARACTER_SET:
+            return self._build_character_set_widget(
+                parent, row, pname, pdefault, collection_mode,
+            )
+        if kind == PARAM_WIDGET_LOCATION:
+            return self._build_location_widget(parent, row, pname, pdefault)
+        if kind == PARAM_WIDGET_DATE:
+            return self._build_date_widget(parent, row, pname, pdefault)
+
+        # A Character parameter rarely declares a default, which would leave its
+        # readonly picker blank until the writer notices it. Pre-select the
+        # first character instead, matching the built-in checks' own character
+        # row and the location widget's pre-selected slugline.
+        if kind == PARAM_WIDGET_CHARACTER and not pdefault and npcs:
+            pdefault = npcs[0]
+
+        var = tk.StringVar(value=pdefault)
+        if kind == PARAM_WIDGET_CHOICES:
+            spec = choices or []
+            combo = ttk.Combobox(
+                parent, textvariable=var,
+                values=resolve_param_choices(spec, self._allow, self._current_character()),
+                state="normal", width=20,
+            )
+            combo.grid(row=row, column=1, sticky=tk.W, pady=1)
+            if param_choices_is_per_character(spec):
+                self._per_char_choice_widgets.append((combo, spec))
+        elif kind == PARAM_WIDGET_CHARACTER:
+            ttk.Combobox(
+                parent, textvariable=var, values=npcs,
+                state="readonly", width=18,
+            ).grid(row=row, column=1, sticky=tk.W, pady=1)
+        elif kind == PARAM_WIDGET_BOOL:
+            ttk.Combobox(
+                parent, textvariable=var, values=["True", "False"],
+                state="normal", width=18,
+            ).grid(row=row, column=1, sticky=tk.W, pady=1)
+        else:
+            ttk.Entry(parent, textvariable=var, width=20).grid(
+                row=row, column=1, sticky=tk.W, pady=1,
+            )
+        var.trace_add("write", lambda *_: self._notify_change())
+        return _ParamField(pname, pdefault, kind, var=var)
+
+    def _build_character_set_widget(
+        self,
+        parent: ttk.Frame,
+        row: int,
+        pname: str,
+        pdefault: str,
+        collection_mode: str = "",
+    ) -> _ParamField:
+        """Build a character-collection field: a mode picker over three forms.
+
+        The game fills these arguments from a location ("everyone in the
+        room"), so that is what the field leads with — "Characters present
+        here" / "Characters visible here", each with the same "Current
+        location" toggle the location parameter uses, rendering
+        ``get_present_Characters(get_Location())``.
+
+        "Pick characters" names them instead. A wide row of checkbuttons for a
+        large cast would fight the clause list's fixed width, so the picking
+        happens in its own window; the button shows how many are chosen and the
+        ticked state lives in the shared ``char_vars`` (so it survives
+        reopening the picker). :meth:`_ParamField.value` renders whichever mode
+        is showing.
+
+        Which mode it opens on is :func:`default_collection_mode`, which an
+        entry can override per parameter — the derivation from the signature
+        is right for the functions the game fills from a location and wrong
+        for one asking about named characters.
+        """
+        char_vars: list[tuple[str, tk.BooleanVar]] = [
+            (char, tk.BooleanVar(value=False))
+            for char in non_player_characters(self._characters)
+        ]
+        holder = ttk.Frame(parent)
+        holder.grid(row=row, column=1, sticky=tk.W, pady=1)
+        mode_var = tk.StringVar(
+            value=default_collection_mode(pdefault, collection_mode),
+        )
+        ttk.Combobox(
+            holder, textvariable=mode_var, values=_COLLECTION_MODES,
+            state="readonly", width=24,
+        ).grid(row=0, column=0, sticky=tk.W)
+
+        pick_frame = ttk.Frame(holder)
+        pick_frame.grid(row=1, column=0, sticky=tk.W, pady=(2, 0))
+        button = ttk.Button(pick_frame, width=22)
+        button.grid(row=0, column=0, sticky=tk.W)
+
+        location_frame = ttk.Frame(holder)
+        location_frame.grid(row=2, column=0, sticky=tk.W, pady=(2, 0))
+        current_var, slug_var = self._build_location_controls(location_frame)
+
+        def _refresh_label() -> None:
+            chosen = sum(1 for _c, var in char_vars if var.get())
+            button.configure(text=f"Choose…  ({chosen})" if chosen else "Choose…")
+
+        def _toggle(*_a: object) -> None:
+            if mode_var.get() == COLLECTION_MODE_PICK:
+                location_frame.grid_remove()
+                pick_frame.grid()
+            else:
+                pick_frame.grid_remove()
+                location_frame.grid()
+            self._notify_change()
+
+        button.configure(
+            command=lambda: self._open_character_set_picker(pname, char_vars),
+        )
+        for _char, var in char_vars:
+            var.trace_add(
+                "write", lambda *_: (_refresh_label(), self._notify_change()),
+            )
+        mode_var.trace_add("write", _toggle)
+        _refresh_label()
+        _toggle()
+        return _ParamField(
+            pname, pdefault, PARAM_WIDGET_CHARACTER_SET, char_vars=char_vars,
+            var=slug_var, current_var=current_var, mode_var=mode_var,
+        )
+
+    def _open_character_set_picker(
+        self,
+        pname: str,
+        char_vars: list[tuple[str, tk.BooleanVar]],
+    ) -> None:
+        """Open a small modal window of checkbuttons bound to *char_vars*.
+
+        The checkbuttons drive the very same ``BooleanVar``s the field reads, so
+        edits apply live (button label and preview update through their traces)
+        and persist when the window is reopened. Grab returns to the builder on
+        close, like the glossary window.
+        """
+        top = tk.Toplevel(self.winfo_toplevel())
+        top.title(f"Choose characters — {pname}")
+        top.transient(self.winfo_toplevel())
+        top.grab_set()
+        body = ttk.Frame(top, padding=12)
+        body.pack(fill=tk.BOTH, expand=True)
+        for i, (char, var) in enumerate(char_vars):
+            ttk.Checkbutton(body, text=char, variable=var).grid(
+                row=i, column=0, sticky=tk.W, pady=1,
+            )
+        ttk.Button(body, text="OK", command=top.destroy).grid(
+            row=len(char_vars), column=0, sticky=tk.E, pady=(10, 0),
+        )
+        top.bind("<Return>", lambda _e: top.destroy())
+        top.bind("<Escape>", lambda _e: top.destroy())
+
+    def _build_location_widget(
+        self,
+        parent: ttk.Frame,
+        row: int,
+        pname: str,
+        pdefault: str,
+    ) -> _ParamField:
+        """Build a location field: a "Current location?" toggle + slugline picker.
+
+        Ticked (the default) inserts ``get_Location()`` — the current room —
+        without the writer having to know that call. Unticked reveals an
+        editable dropdown of the known sluglines (inserted quoted, since the
+        base-game functions accept a slugline ``str``) and pre-selects the
+        first so the argument is never left empty.
+        """
+        holder = ttk.Frame(parent)
+        holder.grid(row=row, column=1, sticky=tk.W, pady=1)
+        current_var, var = self._build_location_controls(holder, initial=pdefault)
+        # An optional location param (has a default, e.g. `location=None`) treats
+        # "current" as "no argument"; a required one passes get_Location().
+        return _ParamField(
+            pname, pdefault, PARAM_WIDGET_LOCATION, var=var,
+            current_var=current_var, omit_when_current=bool(pdefault.strip()),
+        )
+
+    def _build_location_controls(
+        self,
+        holder: ttk.Frame,
+        *,
+        initial: str = "",
+    ) -> tuple[tk.BooleanVar, tk.StringVar]:
+        """Grid a "Current location" toggle + slugline combo into *holder*.
+
+        Ticked (the default) means the current room; unticked reveals an
+        editable dropdown of the known sluglines, inserted **quoted** (the
+        base-game functions accept a slugline ``str``) and pre-selected on the
+        first so the argument is never left empty. Returns the two vars —
+        :func:`location_argument` renders them.
+
+        Shared by the location parameter and the character-collection modes,
+        which ask the writer the same question.
+        """
+        current_var = tk.BooleanVar(value=True)
+        var = tk.StringVar(value=initial)
+        sluglines = [f'"{slugline}"' for slugline in sorted(self._allow.locations)]
+        combo = ttk.Combobox(
+            holder, textvariable=var, values=sluglines, state="normal", width=20,
+        )
+
+        def _toggle() -> None:
+            if current_var.get():
+                combo.grid_remove()
+            else:
+                combo.grid()
+                if not var.get() and sluglines:
+                    var.set(sluglines[0])
+            self._notify_change()
+
+        ttk.Checkbutton(
+            holder, text="Current location", variable=current_var, command=_toggle,
+        ).grid(row=0, column=0, sticky=tk.W, padx=(0, 8))
+        combo.grid(row=0, column=1, sticky=tk.W)
+        combo.grid_remove()  # hidden while "Current location" is on (the default)
+        var.trace_add("write", lambda *_: self._notify_change())
+        return current_var, var
+
+    def _build_date_widget(
+        self,
+        parent: ttk.Frame,
+        row: int,
+        pname: str,
+        pdefault: str,
+    ) -> _ParamField:
+        """Build a ``(day, time_index)`` date field with its two writer-facing forms.
+
+        A raw ``tuple[int, int]`` means nothing to a writer, and a day number
+        typed by hand means even less — the moment these functions want is
+        almost always one the game stored. So the field leads with "when an
+        event last happened" (a character + a history event, assembled into
+        ``Char.History.check_when("event")``) and keeps the literal "Day" +
+        time-of-day form (Morning … Late Night) behind the other mode.
+        :meth:`_ParamField.value` renders whichever is showing.
+        """
+        holder = ttk.Frame(parent)
+        holder.grid(row=row, column=1, sticky=tk.W, pady=1)
+        mode_var = tk.StringVar(value=DATE_MODE_EVENT)
+        day_var = tk.StringVar(value="0")
+        period_var = tk.StringVar(value=_TIME_PERIODS[0])
+        events = sorted(self._allow.history_events)
+        char_var = tk.StringVar(value=self._characters[0] if self._characters else "")
+        event_var = tk.StringVar(value=events[0] if events else "")
+
+        ttk.Combobox(
+            holder, textvariable=mode_var, values=_DATE_MODES,
+            state="readonly", width=26,
+        ).grid(row=0, column=0, columnspan=4, sticky=tk.W)
+
+        event_frame = ttk.Frame(holder)
+        event_frame.grid(row=1, column=0, columnspan=4, sticky=tk.W, pady=(2, 0))
+        ttk.Combobox(
+            event_frame, textvariable=char_var, values=self._characters,
+            state="readonly", width=18,
+        ).grid(row=0, column=0, sticky=tk.W, padx=(0, 6))
+        ttk.Combobox(
+            event_frame, textvariable=event_var, values=events,
+            state="normal", width=24,
+        ).grid(row=0, column=1, sticky=tk.W)
+
+        day_frame = ttk.Frame(holder)
+        day_frame.grid(row=2, column=0, columnspan=4, sticky=tk.W, pady=(2, 0))
+        ttk.Label(day_frame, text="Day").grid(row=0, column=0, sticky=tk.W)
+        ttk.Entry(day_frame, textvariable=day_var, width=6).grid(
+            row=0, column=1, sticky=tk.W, padx=(4, 10),
+        )
+        ttk.Label(day_frame, text="Time of day").grid(row=0, column=2, sticky=tk.W)
+        ttk.Combobox(
+            day_frame, textvariable=period_var, values=_TIME_PERIODS,
+            state="readonly", width=12,
+        ).grid(row=0, column=3, sticky=tk.W, padx=(4, 0))
+        day_frame.grid_remove()  # hidden while the event form leads (the default)
+
+        def _toggle(*_a: object) -> None:
+            if mode_var.get() == DATE_MODE_EVENT:
+                day_frame.grid_remove()
+                event_frame.grid()
+            else:
+                event_frame.grid_remove()
+                day_frame.grid()
+            self._notify_change()
+
+        mode_var.trace_add("write", _toggle)
+        for var in (day_var, period_var, char_var, event_var):
+            var.trace_add("write", lambda *_: self._notify_change())
+        return _ParamField(
+            pname, pdefault, PARAM_WIDGET_DATE, var=day_var, period_var=period_var,
+            mode_var=mode_var, date_char_var=char_var, date_event_var=event_var,
+        )
+
+    def _render_function_fields(
+        self,
+        name: str,
+        params_frame: ttk.Frame,
+        compare_frame: ttk.Frame,
+        note_label: ttk.Label,
+    ) -> None:
+        """(Re)build the per-parameter fields + comparison + note for *name*.
+
+        The selected function's name is read back from ``_vars["func_name"]``
+        by :meth:`get_condition`; callers set it before calling this.
+
+        When the entry is one **variant** of the function, that variant's
+        pinned parameters get a value-carrying field with no widget: they
+        still occupy their place in signature order, so the assembled call
+        is unchanged, but the writer is not asked about them — the pin is
+        what makes this entry a different question from its sibling, not a
+        choice to revisit. The variant's own note replaces the function's
+        when it has one, since the function's describes both questions.
+        """
+        for widget in params_frame.winfo_children():
+            widget.destroy()
+        self._func_params.clear()
+        # Same as the method path: a destroyed combo must not stay registered
+        # for the next per-character refresh.
+        self._per_char_choice_widgets.clear()
+
+        variant = self._current_variant(name)
+        note = self._allow.condition_function_notes.get(name, "")
+        if variant is not None and variant.notes:
+            note = variant.notes
+        note_label.configure(text=flow_text(note))
+        sig = self._allow.condition_function_signatures.get(name, "")
+        self._build_comparison(compare_frame, return_is_comparable(sig))
+        choices_map = self._allow.condition_function_param_choices.get(name, {})
+        collection_modes = self._allow.condition_function_collection_modes.get(name, {})
+        pinned = variant.fixed if variant is not None else {}
+        # Row is counted separately from the parameter index: a pinned
+        # parameter draws nothing, and using the index would leave its row
+        # blank in the middle of the form.
+        row = 0
+        for pname, ptype, pdefault in parse_signature_params(sig):
+            if pname in pinned:
+                self._func_params.append(
+                    _ParamField(
+                        pname, pinned[pname], PARAM_WIDGET_FIXED,
+                        var=tk.StringVar(value=pinned[pname]),
+                    ),
+                )
+                continue
+            self._func_params.append(
+                self._build_param_field(
+                    params_frame, row, pname, ptype, pdefault,
+                    choices_map.get(pname), collection_modes.get(pname),
+                ),
+            )
+            row += 1
+        self._notify_change()
+
+    def _current_variant(self, name: str) -> ConditionVariant | None:
+        """The selected entry's variant of *name*, or None if it has none."""
+        if self._preset_variant < 0:
+            return None
+        variants = self._allow.condition_function_variants.get(name, [])
+        if self._preset_variant >= len(variants):
+            return None
+        return variants[self._preset_variant]
+
+    def _params_function(self, parent: ttk.Frame) -> None:
+        """Build the parameter form for the selected standalone function.
+
+        The function is always already known: the selector promotes each
+        allowlist function to its own entry, which carries the name in
+        ``_preset_func``. So this jumps straight to the per-parameter form —
+        there is no "now pick a function" step (see :data:`_BUILTIN_TYPES`).
+        """
+        self._vars["func_name"] = tk.StringVar(value=self._preset_func)
+        params_frame = ttk.Frame(parent)
+        params_frame.grid(row=0, column=0, columnspan=2, sticky=tk.W)
+        compare_frame = ttk.Frame(parent)
+        compare_frame.grid(row=1, column=0, columnspan=3, sticky=tk.W)
+        note_label = self._make_note_label(parent, 2)
+        self._render_function_fields(
+            self._preset_func, params_frame, compare_frame, note_label,
+        )
+        self._add_description(parent, 3, "function")
+
+    # -- Signature-derived argument assembly ----------------------------------
+
+    @staticmethod
+    def _arg_from_field(field: _ParamField) -> str:
+        """Return one parameter's argument text, falling back to its default.
+
+        A multi-select (``PARAM_WIDGET_CHARACTER_SET``) never yields an empty
+        string — it returns ``set()`` for no picks — so the default fallback
+        only ever applies to an untouched single-value field.
+        """
+        val = field.value().strip()
+        return val if val else field.default
+
+    @staticmethod
+    def _is_omitted_location(field: _ParamField) -> bool:
+        """True for an optional location arg left on "current" — dropped if trailing.
+
+        Keeps ``get_Location()`` from becoming ``get_Location(get_Location())``:
+        when an optional ``location`` param is on "Current location", the call
+        should simply omit it rather than pass the current room explicitly.
+        """
+        return (
+            field.kind == PARAM_WIDGET_LOCATION
+            and field.omit_when_current
+            and field.current_var is not None
+            and field.current_var.get()
+        )
+
+    def _rendered_args(self, fields: list[_ParamField]) -> list[str]:
+        """Return each field's argument text, dropping trailing omitted locations.
+
+        Shared by :meth:`_join_args` (which splices them into the call) and
+        :meth:`is_valid` (which refuses to insert while one is still empty), so
+        the two can never disagree on what the call is about to contain.
+        """
+        rendered = [(f, self._arg_from_field(f)) for f in fields]
+        while rendered and self._is_omitted_location(rendered[-1][0]):
+            rendered.pop()
+        return [val for _f, val in rendered]
+
+    def _join_args(self, fields: list[_ParamField]) -> str:
+        """Join the fields' arguments, dropping trailing omitted-location args."""
+        return ", ".join(self._rendered_args(fields))
+
+    def _assemble_func_args(self) -> str:
+        """Return the comma-joined argument list for the "function" kind.
+
+        Falls back to the free-text ``func_args`` field when no
+        ``condition_functions`` allowlist was loaded (no per-parameter
+        fields were built).
+        """
+        if self._func_params:
+            return self._join_args(self._func_params)
+        return self._get_var("func_args")
+
+    def _assemble_method_args(self) -> str:
+        """Return the comma-joined argument list for the "method" kind."""
+        if not self._method_params:
+            return ""
+        return self._join_args(self._method_params)
+
+    def _resolve_method_path(self) -> str:
+        """Return the attribute chain to call for the current "method" kind."""
+        name = self._get_var("method_name")
+        sig = self._allow.character_method_signatures.get(name, "")
+        return resolve_method_path(sig, name)
+
+    # -- Public accessors ------------------------------------------------
 
     def _get_var(self, key: str) -> str:
         """Return the current value of a parameter variable, or ``""``."""
         var = self._vars.get(key)
         return var.get() if var else ""
 
-    def _build_current_condition(self) -> str:
+    def get_condition(self) -> str:
         """Build the condition string from the current parameter values."""
         if not self._current_kind:
             return ""
+        compare_op, compare_value = self._current_comparison()
         return build_condition(
             self._current_kind,
             character=self._get_var("character"),
@@ -533,23 +1897,239 @@ class ConditionBuilderDialog(tk.Toplevel):
             mood=self._get_var("mood"),
             other_character=self._get_var("other_character"),
             func_name=self._get_var("func_name"),
-            func_args=self._get_var("func_args"),
+            func_args=self._assemble_func_args(),
+            method_path=self._resolve_method_path(),
+            method_args=self._assemble_method_args(),
+            property_name=self._get_var("property_name"),
+            compare_op=compare_op,
+            compare_value=compare_value,
         )
+
+    def is_valid(self) -> bool:
+        """``True`` once every field required by the current type is filled."""
+        required = _REQUIRED_VARS.get(self._current_kind or "", [])
+        if not all(self._get_var(k) for k in required):
+            return False
+        # If a comparison operator is offered and chosen (not the bare
+        # "(no comparison)" option), require the right-hand value too — an
+        # operator with no value would insert an incomplete `f(...) >= `.
+        op, value = self._current_comparison()
+        if op and not value:
+            return False
+        # A signature-derived field left empty splices a hole into the call —
+        # `get_effective_friendship(, ) >= 500`, which is a syntax error in the
+        # writer's scene. _REQUIRED_VARS only covers the type's own vars (the
+        # function name, the character of a built-in check), never these.
+        for fields in (self._func_params, self._method_params):
+            if any(not arg.strip() for arg in self._rendered_args(fields)):
+                return False
+        return True
+
+
+# -- Dialog ------------------------------------------------------------------
+
+class ConditionBuilderDialog(tk.Toplevel):
+    """Modal dialog: one or more condition clauses joined with and/or.
+
+    The first clause stands alone; each further clause (added via
+    "+ Add condition") carries its own AND/OR operator and a Remove button.
+    The clauses join in order (see :func:`join_conditions`). The clause list
+    scrolls, so an arbitrary number of conditions fits.
+    """
+
+    def __init__(
+        self,
+        master: tk.Widget,
+        allow: Allowlists,
+        insert_cb: Callable[[str], None],
+        *,
+        characters: list[str] | None = None,
+    ) -> None:
+        super().__init__(master)
+        self.title("Condition Builder")
+        self.resizable(True, True)
+        self.minsize(440, 500)
+        self.grab_set()
+
+        self._insert = insert_cb
+        self._allow = allow
+        self._characters = (
+            non_narrator(characters) if characters
+            else selectable_characters(allow)
+        )
+        # Each entry: {"row": Frame, "panel": _ConditionClausePanel,
+        #              "op_var": StringVar | None}. op_var is None on the first.
+        self._clauses: list[dict[str, Any]] = []
+
+        body = ttk.Frame(self, padding=12)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        # -- Scrollable clause list ------------------------------------------
+        scroll_holder = ttk.Frame(body)
+        scroll_holder.pack(fill=tk.BOTH, expand=True)
+        canvas = tk.Canvas(
+            scroll_holder, bg="#1E1E1E", highlightthickness=0, borderwidth=0,
+        )
+        vbar = ttk.Scrollbar(scroll_holder, orient=tk.VERTICAL, command=canvas.yview)
+        self._clauses_container = ttk.Frame(canvas)
+        window = canvas.create_window(
+            (0, 0), window=self._clauses_container, anchor="nw",
+        )
+        self._clauses_container.bind(
+            "<Configure>",
+            lambda _e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.bind(
+            "<Configure>",
+            lambda e: canvas.itemconfigure(window, width=e.width),
+        )
+        canvas.configure(yscrollcommand=vbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.bind_all(
+            "<MouseWheel>",
+            lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
+        )
+        self._clauses_canvas = canvas
+
+        # -- Add-condition button --------------------------------------------
+        add_bar = ttk.Frame(body)
+        add_bar.pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(
+            add_bar, text="+ Add condition", command=self._add_clause,
+        ).pack(side=tk.LEFT)
+
+        # -- Wrap mode -------------------------------------------------------
+        ttk.Separator(body, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
+        wrap_frame = ttk.Frame(body)
+        wrap_frame.pack(fill=tk.X)
+        ttk.Label(wrap_frame, text="Insert as:").pack(side=tk.LEFT, padx=(0, 4))
+        wrap_labels = [label for label, _ in WRAP_MODES]
+        self._wrap_label_to_key = {label: key for label, key in WRAP_MODES}
+        self._wrap_var = tk.StringVar(value=wrap_labels[0])
+        wrap_combo = ttk.Combobox(
+            wrap_frame, textvariable=self._wrap_var,
+            values=wrap_labels, state="readonly", width=28,
+        )
+        wrap_combo.pack(side=tk.LEFT)
+        wrap_combo.bind("<<ComboboxSelected>>", lambda _: self._update_preview())
+
+        # -- Preview ---------------------------------------------------------
+        preview_frame = ttk.Frame(body)
+        preview_frame.pack(fill=tk.X, pady=(8, 0))
+        ttk.Label(
+            preview_frame, text="Preview:", font=("Segoe UI", 9, "bold"),
+        ).pack(anchor=tk.W)
+        self._preview_var = tk.StringVar()
+        ttk.Label(
+            preview_frame, textvariable=self._preview_var,
+            font=("Consolas", 10), foreground="#A0E8C0",
+            wraplength=450, justify=tk.LEFT,
+        ).pack(anchor=tk.W, pady=(2, 0))
+
+        # -- Buttons ---------------------------------------------------------
+        btn_frame = ttk.Frame(body)
+        btn_frame.pack(fill=tk.X, pady=(12, 0))
+        ttk.Button(
+            btn_frame, text="Cancel", style="Danger.TButton",
+            command=self._close,
+        ).pack(side=tk.RIGHT, padx=(4, 0))
+        self._insert_btn = ttk.Button(
+            btn_frame, text="Insert", style="Compile.TButton",
+            command=self._do_insert, state=tk.DISABLED,
+        )
+        self._insert_btn.pack(side=tk.RIGHT)
+
+        self.bind("<Return>", lambda e: self._do_insert())
+        self.bind("<Escape>", lambda e: self._close())
+        self.protocol("WM_DELETE_WINDOW", self._close)
+
+        # The preview/insert widgets now exist, so clause panels can notify.
+        self._add_clause()  # first clause, no operator
+        self._update_preview()
+
+        # Center on parent
+        self.update_idletasks()
+        x = master.winfo_rootx() + (master.winfo_width() - self.winfo_width()) // 2
+        y = master.winfo_rooty() + (master.winfo_height() - self.winfo_height()) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    # -- Clause management -------------------------------------------------
+
+    def _add_clause(self) -> None:
+        is_first = not self._clauses
+        row = ttk.Frame(self._clauses_container, padding=(0, 4))
+        row.pack(fill=tk.X, expand=True)
+
+        op_var: tk.StringVar | None = None
+        remove_btn: ttk.Button | None = None
+        if not is_first:
+            ttk.Separator(row, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(0, 6))
+            header = ttk.Frame(row)
+            header.pack(fill=tk.X)
+            op_var = tk.StringVar(value=COMBINE_OPERATORS[0])
+            ttk.Combobox(
+                header, textvariable=op_var, values=COMBINE_OPERATORS,
+                state="readonly", width=6,
+            ).pack(side=tk.LEFT)
+            op_var.trace_add("write", lambda *_: self._update_preview())
+            remove_btn = ttk.Button(
+                header, text="Remove", style="Danger.TButton", width=8,
+            )
+            remove_btn.pack(side=tk.RIGHT)
+
+        panel = _ConditionClausePanel(row, self._allow, self._characters)
+        panel.pack(fill=tk.BOTH, expand=True)
+        panel.set_on_change(self._update_preview)
+
+        entry: dict[str, Any] = {"row": row, "panel": panel, "op_var": op_var}
+        if remove_btn is not None:
+            remove_btn.configure(command=lambda e=entry: self._remove_clause(e))
+        self._clauses.append(entry)
+
+        self._update_preview()
+        # Reveal the freshly added clause at the bottom of the scroll region.
+        self._clauses_canvas.update_idletasks()
+        self._clauses_canvas.yview_moveto(1.0)
+
+    def _remove_clause(self, entry: dict[str, Any]) -> None:
+        entry["row"].destroy()
+        if entry in self._clauses:
+            self._clauses.remove(entry)
+        self._update_preview()
+
+    # -- Preview and insertion -----------------------------------------------
 
     def _get_wrap_mode(self) -> str:
         """Return the selected wrap mode key."""
         return self._wrap_label_to_key.get(self._wrap_var.get(), "if_block")
 
+    def _build_current_condition(self) -> str:
+        """Build the combined condition string from every clause, in order."""
+        clauses: list[tuple[str, str]] = []
+        for entry in self._clauses:
+            op_var = entry["op_var"]
+            # Inserted as picked, i.e. uppercase: the combo has always shown
+            # AND / OR, and lowercasing here was the one place the dialog
+            # disagreed with its own labels.
+            op = "" if op_var is None else op_var.get()
+            clauses.append((op, entry["panel"].get_condition()))
+        return join_conditions(clauses)
+
+    def _is_valid(self) -> bool:
+        return bool(self._clauses) and all(
+            entry["panel"].is_valid() for entry in self._clauses
+        )
+
     def _update_preview(self, *_args: Any) -> None:
         """Refresh the preview label and the Insert button state."""
+        if not hasattr(self, "_insert_btn"):
+            return
         condition = self._build_current_condition()
         wrapped = wrap_condition(condition, self._get_wrap_mode())
         display = wrapped.replace("\n\n", " … ").replace("\n", " ")
         self._preview_var.set(display)
-
-        required = _REQUIRED_VARS.get(self._current_kind or "", [])
-        valid = all(self._get_var(k) for k in required)
-        self._insert_btn.configure(state=tk.NORMAL if valid else tk.DISABLED)
+        self._insert_btn.configure(state=tk.NORMAL if self._is_valid() else tk.DISABLED)
 
     def _do_insert(self) -> None:
         """Build the final condition, wrap it, and insert into the editor."""
@@ -558,4 +2138,12 @@ class ConditionBuilderDialog(tk.Toplevel):
         condition = self._build_current_condition()
         wrapped = wrap_condition(condition, self._get_wrap_mode())
         self._insert(wrapped)
+        self._close()
+
+    def _close(self) -> None:
+        # Drop the app-wide mousewheel binding this window installed.
+        try:
+            self.unbind_all("<MouseWheel>")
+        except tk.TclError:
+            pass
         self.destroy()

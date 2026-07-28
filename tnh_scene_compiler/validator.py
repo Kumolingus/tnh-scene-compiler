@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import re
 
-from .allowlists import Allowlists
+from .allowlists import Allowlists, signature_arity
 from .ast_nodes import (
     Approval,
     Choice,
@@ -52,7 +52,18 @@ from .ast_nodes import (
 )
 from .dsl import transform as dsl_transform
 from .errors import CompileError
-from .expr_parser import Attribute, BoolOp, Call, Compare, Expr, Member, Name, UnaryNot
+from .paren_parser import parse_look_values
+from .expr_parser import (
+    Attribute,
+    BoolOp,
+    Call,
+    Compare,
+    Expr,
+    ListExpr,
+    Member,
+    Name,
+    UnaryNot,
+)
 
 _SCENE_ID_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -68,6 +79,54 @@ _RE_INTERPOLATION = re.compile(r"\[([^\[\]]+)\]")
 # ``JeanGrey.pregnancy_stage``. No function calls, no arithmetic, no
 # f-strings. Anything else inside ``[...]`` is rejected.
 _RE_PATH = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+
+def _plural(n: int) -> str:
+    """Return ``"s"`` unless ``n`` is exactly 1 — for "argument" / "arguments"."""
+    return "" if n == 1 else "s"
+
+
+def _arity_error(
+    *,
+    kind: str,
+    name: str,
+    signature: str | None,
+    arg_count: int,
+    line: int,
+    col: int,
+    path: str,
+) -> CompileError | None:
+    """Return a :class:`CompileError` when ``arg_count`` breaks ``signature``'s arity.
+
+    ``kind`` is the human label for the call site (``"[[fx]] effect"``,
+    ``"[[run]] operation"``, ``"Condition function"``). Returns ``None`` when
+    there is no signature, the signature cannot be parsed, or the arity is
+    satisfied — the caller appends only a real error. The grammar admits no
+    keyword arguments, so ``arg_count`` is the full positional count.
+    """
+    if not signature:
+        return None
+    arity = signature_arity(signature)
+    if arity is None:
+        return None
+    minimum, maximum = arity
+    if minimum <= arg_count and (maximum is None or arg_count <= maximum):
+        return None
+    if maximum is None:
+        expectation = f"at least {minimum} argument{_plural(minimum)}"
+    elif minimum == maximum:
+        expectation = f"exactly {minimum} argument{_plural(minimum)}"
+    elif arg_count < minimum:
+        expectation = f"at least {minimum} argument{_plural(minimum)}"
+    else:
+        expectation = f"at most {maximum} argument{_plural(maximum)}"
+    return CompileError(
+        path = path,
+        line = line,
+        col = col,
+        message = f"{kind} {name!r} takes {expectation} but got {arg_count}.",
+        hint = f"Signature: {signature}",
+    )
 
 
 def _strip_time_suffix(text: str) -> str:
@@ -301,7 +360,6 @@ _SLOT_CHECKS: dict[str, str] = {
     "stage": "stage",
     "left_arm": "left_arm value",
     "right_arm": "right_arm value",
-    "pose": "pose",
 }
 
 
@@ -316,8 +374,6 @@ def _check_slot_value(
         return allow.is_mood(character, value)
     if slot == "face":
         return allow.is_face(character, value)
-    if slot == "pose":
-        return allow.is_pose(character, value)
     if slot == "outfit":
         return allow.is_outfit(character, value)
     if slot == "arms":
@@ -327,7 +383,8 @@ def _check_slot_value(
     if slot == "right_arm":
         return allow.is_right_arm(character, value)
     if slot == "look":
-        return allow.is_look(value)
+        tokens = parse_look_values(value)
+        return bool(tokens) and all(allow.is_look(token) for token in tokens)
     if slot == "stage":
         return allow.is_stage(value)
     return False
@@ -353,10 +410,9 @@ def _validate_slot(
     # bypass ``Allowlists.load``), and we shouldn't fail scenes for that.
     if slot in ("mood",) and not (allow.shared_moods or allow.char_moods):
         return
-    if slot in ("face", "pose", "outfit", "arms", "left_arm", "right_arm"):
+    if slot in ("face", "outfit", "arms", "left_arm", "right_arm"):
         lookups: dict[str, dict[str, set[str]]] = {
             "face": allow.char_faces,
-            "pose": allow.char_poses,
             "outfit": allow.char_outfits,
             "arms": allow.char_arms,
             "left_arm": allow.char_left_arm,
@@ -411,7 +467,6 @@ def _validate_parenthetical(
         ("stage", paren.stage),
         ("left_arm", paren.left_arm),
         ("right_arm", paren.right_arm),
-        ("pose", paren.pose),
     )
     for slot, value in slots:
         if value is None:
@@ -532,7 +587,6 @@ def _validate_show(
         stage = node.attrs.get("stage"),
         left_arm = node.attrs.get("left_arm"),
         right_arm = node.attrs.get("right_arm"),
-        pose = node.attrs.get("pose"),
         line = node.line,
         col = node.col,
     )
@@ -596,9 +650,22 @@ def _validate_run(
             col = node.col,
             message = (
                 f"Operation {node.target_name!r} is not registered in "
-                "run_operations.yaml."
+                "run_operations.yaml. A mod's own helpers go in the "
+                "project's _allowlists/run_operations.yaml."
             ),
         ))
+        return
+    arity_error = _arity_error(
+        kind = "[[run]] operation",
+        name = node.target_name,
+        signature = allow.run_operation_signatures.get(node.target_name),
+        arg_count = node.arg_count,
+        line = node.line,
+        col = node.col,
+        path = path,
+    )
+    if arity_error is not None:
+        errors.append(arity_error)
 
 
 def _validate_give_trait(
@@ -715,6 +782,18 @@ def _validate_fx(
                 "fx.yaml."
             ),
         ))
+        return
+    arity_error = _arity_error(
+        kind = "[[fx]] effect",
+        name = node.target_name,
+        signature = allow.fx_signatures.get(node.target_name),
+        arg_count = node.arg_count,
+        line = node.line,
+        col = node.col,
+        path = path,
+    )
+    if arity_error is not None:
+        errors.append(arity_error)
 
 
 def _validate_approval(
@@ -767,7 +846,94 @@ def _collect_calls(expr: Expr) -> list[Call]:
         result = _collect_calls(expr.left)
         result.extend(_collect_calls(expr.right))
         return result
+    if isinstance(expr, ListExpr):
+        result = []
+        for element in expr.elements:
+            result.extend(_collect_calls(element))
+        return result
     return []
+
+
+def _collect_bare_attributes(expr: Expr) -> list[Attribute]:
+    """Recursively extract ``Attribute`` nodes used as *operands*.
+
+    Deliberately does NOT descend into a ``Call``'s ``target`` — a method
+    call like ``Character.History.check(...)`` has an ``Attribute`` target
+    that :func:`_collect_calls` / ``_validate_method_call`` already cover.
+    Only attributes standing on their own (``Character.desire`` in a
+    comparison, a boolean chain, etc.) are collected here, so the property
+    validator sees bare property access and not method-call targets.
+    """
+    if isinstance(expr, Attribute):
+        return [expr]
+    if isinstance(expr, Call):
+        result: list[Attribute] = []
+        for arg in expr.args:
+            result.extend(_collect_bare_attributes(arg))
+        return result
+    if isinstance(expr, BoolOp):
+        result = []
+        for operand in expr.operands:
+            result.extend(_collect_bare_attributes(operand))
+        return result
+    if isinstance(expr, UnaryNot):
+        return _collect_bare_attributes(expr.operand)
+    if isinstance(expr, Compare):
+        result = _collect_bare_attributes(expr.left)
+        for _, right in expr.ops_and_rights:
+            result.extend(_collect_bare_attributes(right))
+        return result
+    if isinstance(expr, Member):
+        result = _collect_bare_attributes(expr.left)
+        result.extend(_collect_bare_attributes(expr.right))
+        return result
+    if isinstance(expr, ListExpr):
+        result = []
+        for element in expr.elements:
+            result.extend(_collect_bare_attributes(element))
+        return result
+    return []
+
+
+def _validate_condition_attributes(
+    condition: Expr,
+    allow: Allowlists,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    """Validate bare ``Character.<property>`` operands in a condition.
+
+    Only single-part attributes whose root is a registered character are
+    checked, against ``character_properties``. Skipped entirely when the
+    property allowlist is empty, so a project without a
+    ``character_properties.yaml`` keeps the previous behaviour (bare
+    attribute access passes unvalidated) instead of newly rejecting it.
+    Multi-part chains (``Character.History.check``) and non-character roots
+    (scene-local / time keys) are left alone.
+    """
+    if not allow.character_properties:
+        return
+    for attr in _collect_bare_attributes(condition):
+        if attr.root.name not in allow.characters:
+            continue
+        if len(attr.parts) != 1:
+            continue
+        prop = attr.parts[0]
+        if prop in allow.character_properties:
+            continue
+        suggestions = allow.suggest_character_property(prop)
+        hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = attr.col_offset,
+            message = (
+                f"Character property {prop!r} is not registered in "
+                "character_properties.yaml."
+            ),
+            hint = hint,
+        ))
 
 
 def _validate_condition_calls(
@@ -777,15 +943,17 @@ def _validate_condition_calls(
     path: str,
     line: int,
 ) -> None:
-    """Validate function calls in a condition expression.
+    """Validate calls and bare property access in a condition expression.
 
     The condition is first run through the DSL transformation layer so
     writer-friendly sugar (``X.love >= medium``, ``X.has("shy")``) is
     rewritten to canonical calls before validation.
 
-    Standalone calls (``func()``) are checked against
-    ``condition_functions``.  Method calls (``Character.method()``) are
-    checked against ``character_methods`` using the final attribute name.
+    Standalone calls (``func()``) are checked against ``condition_functions``.
+    Method calls (``Character.method()``) are checked against
+    ``character_methods`` using the final attribute name. Bare single-part
+    attributes (``Character.desire``) are checked against
+    ``character_properties`` (see :func:`_validate_condition_attributes`).
     """
     condition = dsl_transform(
         condition, allow.character_aliases, allow.function_aliases,
@@ -796,6 +964,7 @@ def _validate_condition_calls(
             _validate_standalone_call(call, allow, errors, path, line)
         elif isinstance(call.target, Attribute):
             _validate_method_call(call, allow, errors, path, line)
+    _validate_condition_attributes(condition, allow, errors, path, line)
 
 
 def _validate_standalone_call(
@@ -831,6 +1000,114 @@ def _validate_standalone_call(
             ),
             hint = hint,
         ))
+        return
+    arity_error = _arity_error(
+        kind = "Condition function",
+        name = func_name,
+        signature = allow.condition_function_signatures.get(func_name),
+        arg_count = len(call.args),
+        line = line,
+        col = call.col_offset,
+        path = path,
+    )
+    if arity_error is not None:
+        errors.append(arity_error)
+    _reject_player_as_participant(call, func_name, errors, path, line)
+
+
+# Functions the base game structurally excludes the player from. Passing
+# ``Player`` is a category error rather than a value that happens to fail:
+#
+#  * `Player` is not in `all_Characters` (`definitions.rpy` keeps
+#    `all_Characters_plus_Player` separate), so it is not in `all_Companions`,
+#    so `register_Friendships` never records a tie involving it — the seven
+#    friendship functions return tier 0 for it, forever;
+#  * `check_approval` opens with `if Character not in GameState.all_Companions:
+#    return 0`, and love/trust already measure how a companion feels about the
+#    player, so there is nothing to name;
+#  * `Partners` *is* the player's own set of partners;
+#  * `Character_is_in_close_proximity` tests the three on-screen sprite slots,
+#    which the player is never in.
+#
+# Every one of them fails silently — no exception, a valid-looking condition
+# that is simply always false. Across ~2000 calls the base game never passes
+# `Player` to one of these, and no mod can change that without rewriting the
+# game's own data structures. `seen_Player_recently` is deliberately absent:
+# it reads `Character.History`, which the player does have, so it is merely a
+# nonsensical question rather than an impossible one.
+# Mapped to the redirection each one needs: a writer told only "no" has to
+# guess what to write instead, and the two families want different answers.
+_RELATIONSHIP_HINT = (
+    "For how a character feels about the player, use "
+    'check_approval(Character, None, "dating") — or Character.love / '
+    "Character.trust for the raw values. These functions describe ties "
+    "between the other characters."
+)
+_PROXIMITY_HINT = (
+    "The player is always where the player is. To ask about the room, use "
+    "get_present_Characters() or get_visible_Characters()."
+)
+_PLAYER_EXCLUDING_FUNCTIONS: dict[str, str] = {
+    "are_Characters_friends": _RELATIONSHIP_HINT,
+    "are_Characters_in_Partners": _RELATIONSHIP_HINT,
+    "check_approval": _RELATIONSHIP_HINT,
+    "get_base_friendship": _RELATIONSHIP_HINT,
+    "get_best_Friend": _RELATIONSHIP_HINT,
+    "get_Characters_opinion": _RELATIONSHIP_HINT,
+    "get_effective_friendship": _RELATIONSHIP_HINT,
+    "get_max_friendship": _RELATIONSHIP_HINT,
+    "get_worst_Enemy": _RELATIONSHIP_HINT,
+    "Character_is_in_close_proximity": _PROXIMITY_HINT,
+}
+
+
+def _reject_player_as_participant(
+    call: Call,
+    func_name: str,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    """Refuse a bare ``Player`` argument to a relationship check.
+
+    Only the bare name is refused. ``Player.History`` stays valid — it is
+    used 316 times in the base game — because the player is legitimate as
+    the *subject* of an attribute, just never as a named participant in a
+    relationship the player is already one side of.
+    """
+    hint = _PLAYER_EXCLUDING_FUNCTIONS.get(func_name)
+    if hint is None:
+        return
+    for arg in call.args:
+        for name in _bare_names(arg):
+            if name != "Player":
+                continue
+            errors.append(CompileError(
+                path = path,
+                line = line,
+                col = call.col_offset,
+                message = (
+                    f"{func_name}(...) cannot take 'Player'. The game keeps "
+                    "the player out of its character list, so this call is "
+                    "false whatever happens in the story."
+                ),
+                hint = hint,
+            ))
+            return
+
+
+def _bare_names(expr: Expr) -> list[str]:
+    """Bare identifiers used as values in *expr*, descending into sequences.
+
+    A list literal is the usual shape here (``[Player, JeanGrey]``), so the
+    walk has to reach inside it. Attributes are *not* descended into: the
+    root of ``Player.History`` is a subject, not an argument.
+    """
+    if isinstance(expr, Name):
+        return [expr.name]
+    if isinstance(expr, ListExpr):
+        return [n for element in expr.elements for n in _bare_names(element)]
+    return []
 
 
 def _validate_method_call(

@@ -49,6 +49,7 @@ from dataclasses import dataclass
 
 from .allowlists import Allowlists
 from .dsl import transform as dsl_transform
+from .paren_parser import parse_look_values
 from .ast_nodes import (
     Approval,
     CallScene,
@@ -77,14 +78,20 @@ from .ast_nodes import (
     Slugline,
 )
 from .expr_parser import (
+    PRECEDENCE_AND,
+    PRECEDENCE_ATOM,
+    PRECEDENCE_NOT,
+    PRECEDENCE_OR,
     Attribute,
     BoolOp,
     Call,
     Compare,
+    ListExpr,
     Literal,
     Member,
     Name,
     UnaryNot,
+    parenthesize,
 )
 
 
@@ -456,6 +463,14 @@ class _ConditionSpecCollector:
         if isinstance(expr, Call):
             for arg in expr.args:
                 self.visit_expr(arg)
+            return
+        if isinstance(expr, ListExpr):
+            # Keep in step with the validator's _collect_calls, which also
+            # descends into elements. A writer-typed list or tuple can hold
+            # anything (a call, a scene-local name), so this recursion is
+            # load-bearing, not just defensive.
+            for element in expr.elements:
+                self.visit_expr(element)
 
     def finalize(self) -> list[dict[str, object]]:
         return [
@@ -561,22 +576,42 @@ def _render_expr(
             _render_expr(a, scene_local, allow, ctx) for a in expr.args
         )
         return f"{target_str}({arg_str})"
+    # The four operator nodes below re-parenthesise from precedence: the
+    # parser drops the writer's grouping, so this is the only place it can
+    # come back. ``expr`` is the DSL-transformed tree (``dsl_transform``
+    # recurses), so a child inspected here has its final node kind.
     if isinstance(expr, UnaryNot):
-        return f"not {_render_expr(expr.operand, scene_local, allow, ctx)}"
+        operand = _render_expr(expr.operand, scene_local, allow, ctx)
+        return f"not {parenthesize(operand, expr.operand, PRECEDENCE_NOT)}"
     if isinstance(expr, BoolOp):
+        own = PRECEDENCE_OR if expr.op == "or" else PRECEDENCE_AND
         sep = f" {expr.op} "
         return sep.join(
-            _render_expr(o, scene_local, allow, ctx) for o in expr.operands
+            parenthesize(_render_expr(o, scene_local, allow, ctx), o, own)
+            for o in expr.operands
         )
     if isinstance(expr, Compare):
-        parts = [_render_expr(expr.left, scene_local, allow, ctx)]
+        left = _render_expr(expr.left, scene_local, allow, ctx)
+        parts = [parenthesize(left, expr.left, PRECEDENCE_ATOM)]
         for op, right in expr.ops_and_rights:
-            parts.append(f" {op} {_render_expr(right, scene_local, allow, ctx)}")
+            rendered = _render_expr(right, scene_local, allow, ctx)
+            parts.append(f" {op} {parenthesize(rendered, right, PRECEDENCE_ATOM)}")
         return "".join(parts)
     if isinstance(expr, Member):
         left = _render_expr(expr.left, scene_local, allow, ctx)
         right = _render_expr(expr.right, scene_local, allow, ctx)
-        return f"{left} {expr.op} {right}"
+        return (
+            f"{parenthesize(left, expr.left, PRECEDENCE_ATOM)} {expr.op} "
+            f"{parenthesize(right, expr.right, PRECEDENCE_ATOM)}"
+        )
+    if isinstance(expr, ListExpr):
+        elements = ", ".join(
+            _render_expr(e, scene_local, allow, ctx) for e in expr.elements
+        )
+        if expr.is_tuple:
+            # A 1-tuple keeps its trailing comma or Python reads it as a group.
+            return f"({elements},)" if len(expr.elements) == 1 else f"({elements})"
+        return f"[{elements}]"
     # Defensive: an unknown node means the expression parser grew a kind
     # without teaching codegen about it.
     raise TypeError(f"Unsupported expression node {type(expr).__name__}")
@@ -738,6 +773,22 @@ def _emit_set_scene(
     return lines
 
 
+def _eyes_expr(look: str) -> str:
+    """Render a ``look`` value as an ``eyes=`` argument for ``change_face``.
+
+    A scalar look becomes a quoted string (``"down"``); a set look becomes a
+    Python set literal (``{"down", "neutral"}``) so ``change_face`` random-draws
+    a member each render for a livelier gaze (the dominant base-game idiom).
+    """
+    tokens = parse_look_values(look)
+    if not tokens:
+        return "\"neutral\""
+    if len(tokens) == 1:
+        return f"\"{tokens[0]}\""
+    members = ", ".join(f"\"{token}\"" for token in tokens)
+    return "{" + members + "}"
+
+
 def _emit_parenthetical_prelude(
     paren: Parenthetical,
     speaker_pascal: str,
@@ -776,7 +827,15 @@ def _emit_parenthetical_prelude(
     if paren.mood:
         lines.append(f"{indent}$ {speaker_pascal}.change_mood(\"{paren.mood}\")")
     if paren.face:
-        lines.append(f"{indent}$ {speaker_pascal}.change_face(\"{paren.face}\")")
+        # Fold a paired gaze into the face change so brows/mouth come from the
+        # face preset — no second, wiping ``change_face`` call is emitted.
+        if paren.look:
+            lines.append(
+                f"{indent}$ {speaker_pascal}.change_face("
+                f"\"{paren.face}\", eyes = {_eyes_expr(paren.look)})",
+            )
+        else:
+            lines.append(f"{indent}$ {speaker_pascal}.change_face(\"{paren.face}\")")
     if paren.arms or paren.left_arm or paren.right_arm:
         preset = f"\"{paren.arms}\"" if paren.arms else "None"
         kwargs: list[str] = []
@@ -786,30 +845,15 @@ def _emit_parenthetical_prelude(
             kwargs.append(f"right_arm = \"{paren.right_arm}\"")
         args = ", ".join([preset, *kwargs])
         lines.append(f"{indent}$ {speaker_pascal}.change_arms({args})")
-    if paren.look:
-        # CompanionClass has no ``change_look`` method, and no ``face``
-        # attribute either — ``FACE_PARTS = ("brows", "eyes", "mouth")``
-        # so the current face is not stored as ``Char.face``. The
-        # runner's equivalent sets ``<Char>.eyes`` then re-renders via
-        # ``change_face(<current face or None>, eyes=X)`` using
-        # ``getattr(Char, "face", None)`` as a defensive read. Mirror
-        # that here: the ``getattr`` tolerates the missing attribute
-        # and ``change_face(None, eyes=...)`` still refreshes the
-        # sprite without touching mood-driven defaults.
-        lines.append(f"{indent}$ {speaker_pascal}.eyes = \"{paren.look}\"")
+    if paren.look and not paren.face:
+        # Gaze-only. ``FACE_PARTS = ("brows", "eyes", "mouth")`` and there is no
+        # ``Char.face`` attribute, so ``change_face(None, ...)`` would reset
+        # brows/mouth to "neutral" (``npcs.rpy:211-219``). Pass the current
+        # brows/mouth through so only the gaze changes.
         lines.append(
-            f"{indent}$ {speaker_pascal}.change_face("
-            f"getattr({speaker_pascal}, \"face\", None), "
-            f"eyes = \"{paren.look}\")",
-        )
-    if paren.pose:
-        # TODO(compile_scenes): ``change_pose`` does not exist on
-        # CompanionClass. The slot is accepted by the grammar but the
-        # codegen emission is a no-op with a trailing comment so the dev
-        # notices on review. Wait for the mod to decide on the API.
-        lines.append(
-            f"{indent}# TODO(pose): {speaker_pascal} pose \"{paren.pose}\" "
-            "- no change_pose API yet; set a mod-side helper.",
+            f"{indent}$ {speaker_pascal}.change_face(None, "
+            f"brows = {speaker_pascal}.brows, mouth = {speaker_pascal}.mouth, "
+            f"eyes = {_eyes_expr(paren.look)})",
         )
     if paren.stage:
         direction = _stage_to_direction(paren.stage)
@@ -924,7 +968,6 @@ def _emit_show(node: Show, indent: str) -> list[str]:
         outfit = attrs.get("outfit"),
         left_arm = attrs.get("left_arm"),
         right_arm = attrs.get("right_arm"),
-        pose = attrs.get("pose"),
         stage = attrs.get("stage"),
     )
     return _emit_parenthetical_prelude(paren_like, node.character, indent, use_fade = use_fade)

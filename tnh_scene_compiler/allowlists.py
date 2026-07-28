@@ -8,13 +8,278 @@ down view focused on validation.
 
 from __future__ import annotations
 
+import ast
 import difflib
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+
+@lru_cache(maxsize = None)
+def signature_arity(signature: str) -> tuple[int, int | None] | None:
+    """Parse an allowlist signature string into ``(min_required, max_positional)``.
+
+    ``signature`` is the reference string stored next to a ``[[fx]]`` /
+    ``[[run]]`` / condition-function entry, e.g. ``"bamf(x = 0.5, y = 0.5) ->
+    None"`` or ``"pregnancy_mod_record_player_preference(Character,
+    preference)"``. The string is wrapped in ``def <sig>: pass`` and parsed
+    with :mod:`ast`, which handles type annotations (``Character:
+    CharacterClass | None``), default values, ``*args`` and folded
+    (multi-line) signatures uniformly.
+
+    Returns ``(min_required, max_positional)`` where ``min_required`` is the
+    number of positional parameters with no default and ``max_positional`` is
+    the total positional parameter count — or ``None`` for the upper bound
+    when the function accepts ``*args`` (unbounded). The whole result is
+    ``None`` when the signature cannot be parsed, so callers skip the arity
+    check rather than failing the build on a malformed reference string.
+
+    The safe-subset call grammar admits no keyword arguments, so only the
+    positional arity matters; keyword-only parameters (after ``*``) cannot be
+    reached by a positional call and are ignored.
+    """
+    text = signature.strip()
+    if not text:
+        return None
+    try:
+        module = ast.parse(f"def {text}: pass")
+    except SyntaxError:
+        return None
+    node = module.body[0]
+    if not isinstance(node, ast.FunctionDef):
+        return None
+    args = node.args
+    positional = list(args.posonlyargs) + list(args.args)
+    total = len(positional)
+    required = total - len(args.defaults)
+    max_positional = None if args.vararg is not None else total
+    return (required, max_positional)
+
+
+def parse_signature_params(signature: str) -> list[tuple[str, str, str]]:
+    """Extract ``(name, type_hint, default)`` tuples from a signature string.
+
+    Handles signatures like ``"phone_buzz(x: float = 0.5, y: float = 0.5) ->
+    None"`` or ``"Character.History.check(Item: str, tracker: str =
+    'persistent') -> int"``. Only the parenthesized parameter list is
+    parsed — everything before ``(`` (including a leading ``Character.``
+    call path) and after the matching ``)`` is ignored. Returns an empty
+    list if the signature is empty or has no parentheses.
+
+    Shared by every GUI form that turns an allowlist signature into
+    per-parameter fields with pre-filled defaults: ``[[fx]]``, ``[[run]]``,
+    standalone condition functions, and ``Character.method()`` conditions.
+    """
+    if not signature:
+        return []
+    paren_start = signature.find("(")
+    paren_end = signature.rfind(")")
+    if paren_start < 0 or paren_end < 0:
+        return []
+    params_str = signature[paren_start + 1:paren_end].strip()
+    if not params_str:
+        return []
+
+    params: list[tuple[str, str, str]] = []
+    depth = 0
+    current = ""
+    for ch in params_str:
+        if ch in ("(", "[", "{"):
+            depth += 1
+            current += ch
+        elif ch in (")", "]", "}"):
+            depth -= 1
+            current += ch
+        elif ch == "," and depth == 0:
+            params.append(_parse_single_param(current.strip()))
+            current = ""
+        else:
+            current += ch
+    if current.strip():
+        params.append(_parse_single_param(current.strip()))
+    return params
+
+
+def _parse_single_param(param: str) -> tuple[str, str, str]:
+    """Parse a single parameter like ``'x: float = 0.5'`` into (name, type, default).
+
+    Default values are kept verbatim (including quotes for strings) since
+    they are inserted as-is into the generated call.
+    """
+    name = ""
+    type_hint = ""
+    default = ""
+
+    if "=" in param:
+        before_eq, default = param.rsplit("=", 1)
+        default = default.strip()
+        param = before_eq.strip()
+
+    if ":" in param:
+        name, type_hint = param.split(":", 1)
+        name = name.strip()
+        type_hint = type_hint.strip()
+    else:
+        name = param.strip()
+
+    return (name, type_hint, default)
+
+
+def signature_return_type(signature: str) -> str:
+    """Return the annotated return type of a signature, or ``""``.
+
+    ``"get_effective_friendship(A, B) -> FriendshipTier"`` -> ``"FriendshipTier"``.
+    ``"f(x) -> bool | int"`` -> ``"bool | int"``. No ``->`` -> ``""``.
+    """
+    if "->" not in signature:
+        return ""
+    return signature.split("->", 1)[1].strip()
+
+
+def type_is_comparable(return_type: str) -> bool:
+    """``True`` if a type string is a number worth comparing with ``>=``/``<``/…
+
+    Heuristic on the type, unioned parts split on ``|`` with ``None`` dropped:
+    comparable if any part is ``int`` / ``float`` or ends in ``Tier`` /
+    ``Level`` (the base game's IntEnum ladders). A pure ``bool`` is not
+    comparable; ``bool | int`` is (the int branch is worth comparing).
+
+    Shared by function/method returns (via :func:`return_is_comparable`) and
+    by character-property types, which carry a bare type rather than a full
+    signature.
+    """
+    if not return_type:
+        return False
+    parts = [p.strip() for p in return_type.split("|")]
+    for part in parts:
+        if not part or part == "None":
+            continue
+        if part in ("int", "float"):
+            return True
+        if part.endswith("Tier") or part.endswith("Level"):
+            return True
+    return False
+
+
+def return_is_comparable(signature: str) -> bool:
+    """``True`` if the signature's return type is a number worth comparing.
+
+    Used by the Condition Builder to decide whether to offer an operator +
+    value affordance (`f(...) >= 2`) instead of inserting a bare, truthy-
+    when-nonzero call. A bare call is right for a ``bool`` return, but a
+    footgun for a tier/int/float — e.g. a bare `get_effective_friendship`
+    (returns a ``FriendshipTier`` IntEnum) reads as true for enemies too.
+    """
+    return type_is_comparable(signature_return_type(signature))
+
+
+_CONTAINER_TYPE_MARKERS = ("[", "Iterable", "iterable", "list", "List", "set", "Set", "tuple", "Tuple")
+
+
+def is_character_param(name: str, type_hint: str) -> bool:
+    """Return ``True`` if a parsed parameter expects a single ``Character``.
+
+    Used to render a character-picker combobox instead of a free-text
+    entry in every per-parameter GUI form (``[[fx]]``, ``[[run]]``,
+    standalone condition functions, character methods).
+
+    Matches the ``Character``-named-with-no-annotation convention used by
+    ``run_operations.yaml`` (e.g. ``pregnancy_mod_record_player_preference
+    (Character, preference)``) as well as an explicit ``Character`` /
+    ``CharacterClass`` type hint (optionally unioned with ``None``, e.g.
+    ``other: Character`` or ``Character: CharacterClass | None``).
+
+    Deliberately excludes container types (``Iterable[CharacterClass]``,
+    ``list[Character]``, ...) — those need a multi-character picker, not
+    this single-value combobox, and are left as free text.
+    """
+    if name == "Character":
+        return True
+    if not type_hint:
+        return False
+    if any(marker in type_hint for marker in _CONTAINER_TYPE_MARKERS):
+        return False
+    return "Character" in type_hint
+
+
+def is_character_collection_param(name: str, type_hint: str) -> bool:
+    """Return ``True`` if a parsed parameter expects *several* ``Character`` values.
+
+    The mirror of :func:`is_character_param` for the container case it
+    deliberately excludes: a ``Characters`` / ``*_Characters`` name (the
+    convention used by ``get_best_Friend(Character, Characters)`` and
+    ``check_if_need_to_change(Characters, arriving_Characters, ...)``) or an
+    explicit container type over ``Character`` (``Iterable[CharacterClass]``,
+    ``set[Character]``, ``list[Character]``, ...). The name check matters
+    because the allowlist signatures often strip the type down to the bare
+    name. The Condition Builder renders a multi-character picker for these and
+    assembles a set literal (e.g. ``{JeanGrey, Rogue}``), rather than the
+    single-value combobox :func:`is_character_param` drives.
+    """
+    if name == "Characters" or name.endswith("_Characters"):
+        return True
+    if not type_hint or "Character" not in type_hint:
+        return False
+    return any(marker in type_hint for marker in _CONTAINER_TYPE_MARKERS)
+
+
+def is_location_param(name: str, type_hint: str) -> bool:
+    """Return ``True`` if a parsed parameter expects a single location.
+
+    Matches the bare ``Location`` / ``location`` name convention the condition
+    allowlist uses (e.g. ``get_present_Characters(Location)``) or an explicit
+    ``Location`` type hint. The base-game functions type these ``str |
+    LocationClass``, so a slugline **string** is a valid argument — the
+    Condition Builder offers the known sluglines (quoted) as suggestions.
+    Container types (a set of locations) are excluded — free text there.
+    """
+    if name in ("Location", "location"):
+        return True
+    if not type_hint:
+        return False
+    if any(marker in type_hint for marker in _CONTAINER_TYPE_MARKERS):
+        return False
+    return "Location" in type_hint
+
+
+_OTHER_CATEGORY = "Other"
+
+
+def group_by_category(
+    names: set[str] | list[str],
+    categories: dict[str, str],
+    *,
+    other_label: str = _OTHER_CATEGORY,
+) -> dict[str, list[str]]:
+    """Group *names* by their entry in *categories*, sorted within each group.
+
+    Names with no entry in *categories* (or an empty project that never
+    added the field) fall into *other_label*, kept last so a project that
+    hasn't migrated to categories yet still gets one flat, usable group
+    instead of a confusing single-item-per-category GUI.
+
+    Returns an ordered dict: real categories sorted alphabetically first,
+    ``other_label`` last (omitted entirely if empty).
+    """
+    grouped: dict[str, list[str]] = {}
+    uncategorized: list[str] = []
+    for name in names:
+        category = categories.get(name)
+        if category:
+            grouped.setdefault(category, []).append(name)
+        else:
+            uncategorized.append(name)
+
+    result: dict[str, list[str]] = {
+        category: sorted(grouped[category]) for category in sorted(grouped)
+    }
+    if uncategorized:
+        result[other_label] = sorted(uncategorized)
+    return result
 
 
 def _read_yaml(path: Path) -> dict[str, Any] | None:
@@ -40,6 +305,122 @@ def _values_names(payload: dict[str, Any] | None, key: str = "values") -> list[s
         for item in entries
         if isinstance(item, dict) and isinstance(item.get("name"), str)
     ]
+
+
+@dataclass(frozen=True)
+class ConditionVariant:
+    """One named question a condition function can be asked in the builder.
+
+    Most functions ask a single question and get a single catalog entry.
+    Some carry a parameter that *replaces* the question rather than
+    refining it — `are_Characters_in_Partners`'s ``knows_about`` turns "is
+    she a partner of the player" into "…and every other partner has been
+    told about her", which is a polyamory-disclosure audit and a different
+    goal. Exposing that as a bare boolean field asks the writer to know the
+    base game's internals to guess which question they are asking, and its
+    default answers the less common one.
+
+    A variant pins those parameters (``fixed``) and gives the resulting
+    question its own label and help text. The pinned parameters get no
+    widget: they are not a choice the writer is making, they are what
+    distinguishes this entry from its sibling.
+    """
+
+    label: str
+    fixed: dict[str, str]
+    notes: str = ""
+
+
+def _read_condition_variants(item: dict[str, Any]) -> list[ConditionVariant]:
+    """Return an allowlist entry's ``variants``, sanitised.
+
+    A variant needs a label and at least one pinned parameter — without a
+    pin it would be a second entry asking the identical question. Values
+    are coerced to ``str`` because they are spliced into the emitted call
+    as source text (``knows_about: false`` in YAML must reach the scene as
+    Python's ``False``, so the YAML says ``"False"``).
+
+    Malformed payloads degrade to "no variants", leaving the function its
+    single ordinary entry, rather than raising.
+    """
+    raw = item.get("variants")
+    if not isinstance(raw, list):
+        return []
+    variants: list[ConditionVariant] = []
+    for spec in raw:
+        if not isinstance(spec, dict):
+            continue
+        label = spec.get("label")
+        fixed = spec.get("fixed")
+        if not isinstance(label, str) or not isinstance(fixed, dict):
+            continue
+        pinned = {
+            str(key): str(value) for key, value in fixed.items()
+            if isinstance(key, str)
+        }
+        if not label.strip() or not pinned:
+            continue
+        notes = spec.get("notes")
+        variants.append(
+            ConditionVariant(
+                label = label.strip(),
+                fixed = pinned,
+                notes = notes.strip() if isinstance(notes, str) else "",
+            ),
+        )
+    return variants
+
+
+def _read_collection_modes(item: dict[str, Any]) -> dict[str, str]:
+    """Return an entry's ``param_collection_mode`` mapping, sanitised.
+
+    Which of the three forms a character-collection field opens on. The
+    default is derived from the signature — a required collection is one
+    the game fills from a location, so it leads with "present here" — and
+    that derivation is right for `are_Characters_friends` and
+    `check_if_need_to_change` but wrong for a function asking about named
+    characters, where it would silently ask "is everyone in the room …".
+    Nothing in a signature distinguishes the two, so it is declared.
+
+    Per parameter, since one function can take two collections.
+    """
+    raw = item.get("param_collection_mode")
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(key): value.strip().lower()
+        for key, value in raw.items()
+        if isinstance(key, str) and isinstance(value, str) and value.strip()
+    }
+
+
+def _read_param_choices(item: dict[str, Any]) -> dict[str, list[str] | dict[str, Any]]:
+    """Return an allowlist entry's ``param_choices`` mapping, sanitised.
+
+    ``param_choices`` lets an entry declare, per parameter, the suggested values
+    the editor surfaces as a dropdown. A parameter maps to either
+
+    - a **fixed list** (same schema as the ``[[fx]]`` effects), values coerced
+      to ``str`` so a numeric choice (``level: [1, 2, 3]``) still populates a
+      combobox; or
+    - a **dynamic source** mapping (``{source: history_events, quote: true}``)
+      resolved against the live allowlists at render time, so the suggestions
+      stay in sync with the game/mod data without being copied here.
+
+    Malformed payloads degrade to "no choices" rather than raising.
+    """
+    choices = item.get("param_choices")
+    if not isinstance(choices, dict):
+        return {}
+    result: dict[str, list[str] | dict[str, Any]] = {}
+    for key, values in choices.items():
+        if not isinstance(key, str):
+            continue
+        if isinstance(values, list):
+            result[key] = [str(value) for value in values]
+        elif isinstance(values, dict):
+            result[key] = values
+    return result
 
 
 def _build_location_map(
@@ -81,7 +462,7 @@ def _build_interpolation_set(
 def _load_per_char_simple(dir_path: Path) -> dict[str, set[str]]:
     """Return ``{character: set(names)}`` for a simple ``values:`` per-char dir.
 
-    Used by faces/poses/outfits where each character YAML carries a single
+    Used by faces/outfits where each character YAML carries a single
     ``values`` list with one name per entry.
     """
     result: dict[str, set[str]] = {}
@@ -180,7 +561,7 @@ def _load_moods_with_shared(
 class Allowlists:
     """Validator-facing view of the allowlists.
 
-    Phase 6B adds per-character mood/face/pose/arms/outfit sets so the
+    Phase 6B adds per-character mood/face/arms/outfit sets so the
     parenthetical grammar §11.6 can cross-lookup a value against every
     slot and suggest the right key when a writer picks the wrong one.
 
@@ -195,7 +576,16 @@ class Allowlists:
             like ``JEANGREY`` can be checked in O(1).
         shared_moods: Global shared mood set (from ``moods/_shared.yaml``).
         char_moods: Per-character mood additions (not including the shared).
-        char_faces / char_poses / char_outfits: one set per character.
+        char_faces / char_outfits: one set per character.
+        char_features: per-character feature names for
+            ``Character.feature_enabled("...")``. Genuinely per-character —
+            the sets share no common value — so a consumer must resolve them
+            against a selected character rather than flattening them.
+        char_clothing_items: per-character clothing **inventory keys**
+            (``JeanGrey_beige_cargo_pants``), the string
+            ``Character.Inventory.get_active(...)`` matches on. Prefixed with
+            the owner's tag because that is how ``InventoryClass.add`` files a
+            garment — the bare id would never match.
         char_arms / char_left_arm / char_right_arm: three sets per character
             matching the YAML subgroups in ``arms/<Character>.yaml``.
         looks: Global look values (``looks.yaml``). Same list for every
@@ -211,8 +601,9 @@ class Allowlists:
     char_moods: dict[str, set[str]] = field(default_factory=dict)
     mood_faces: dict[str, list[str]] = field(default_factory=dict)
     char_faces: dict[str, set[str]] = field(default_factory=dict)
-    char_poses: dict[str, set[str]] = field(default_factory=dict)
     char_outfits: dict[str, set[str]] = field(default_factory=dict)
+    char_features: dict[str, set[str]] = field(default_factory=dict)
+    char_clothing_items: dict[str, set[str]] = field(default_factory=dict)
     char_arms: dict[str, set[str]] = field(default_factory=dict)
     char_left_arm: dict[str, set[str]] = field(default_factory=dict)
     char_right_arm: dict[str, set[str]] = field(default_factory=dict)
@@ -220,15 +611,34 @@ class Allowlists:
     stages: set[str] = field(default_factory=set)
     sfx: set[str] = field(default_factory=set)
     run_operations: set[str] = field(default_factory=set)
+    run_operation_signatures: dict[str, str] = field(default_factory=dict)
+    run_operation_categories: dict[str, str] = field(default_factory=dict)
     fx: set[str] = field(default_factory=set)
     fx_signatures: dict[str, str] = field(default_factory=dict)
     fx_param_choices: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     fx_call_modes: dict[str, str] = field(default_factory=dict)
     condition_functions: set[str] = field(default_factory=set)
+    condition_function_signatures: dict[str, str] = field(default_factory=dict)
+    condition_function_categories: dict[str, str] = field(default_factory=dict)
+    condition_function_notes: dict[str, str] = field(default_factory=dict)
+    condition_function_labels: dict[str, str] = field(default_factory=dict)
+    condition_function_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = field(default_factory=dict)
+    condition_function_variants: dict[str, list[ConditionVariant]] = field(default_factory=dict)
+    condition_function_collection_modes: dict[str, dict[str, str]] = field(default_factory=dict)
     character_methods: set[str] = field(default_factory=set)
+    character_method_signatures: dict[str, str] = field(default_factory=dict)
+    character_method_categories: dict[str, str] = field(default_factory=dict)
+    character_method_notes: dict[str, str] = field(default_factory=dict)
+    character_method_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = field(default_factory=dict)
+    character_properties: set[str] = field(default_factory=set)
+    character_properties_bare: set[str] = field(default_factory=set)
+    character_property_types: dict[str, str] = field(default_factory=dict)
+    character_property_categories: dict[str, str] = field(default_factory=dict)
+    character_property_notes: dict[str, str] = field(default_factory=dict)
     traits: set[str] = field(default_factory=set)
     personalities: set[str] = field(default_factory=set)
     history_events: set[str] = field(default_factory=set)
+    inventory_items: set[str] = field(default_factory=set)
     character_aliases: dict[str, str] = field(default_factory=dict)
     function_aliases: dict[str, str] = field(default_factory=dict)
 
@@ -247,8 +657,9 @@ class Allowlists:
 
         shared_moods, char_moods, mood_faces = _load_moods_with_shared(allowlists_dir / "moods")
         char_faces = _load_per_char_simple(allowlists_dir / "faces")
-        char_poses = _load_per_char_simple(allowlists_dir / "poses")
         char_outfits = _load_per_char_simple(allowlists_dir / "outfits")
+        char_features = _load_per_char_simple(allowlists_dir / "features")
+        char_clothing_items = _load_per_char_simple(allowlists_dir / "clothing_items")
         char_arms, char_left_arm, char_right_arm = _load_per_char_arms(
             allowlists_dir / "arms",
         )
@@ -260,12 +671,20 @@ class Allowlists:
         # Mod-operations allowlist (hand-maintained manual scaffold).
         run_operations_payload = _read_yaml(allowlists_dir / "run_operations.yaml")
         run_operations: set[str] = set()
+        run_operation_signatures: dict[str, str] = {}
+        run_operation_categories: dict[str, str] = {}
         if run_operations_payload and isinstance(
             run_operations_payload.get("operations"), list,
         ):
             for item in run_operations_payload["operations"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     run_operations.add(item["name"])
+                    sig = item.get("signature")
+                    if isinstance(sig, str):
+                        run_operation_signatures[item["name"]] = sig
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        run_operation_categories[item["name"]] = cat
 
         # Engine-effects allowlist. Two layers, merged here (same pattern as
         # locations / interpolation):
@@ -308,23 +727,103 @@ class Allowlists:
             allowlists_dir / "condition_functions.yaml",
         )
         condition_functions: set[str] = set()
+        condition_function_signatures: dict[str, str] = {}
+        condition_function_categories: dict[str, str] = {}
+        condition_function_notes: dict[str, str] = {}
+        condition_function_labels: dict[str, str] = {}
+        condition_function_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = {}
+        condition_function_variants: dict[str, list[ConditionVariant]] = {}
+        condition_function_collection_modes: dict[str, dict[str, str]] = {}
         if condition_functions_payload and isinstance(
             condition_functions_payload.get("functions"), list,
         ):
             for item in condition_functions_payload["functions"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     condition_functions.add(item["name"])
+                    sig = item.get("signature")
+                    if isinstance(sig, str):
+                        condition_function_signatures[item["name"]] = sig
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        condition_function_categories[item["name"]] = cat
+                    note = item.get("notes")
+                    if isinstance(note, str):
+                        condition_function_notes[item["name"]] = note.strip()
+                    label = item.get("label")
+                    if isinstance(label, str):
+                        condition_function_labels[item["name"]] = label.strip()
+                    choices = _read_param_choices(item)
+                    if choices:
+                        condition_function_param_choices[item["name"]] = choices
+                    variants = _read_condition_variants(item)
+                    if variants:
+                        condition_function_variants[item["name"]] = variants
+                    collection_modes = _read_collection_modes(item)
+                    if collection_modes:
+                        condition_function_collection_modes[item["name"]] = collection_modes
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
         )
         character_methods: set[str] = set()
+        character_method_signatures: dict[str, str] = {}
+        character_method_categories: dict[str, str] = {}
+        character_method_notes: dict[str, str] = {}
+        character_method_param_choices: dict[str, dict[str, list[str] | dict[str, Any]]] = {}
         if character_methods_payload and isinstance(
             character_methods_payload.get("methods"), list,
         ):
             for item in character_methods_payload["methods"]:
                 if isinstance(item, dict) and isinstance(item.get("name"), str):
                     character_methods.add(item["name"])
+                    sig = item.get("signature")
+                    if isinstance(sig, str):
+                        character_method_signatures[item["name"]] = sig
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        character_method_categories[item["name"]] = cat
+                    note = item.get("notes")
+                    if isinstance(note, str):
+                        character_method_notes[item["name"]] = note.strip()
+                    choices = _read_param_choices(item)
+                    if choices:
+                        character_method_param_choices[item["name"]] = choices
+
+        # Character-properties allowlist (hand-maintained). Read-only bare
+        # attributes usable in a condition (``Character.desire >= 0.5``). Each
+        # carries a ``type`` (int/float/...) so the Condition Builder can offer
+        # the same comparison affordance as number-returning functions.
+        #
+        # ``usable_bare: false`` marks a property the validator must accept but
+        # that means nothing on its own — an object like ``Character.History``,
+        # which exists only to be passed to a function. Those stay out of
+        # ``character_properties_bare``, the set the Condition Builder offers as
+        # a standalone check.
+        character_properties_payload = _read_yaml(
+            allowlists_dir / "character_properties.yaml",
+        )
+        character_properties: set[str] = set()
+        character_properties_bare: set[str] = set()
+        character_property_types: dict[str, str] = {}
+        character_property_categories: dict[str, str] = {}
+        character_property_notes: dict[str, str] = {}
+        if character_properties_payload and isinstance(
+            character_properties_payload.get("properties"), list,
+        ):
+            for item in character_properties_payload["properties"]:
+                if isinstance(item, dict) and isinstance(item.get("name"), str):
+                    character_properties.add(item["name"])
+                    if item.get("usable_bare", True):
+                        character_properties_bare.add(item["name"])
+                    ptype = item.get("type")
+                    if isinstance(ptype, str):
+                        character_property_types[item["name"]] = ptype
+                    cat = item.get("category")
+                    if isinstance(cat, str):
+                        character_property_categories[item["name"]] = cat
+                    note = item.get("notes")
+                    if isinstance(note, str):
+                        character_property_notes[item["name"]] = note.strip()
 
         traits = set(_values_names(_read_yaml(allowlists_dir / "traits.yaml")))
         personalities = set(_values_names(
@@ -332,6 +831,9 @@ class Allowlists:
         ))
         history_events = set(_values_names(
             _read_yaml(allowlists_dir / "history_events.yaml"),
+        ))
+        inventory_items = set(_values_names(
+            _read_yaml(allowlists_dir / "inventory_items.yaml"),
         ))
 
         aliases_payload = _read_yaml(allowlists_dir / "aliases.yaml")
@@ -358,8 +860,9 @@ class Allowlists:
             char_moods = char_moods,
             mood_faces = mood_faces,
             char_faces = char_faces,
-            char_poses = char_poses,
             char_outfits = char_outfits,
+            char_features = char_features,
+            char_clothing_items = char_clothing_items,
             char_arms = char_arms,
             char_left_arm = char_left_arm,
             char_right_arm = char_right_arm,
@@ -367,15 +870,34 @@ class Allowlists:
             stages = stages,
             sfx = sfx,
             run_operations = run_operations,
+            run_operation_signatures = run_operation_signatures,
+            run_operation_categories = run_operation_categories,
             fx = fx,
             fx_signatures = fx_signatures,
             fx_param_choices = fx_param_choices,
             fx_call_modes = fx_call_modes,
             condition_functions = condition_functions,
+            condition_function_signatures = condition_function_signatures,
+            condition_function_categories = condition_function_categories,
+            condition_function_notes = condition_function_notes,
+            condition_function_labels = condition_function_labels,
+            condition_function_param_choices = condition_function_param_choices,
+            condition_function_variants = condition_function_variants,
+            condition_function_collection_modes = condition_function_collection_modes,
             character_methods = character_methods,
+            character_method_signatures = character_method_signatures,
+            character_method_categories = character_method_categories,
+            character_method_notes = character_method_notes,
+            character_method_param_choices = character_method_param_choices,
+            character_properties = character_properties,
+            character_properties_bare = character_properties_bare,
+            character_property_types = character_property_types,
+            character_property_categories = character_property_categories,
+            character_property_notes = character_property_notes,
             traits = traits,
             personalities = personalities,
             history_events = history_events,
+            inventory_items = inventory_items,
             character_aliases = character_aliases,
             function_aliases = function_aliases,
         )
@@ -409,9 +931,6 @@ class Allowlists:
     def is_face(self, character: str, value: str) -> bool:
         return value in self.char_faces.get(character, set())
 
-    def is_pose(self, character: str, value: str) -> bool:
-        return value in self.char_poses.get(character, set())
-
     def is_outfit(self, character: str, value: str) -> bool:
         return value in self.char_outfits.get(character, set())
 
@@ -441,8 +960,6 @@ class Allowlists:
             hits.append("mood")
         if self.is_face(character, value):
             hits.append("face")
-        if self.is_pose(character, value):
-            hits.append("pose")
         if self.is_outfit(character, value):
             hits.append("outfit")
         if self.is_arms_preset(character, value):
@@ -510,6 +1027,11 @@ class Allowlists:
             name, list(self.character_methods), n = max_suggestions, cutoff = 0.5,
         )
 
+    def suggest_character_property(self, name: str, *, max_suggestions: int = 3) -> list[str]:
+        return difflib.get_close_matches(
+            name, list(self.character_properties), n = max_suggestions, cutoff = 0.5,
+        )
+
     # --- Multi-layer support ------------------------------------------------
 
     def merge(self, other: Allowlists) -> Allowlists:
@@ -531,8 +1053,11 @@ class Allowlists:
             char_moods=_merge_char_sets(self.char_moods, other.char_moods),
             mood_faces={**self.mood_faces, **other.mood_faces},
             char_faces=_merge_char_sets(self.char_faces, other.char_faces),
-            char_poses=_merge_char_sets(self.char_poses, other.char_poses),
             char_outfits=_merge_char_sets(self.char_outfits, other.char_outfits),
+            char_features=_merge_char_sets(self.char_features, other.char_features),
+            char_clothing_items=_merge_char_sets(
+                self.char_clothing_items, other.char_clothing_items,
+            ),
             char_arms=_merge_char_sets(self.char_arms, other.char_arms),
             char_left_arm=_merge_char_sets(self.char_left_arm, other.char_left_arm),
             char_right_arm=_merge_char_sets(self.char_right_arm, other.char_right_arm),
@@ -540,15 +1065,79 @@ class Allowlists:
             stages=self.stages | other.stages,
             sfx=self.sfx | other.sfx,
             run_operations=self.run_operations | other.run_operations,
+            run_operation_signatures={
+                **self.run_operation_signatures, **other.run_operation_signatures,
+            },
+            run_operation_categories={
+                **self.run_operation_categories, **other.run_operation_categories,
+            },
             fx=self.fx | other.fx,
             fx_signatures={**self.fx_signatures, **other.fx_signatures},
             fx_param_choices={**self.fx_param_choices, **other.fx_param_choices},
             fx_call_modes={**self.fx_call_modes, **other.fx_call_modes},
             condition_functions=self.condition_functions | other.condition_functions,
+            condition_function_signatures={
+                **self.condition_function_signatures,
+                **other.condition_function_signatures,
+            },
+            condition_function_categories={
+                **self.condition_function_categories,
+                **other.condition_function_categories,
+            },
+            condition_function_notes={
+                **self.condition_function_notes, **other.condition_function_notes,
+            },
+            condition_function_labels={
+                **self.condition_function_labels, **other.condition_function_labels,
+            },
+            condition_function_param_choices={
+                **self.condition_function_param_choices,
+                **other.condition_function_param_choices,
+            },
+            # Per function, not per variant: a project redeclaring a
+            # function's variants replaces the whole list, the same way it
+            # replaces its label or its choices. Merging them entry by entry
+            # would let a project half-override a split and end up with two
+            # entries asking the same question.
+            condition_function_variants={
+                **self.condition_function_variants,
+                **other.condition_function_variants,
+            },
+            condition_function_collection_modes={
+                **self.condition_function_collection_modes,
+                **other.condition_function_collection_modes,
+            },
             character_methods=self.character_methods | other.character_methods,
+            character_method_signatures={
+                **self.character_method_signatures, **other.character_method_signatures,
+            },
+            character_method_categories={
+                **self.character_method_categories, **other.character_method_categories,
+            },
+            character_method_notes={
+                **self.character_method_notes, **other.character_method_notes,
+            },
+            character_method_param_choices={
+                **self.character_method_param_choices,
+                **other.character_method_param_choices,
+            },
+            character_properties=self.character_properties | other.character_properties,
+            character_properties_bare=(
+                self.character_properties_bare | other.character_properties_bare
+            ),
+            character_property_types={
+                **self.character_property_types, **other.character_property_types,
+            },
+            character_property_categories={
+                **self.character_property_categories, **other.character_property_categories,
+            },
+            character_property_notes={
+                **self.character_property_notes, **other.character_property_notes,
+            },
             traits=self.traits | other.traits,
             personalities=self.personalities | other.personalities,
             history_events=self.history_events | other.history_events,
+            inventory_items=self.inventory_items | other.inventory_items,
             character_aliases={**self.character_aliases, **other.character_aliases},
             function_aliases={**self.function_aliases, **other.function_aliases},
         )

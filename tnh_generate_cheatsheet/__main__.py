@@ -19,7 +19,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from .loader import load
+from tnh_scene_compiler.config import get_data_root
+
+from .loader import load_layered
 from .renderer import render
 
 
@@ -39,6 +41,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type = Path,
         required = True,
         help = "Destination markdown file.",
+    )
+    parser.add_argument(
+        "--no-base-allowlists",
+        dest = "include_base",
+        action = "store_false",
+        help = (
+            "Describe only --allowlists. By default the base layer bundled with "
+            "the tool is merged in first, so the cheatsheet covers the same set "
+            "the compiler validates against."
+        ),
     )
     parser.add_argument(
         "--check",
@@ -82,7 +94,22 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    data = load(allowlists)
+    # Base first so the project layer wins on a name collision, matching the
+    # order the compiler's Allowlists.load_layered uses.
+    layers: list[Path] = []
+    if args.include_base:
+        base = get_data_root() / "allowlists_base"
+        if base.is_dir():
+            layers.append(base)
+        else:
+            print(
+                "tnh_generate_cheatsheet: base allowlists not found; "
+                "describing the project layer alone",
+                file = sys.stderr,
+            )
+    layers.append(allowlists)
+
+    data = load_layered(layers)
     if args.verbose:
         _log_verbose(data, sys.stderr)
 

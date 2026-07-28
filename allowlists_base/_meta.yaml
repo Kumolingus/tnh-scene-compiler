@@ -1,52 +1,48 @@
-generated_at: '2026-05-14'
+generated_at: '2026-07-23'
 tool_version: 1.0.0
-base_game_root: TheNullHypothesis
-project_root: C:/Users/flori/AppData/Local/Temp/tnh_empty_mod
+base_game_root: .
+project_root: C:/Users/flori/AppData/Local/Temp/claude/D--Projets-Development-NullHypothesisPregnancyMod/0e6acb9d-67a6-4aa6-9591-76bae5940051/scratchpad/empty_mod
 include_tnh: true
 stats:
-  characters: 30
-  stages: 8
+  characters: 40
+  stages: 3
   sfx: 10
-  locations: 31
+  fx: 29
+  locations: 30
   looks: 8
-  interpolation: 91
+  interpolation: 121
   condition_functions: 0
-  traits: 303
+  traits: 310
   personalities: 8
-  history_events: 99
+  history_events: 105
+  # Added 2026-07-25 by a targeted run, like the features block below.
+  inventory_items: 58
   faces:
+    AlisonBlaire: 49
     AmahlFarouk: 10
+    CeciliaReyes: 49
     CharlesXavier: 35
+    EmmaFrost: 49
     JeanGrey: 59
     KittyPryde: 59
     KurtWagner: 49
-    LauraKinney: 61
+    LauraKinney: 60
     OroroMunroe: 59
     Rogue: 59
-  poses:
-    AmahlFarouk: 2
-    CharlesXavier: 1
-    JeanGrey: 7
-    KittyPryde: 1
-    KurtWagner: 1
-    LauraKinney: 7
-    OroroMunroe: 1
-    Rogue: 7
-    Dek8000: 1
-    DerpNibbles: 1
-    Gaspka: 1
-    NegaNexus: 1
-    PurePazaak: 1
   arms:
+    AlisonBlaire: 15
     AmahlFarouk: 13
+    CeciliaReyes: 34
     CharlesXavier: 1
-    JeanGrey: 52
+    EmmaFrost: 37
+    JeanGrey: 38
     KittyPryde: 34
     KurtWagner: 22
-    LauraKinney: 52
+    LauraKinney: 38
     OroroMunroe: 38
-    Rogue: 46
+    Rogue: 32
   outfits:
+    CeciliaReyes: 4
     JeanGrey: 14
     KittyPryde: 1
     KurtWagner: 2
@@ -58,7 +54,33 @@ stats:
     KurtWagner: 4
     LauraKinney: 34
     OroroMunroe: 5
+  # Added 2026-07-26 by a clothing_items-only run, same as the blocks above.
+  # These are inventory KEYS ("<Owner>_<id>"), not bare clothing ids.
+  clothing_items:
+    CeciliaReyes: 10
+    EmmaFrost: 15
+    JeanGrey: 63
+    KittyPryde: 36
+    KurtWagner: 4
+    LauraKinney: 62
+    OroroMunroe: 41
+    Player: 40
+    Rogue: 60
+  # Added 2026-07-25 by a features-only run; the counts above are from the
+  # 2026-07-23 full refresh and were not regenerated.
+  features:
+    AlisonBlaire: 3
+    CharlesXavier: 2
+    JeanGrey: 22
+    KittyPryde: 3
+    KurtWagner: 8
+    LauraKinney: 23
+    OroroMunroe: 3
+    Rogue: 23
 warnings:
+- Location loc_PlayerShower declares the same name as loc_PlayerRoom, so both derive
+  the slugline "[PLAYER.FIRST_NAME]'S ROOM". loc_PlayerRoom keeps it. Give loc_PlayerShower
+  its own slugline in locations_overrides.yaml if a scene needs to open there.
 - Location loc_MuirIsland_Facility2 is declared via .copy() and is not resolved in
   V1; add it manually to locations_overrides.yaml if needed
 - Location loc_XavierSchool_CharlesXavierRoom is declared via .copy() and is not resolved
