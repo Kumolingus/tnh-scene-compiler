@@ -83,6 +83,25 @@ Of course, ask me anything.
 
 Called with no state set, a scene runs on its defaults.
 
+### Passing a target character
+
+A scene declaring `Target: true` on its [title page](#title-page) compiles to
+a label with one parameter, so the character rides as a call argument rather
+than through the runtime module:
+
+```
+$ renpy.call("my_mod_fertility_reading", chosen_character)
+```
+
+Ren'Py scopes label parameters dynamically: `Target` is set when the label
+starts and the previous value restored when it returns, so there is nothing
+to clear afterwards — which matters here, because `renpy.call` never comes
+back to the Python that called it.
+
+Each compiled scene declares `"uses_target"` in its metadata block. Read that
+rather than guessing: passing an argument to a label that takes none, or
+omitting one it requires, raises from inside the scene.
+
 ### What calls what
 
 A **cinematic** scene with a real trigger (sleeping, waking, …) is fired by

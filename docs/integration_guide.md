@@ -100,6 +100,32 @@ configured in your project (typically `YourMod/game/my_mod/scenes/`).
 | `texting`                               | Same as phone — called directly by mod code.                       |
 | `hub_option`                            | Called from a menu or hub screen in your mod.                      |
 
+## Scenes that take a target character
+
+A scene whose title page carries `Target: true` is about a character picked
+while the game runs — the girl chosen from a menu, the other woman in a
+confession. It compiles to a label with one parameter:
+
+```renpy
+label my_mod_fertility_reading(Target):
+    ...
+```
+
+Call it with the character:
+
+```renpy
+$ renpy.call("my_mod_fertility_reading", chosen_character)
+```
+
+Ren'Py scopes label parameters dynamically — `Target` is set when the label
+starts and the previous value is restored when it returns, so there is nothing
+to clean up afterwards. (Which matters: `renpy.call` from Python raises to
+transfer control, so no line after it in your function ever runs.)
+
+Each compiled scene declares `"uses_target"` in its metadata block. Read that
+rather than guessing: calling a no-parameter label with an argument, or a
+target-taking label without one, raises from inside the scene.
+
 ## Recompiling
 
 Edit the `.scene` file, recompile. The compiler overwrites the old `.rpy`. Ren'Py picks up the change on next launch.

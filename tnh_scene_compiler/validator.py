@@ -29,6 +29,7 @@ import re
 
 from .allowlists import Allowlists, signature_arity
 from .ast_nodes import (
+    TARGET_NAME as _TARGET_NAME,
     Approval,
     Choice,
     DialogueBlock,
@@ -52,6 +53,7 @@ from .ast_nodes import (
 )
 from .dsl import transform as dsl_transform
 from .errors import CompileError
+from .lexer import iter_interpolations as _iter_interpolations
 from .paren_parser import parse_look_values
 from .expr_parser import (
     Attribute,
@@ -63,6 +65,7 @@ from .expr_parser import (
     Member,
     Name,
     UnaryNot,
+    parse_expression,
 )
 
 _SCENE_ID_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -137,39 +140,116 @@ def _strip_time_suffix(text: str) -> str:
     return text
 
 
-def _iter_interpolations(s: str) -> list[tuple[str, int]]:
-    """Yield ``(path, column_offset)`` pairs for every ``[...]`` in ``s``.
+_NOT_A_PATH_MESSAGE = (
+    "Interpolation {inner!r} is not a plain path or an allowlisted function "
+    "call. Only dotted identifier chains (e.g. `[player.name]`) and calls to a "
+    "function in condition_functions.yaml (e.g. `[days_to_ovulation(Target)]`) "
+    "are allowed."
+)
 
-    Ren'Py doubles the bracket (``[[``) to mean a literal ``[`` — we skip
-    those so they are not misread as interpolation openings.
+
+def _validate_interpolated_call(
+    inner: str,
+    *,
+    allow: Allowlists,
+    allow_target: bool,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+    col: int,
+) -> None:
+    """Check one ``[fn(...)]`` interpolation against the condition allowlist.
+
+    A value the writer wants to *say* goes through the same allowlist as a
+    value they want to *branch on*: the two questions are asked of the same
+    helpers (``[[if days(Target) == 1]]`` next to ``[days(Target)]``), and a
+    second list would mean declaring each of them twice.
     """
-    results: list[tuple[str, int]] = []
-    i = 0
-    n = len(s)
-    while i < n:
-        ch = s[i]
-        if ch == "[":
-            if i + 1 < n and s[i + 1] == "[":
-                # Literal ``[``. Skip the escape sequence.
-                i += 2
-                continue
-            # Find the matching ``]``. The inner must not contain another ``[``.
-            end = s.find("]", i + 1)
-            if end == -1:
-                # Unterminated interpolation — let the validator surface this.
-                results.append((s[i + 1:], i + 1))
-                return results
-            inner = s[i + 1:end]
-            # Reject nested brackets.
-            if "[" in inner:
-                results.append((inner, i + 1))
-                i = end + 1
-                continue
-            results.append((inner, i + 1))
-            i = end + 1
-            continue
-        i += 1
-    return results
+    try:
+        expr = parse_expression(inner, path = path, line = line, base_col = col)
+    except CompileError:
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = col,
+            message = _NOT_A_PATH_MESSAGE.format(inner = inner),
+        ))
+        return
+
+    if not isinstance(expr, Call) or not isinstance(expr.target, Name):
+        errors.append(CompileError(
+            path = path,
+            line = line,
+            col = col,
+            message = _NOT_A_PATH_MESSAGE.format(inner = inner),
+        ))
+        return
+
+    if not allow_target:
+        for target_col in _collect_target_uses(expr):
+            errors.append(_target_not_declared_error(path, line, target_col))
+
+    _validate_standalone_call(expr, allow, errors, path, line)
+
+
+def _target_not_declared_error(path: str, line: int, col: int) -> CompileError:
+    """The one error for naming ``Target`` in a scene that does not take one."""
+    return CompileError(
+        path = path,
+        line = line,
+        col = col,
+        message = (
+            f"{_TARGET_NAME!r} is only available in a scene that declares "
+            f"'{_TARGET_NAME}: true' on its title page."
+        ),
+        hint = (
+            f"Add '{_TARGET_NAME}: true' to the title page, and have the caller "
+            f"pass the character to the compiled label."
+        ),
+    )
+
+
+def _validate_target_interpolation(
+    path_text: str,
+    suffix: str,
+    *,
+    allow: Allowlists,
+    allow_target: bool,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+    col: int,
+) -> None:
+    """Check one ``[Target...]`` interpolation."""
+    if not allow_target:
+        errors.append(_target_not_declared_error(path, line, col))
+        return
+    valid = _character_interpolation_suffixes(allow)
+    if suffix and suffix in valid:
+        return
+    listed = ", ".join(f"{_TARGET_NAME}.{s}" for s in sorted(valid)[:6])
+    errors.append(CompileError(
+        path = path,
+        line = line,
+        col = col,
+        message = f"Interpolation path {path_text!r} is not a known value.",
+        hint = f"Valid target paths: {listed}." if listed else None,
+    ))
+
+
+def _character_interpolation_suffixes(allow: Allowlists) -> frozenset[str]:
+    """Return every suffix valid after a character root (``name``, ``petname``, …).
+
+    Derived from the interpolation allowlist rather than hardcoded: the list is
+    generated per project, so a project that exposes another per-character path
+    gets it for ``Target`` too, with no second place to update.
+    """
+    suffixes: set[str] = set()
+    for entry in allow.interpolation:
+        root, sep, suffix = entry.partition(".")
+        if sep and root in allow.characters:
+            suffixes.add(suffix)
+    return frozenset(suffixes)
 
 
 def _validate_interpolations_in(
@@ -180,20 +260,39 @@ def _validate_interpolations_in(
     allow: Allowlists,
     errors: list[CompileError],
     path: str,
+    allow_target: bool = False,
 ) -> None:
-    """Scan ``text`` for ``[...]`` and check every path against the allowlist."""
+    """Scan ``text`` for ``[...]`` and check every path against the allowlist.
+
+    ``allow_target`` mirrors the title page's ``Target: true``. The target is
+    a runtime value, so it can never be an entry in the allowlist — its paths
+    are checked by suffix against whatever the allowlist exposes for a real
+    character.
+    """
     for inner, col_offset in _iter_interpolations(text):
         path_text = inner.strip()
-        if not _RE_PATH.match(path_text):
-            errors.append(CompileError(
+        root, sep, suffix = path_text.partition(".")
+        if root == _TARGET_NAME and _RE_PATH.match(path_text):
+            _validate_target_interpolation(
+                path_text, suffix if sep else "",
+                allow = allow,
+                allow_target = allow_target,
+                errors = errors,
                 path = path,
                 line = source_line,
                 col = source_col + col_offset,
-                message = (
-                    f"Interpolation {inner!r} is not a plain path. Only dotted "
-                    "identifier chains (e.g. `[player.name]`) are allowed."
-                ),
-            ))
+            )
+            continue
+        if not _RE_PATH.match(path_text):
+            _validate_interpolated_call(
+                path_text,
+                allow = allow,
+                allow_target = allow_target,
+                errors = errors,
+                path = path,
+                line = source_line,
+                col = source_col + col_offset,
+            )
             continue
         if path_text not in allow.interpolation:
             suggestions = allow.suggest_interpolation(path_text)
@@ -315,6 +414,8 @@ def _validate_dialogue(
     allow: Allowlists,
     errors: list[CompileError],
     path: str,
+    *,
+    allow_target: bool = False,
 ) -> None:
     # Narrator is implicit in §11.5 but also allowed as an explicit speaker.
     pascal_speaker: str | None = None
@@ -344,6 +445,7 @@ def _validate_dialogue(
         allow = allow,
         errors = errors,
         path = path,
+        allow_target = allow_target,
     )
 
 
@@ -482,6 +584,8 @@ def _validate_narration(
     allow: Allowlists,
     errors: list[CompileError],
     path: str,
+    *,
+    allow_target: bool = False,
 ) -> None:
     _validate_interpolations_in(
         block.text,
@@ -490,6 +594,7 @@ def _validate_narration(
         allow = allow,
         errors = errors,
         path = path,
+        allow_target = allow_target,
     )
 
 
@@ -854,6 +959,48 @@ def _collect_calls(expr: Expr) -> list[Call]:
     return []
 
 
+def _collect_target_uses(expr: Expr) -> list[int]:
+    """Return the column of every ``Target`` reference in ``expr``.
+
+    Walks the whole tree, including a ``Call``'s arguments and an
+    ``Attribute``'s root, because the target is meaningful in both positions
+    (``check_is_fertile(Target)``, ``Target.love``). Used only to reject the
+    name in a scene that never declared one — a bare ``Name`` would otherwise
+    fall through to scene-local state and silently evaluate to ``None``.
+    """
+    if isinstance(expr, Name):
+        return [expr.col_offset] if expr.name == _TARGET_NAME else []
+    if isinstance(expr, Attribute):
+        return [expr.col_offset] if expr.root.name == _TARGET_NAME else []
+    if isinstance(expr, Call):
+        result = _collect_target_uses(expr.target)
+        for arg in expr.args:
+            result.extend(_collect_target_uses(arg))
+        return result
+    if isinstance(expr, BoolOp):
+        result = []
+        for operand in expr.operands:
+            result.extend(_collect_target_uses(operand))
+        return result
+    if isinstance(expr, UnaryNot):
+        return _collect_target_uses(expr.operand)
+    if isinstance(expr, Compare):
+        result = _collect_target_uses(expr.left)
+        for _, right in expr.ops_and_rights:
+            result.extend(_collect_target_uses(right))
+        return result
+    if isinstance(expr, Member):
+        result = _collect_target_uses(expr.left)
+        result.extend(_collect_target_uses(expr.right))
+        return result
+    if isinstance(expr, ListExpr):
+        result = []
+        for element in expr.elements:
+            result.extend(_collect_target_uses(element))
+        return result
+    return []
+
+
 def _collect_bare_attributes(expr: Expr) -> list[Attribute]:
     """Recursively extract ``Attribute`` nodes used as *operands*.
 
@@ -942,6 +1089,8 @@ def _validate_condition_calls(
     errors: list[CompileError],
     path: str,
     line: int,
+    *,
+    allow_target: bool = False,
 ) -> None:
     """Validate calls and bare property access in a condition expression.
 
@@ -958,6 +1107,9 @@ def _validate_condition_calls(
     condition = dsl_transform(
         condition, allow.character_aliases, allow.function_aliases,
     )
+    if not allow_target:
+        for col in _collect_target_uses(condition):
+            errors.append(_target_not_declared_error(path, line, col))
     calls = _collect_calls(condition)
     for call in calls:
         if isinstance(call.target, Name):
@@ -1153,11 +1305,13 @@ def _validate_choice(
     path: str,
     *,
     scene_type: str,
+    allow_target: bool = False,
 ) -> None:
     for option in node.options:
         if option.condition is not None:
             _validate_condition_calls(
                 option.condition, allow, errors, path, option.line,
+                allow_target = allow_target,
             )
         _validate_interpolations_in(
             option.text,
@@ -1166,9 +1320,11 @@ def _validate_choice(
             allow = allow,
             errors = errors,
             path = path,
+            allow_target = allow_target,
         )
         _validate_node_list(
             option.body, allow, errors, path, scene_type = scene_type,
+            allow_target = allow_target,
         )
 
 
@@ -1179,21 +1335,27 @@ def _validate_node_list(
     path: str,
     *,
     scene_type: str,
+    allow_target: bool = False,
 ) -> None:
     """Recurse into body nodes, validating each. Used by IfChain / Choice.
 
     Also validates function calls inside ``[[if]]`` / ``[[elif]]``
     conditions against the condition_functions allowlist.
+
+    ``allow_target`` carries the title page's ``Target: true`` down to every
+    place the name can appear — dialogue, narration, option labels and
+    conditions — so an undeclared use is one error at its own line rather
+    than a silent scene-local lookup.
     """
     for node in nodes:
         if isinstance(node, Slugline):
             _validate_slugline(node, allow, errors, path)
         elif isinstance(node, DialogueBlock):
-            _validate_dialogue(node, allow, errors, path)
+            _validate_dialogue(node, allow, errors, path, allow_target = allow_target)
             if scene_type == "texting":
                 _validate_dialogue_for_texting_scene(node, errors, path)
         elif isinstance(node, NarrationBlock):
-            _validate_narration(node, allow, errors, path)
+            _validate_narration(node, allow, errors, path, allow_target = allow_target)
         elif isinstance(node, Sfx):
             _validate_sfx(node, allow, errors, path)
         elif isinstance(node, Show):
@@ -1207,12 +1369,17 @@ def _validate_node_list(
                 if branch.condition is not None:
                     _validate_condition_calls(
                         branch.condition, allow, errors, path, branch.line,
+                        allow_target = allow_target,
                     )
                 _validate_node_list(
                     branch.body, allow, errors, path, scene_type = scene_type,
+                    allow_target = allow_target,
                 )
         elif isinstance(node, Choice):
-            _validate_choice(node, allow, errors, path, scene_type = scene_type)
+            _validate_choice(
+                node, allow, errors, path, scene_type = scene_type,
+                allow_target = allow_target,
+            )
         elif isinstance(node, Run):
             _validate_run(node, allow, errors, path)
         elif isinstance(node, FxCall):
@@ -1237,6 +1404,7 @@ def validate(scene: Scene, allow: Allowlists) -> list[CompileError]:
     _validate_node_list(
         scene.body, allow, errors, scene.source_path,
         scene_type = scene.title_page.scene_type,
+        allow_target = bool(scene.title_page.target),
     )
     _validate_labels_and_gotos(scene, errors)
     return errors

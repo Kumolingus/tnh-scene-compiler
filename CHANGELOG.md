@@ -8,6 +8,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`Target: true` on the title page — a scene about a character chosen at run
+  time.** The scene compiles to `label <scene_id>(Target):` and `Target`
+  becomes a reserved identifier usable wherever a character name is: as a
+  condition-function argument (`[[if is_fertile(Target)]]`) and in
+  interpolation (`[Target.name]`, for any suffix the allowlist exposes on a
+  real character). One scene now covers what used to need one file per
+  character — a consultation reading whichever girl was picked from a menu, a
+  confession naming the other woman.
+  It rides as a Ren'Py **label parameter** rather than a store channel because
+  the engine scopes those dynamically (`renpy.exports.dynamic` in
+  `Label.execute`): set on entry, restored on return, so nothing leaks past the
+  scene and no clean-up line is needed — and there is nowhere to put one, since
+  the dispatching `renpy.call` never returns to its caller.
+  `Target` is reserved **whether or not it is declared**: naming it without
+  `Target: true` is a compile error, not the silent scene-local lookup it would
+  otherwise become, which evaluates to `None` and reads as "the condition is
+  false". It is deliberately **not** a valid speaker and not valid in
+  `[[show]]` / `[[hide]]`: moods, faces and arms are validated per character at
+  compile time, and a face valid for the girl the writer had in mind but
+  missing on another would compile clean and crash only when the second one is
+  the target. The `uses_target` metadata flag, emitted hardcoded `False` since
+  the hub was built, now reports the real value.
+- **A line can say a value a function returns** — `[days_to_ovulation(Target)]`
+  inside dialogue or narration, drawn from the same
+  `condition_functions.yaml` as `[[if]]` (the two ask the same helpers the same
+  question; a second allowlist would mean declaring each of them twice). Arity
+  is checked as everywhere else, and the arguments obey the `[[if]]` grammar —
+  `[fn(x) + 1]` stays refused.
+  The call is **hoisted** into `$ _scene_text_N = fn(...)` on the line before
+  rather than left in the string. Ren'Py would evaluate it in place
+  (`config.interpolate_exprs` is true and `substitutions.py` runs `py_eval` on
+  the bracket contents), but interpolation is re-evaluated on *every render* —
+  the phone-text screen re-interpolates with `!i`, and any redraw repeats it.
+  Hoisted, the helper runs exactly once, where the writer put it, and one that
+  raises points at its own line instead of at a repaint.
 - **An allowlist entry can declare `variants`** — one function listed as
   several named questions in the Condition Builder, each pinning some of its
   parameters. For a parameter that *replaces* the question rather than
@@ -162,6 +197,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The testing hub can no longer force a value-returning condition to a
+  boolean.** Its override is three-state (real / `True` / `False`), which is
+  meaningful for a predicate and wrong for a count: a tester forcing `True` on
+  `last_birth_baby_count` made every `== N` comparison false and dropped the
+  preview into the fallback branch — and, now that a line can say a returned
+  value, would render "True" where the writer asked for the number. The codegen
+  reads the declared return type from the entry's `signature` and skips the
+  wrapper for anything that is not `-> bool`; an entry with no declared return
+  type is unchanged. This also unwrapped `get_Location()`, whose override would
+  have replaced a `Location` object with a boolean.
 - **Negative numbers are usable again — they never worked.** `-17` was listed
   as an allowed literal in §11.9.1 of the authoring conventions, and the
   grammar refused it outright with "Arithmetic is not allowed". That mattered
