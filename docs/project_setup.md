@@ -17,17 +17,17 @@ This creates:
 
 | File                      | Purpose                                                  |
 | ------------------------- | -------------------------------------------------------- |
-| `tnh_scene_compiler.yaml` | Project config — edit paths to match your layout         |
+| `tnh_scene_compiler.my_mod.yaml` | Project config — edit paths to match your layout |
 | `runtime_stub.rpy`        | Runtime module for scene state injection                 |
 | `metadata_init.rpy`       | Empty metadata dict populated at boot by compiled scenes |
 | `testing_eval.rpy`        | Optional — enables overriding conditions for previewing  |
 
 ### 2. Edit the config
 
-Open `tnh_scene_compiler.yaml` and adjust:
+Open `tnh_scene_compiler.my_mod.yaml` and adjust:
 
 ```yaml
-mod_prefix: my_mod
+project_prefix: my_mod
 
 # Where your .scene source files live.
 scenes_source: scenes_source/
@@ -153,15 +153,15 @@ If your mod introduces traits that don't exist in the base game, create `scenes_
 ```yaml
 source: MyMod
 values:
-  - name: my_mod_pregnant
-  - name: my_mod_aware_of_pregnancy
+  - name: my_mod_engaged
+  - name: my_mod_knows_the_secret
 ```
 
 Writers can now use these traits in directives and conditions:
 
 ```
-[[give_trait JeanGrey my_mod_pregnant]]
-[[if JeanGrey.has("my_mod_pregnant")]]
+[[give_trait JeanGrey my_mod_engaged]]
+[[if JeanGrey.has("my_mod_engaged")]]
 ```
 
 The same pattern works for **personalities** and **history events**:
@@ -170,12 +170,12 @@ The same pattern works for **personalities** and **history events**:
 # scenes_source/_allowlists/personalities.yaml
 source: MyMod
 values:
-  - name: maternal
+  - name: protective
 
 # scenes_source/_allowlists/history_events.yaml
 source: MyMod
 values:
-  - name: learned_about_pregnancy
+  - name: learned_the_secret
   - name: told_partner
 ```
 

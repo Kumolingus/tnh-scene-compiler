@@ -21,6 +21,46 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 
+def iter_interpolations(s: str) -> list[tuple[str, int]]:
+    """Yield ``(inner, column_offset)`` pairs for every ``[...]`` in ``s``.
+
+    Ren'Py doubles the bracket (``[[``) to mean a literal ``[`` — we skip
+    those so they are not misread as interpolation openings.
+
+    Lives here rather than in the validator because the codegen needs the same
+    scan: it hoists interpolated function calls out of the string into a ``$``
+    assignment, and the two must agree exactly on what counts as one
+    interpolation. A second implementation would drift on the escape rule.
+    """
+    results: list[tuple[str, int]] = []
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if ch == "[":
+            if i + 1 < n and s[i + 1] == "[":
+                # Literal ``[``. Skip the escape sequence.
+                i += 2
+                continue
+            # Find the matching ``]``. The inner must not contain another ``[``.
+            end = s.find("]", i + 1)
+            if end == -1:
+                # Unterminated interpolation — let the validator surface this.
+                results.append((s[i + 1:], i + 1))
+                return results
+            inner = s[i + 1:end]
+            # Reject nested brackets.
+            if "[" in inner:
+                results.append((inner, i + 1))
+                i = end + 1
+                continue
+            results.append((inner, i + 1))
+            i = end + 1
+            continue
+        i += 1
+    return results
+
+
 class TokenKind(StrEnum):
     """Every line-level token kind the parser may encounter."""
 

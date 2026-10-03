@@ -42,6 +42,9 @@ _TITLE_KEYS: frozenset[str] = frozenset({
     "Repeatable",
     "Tags",
     "Location",
+    # Declares a runtime target character (§11.3). The compiled label takes a
+    # ``Target`` parameter and ``Target`` becomes a reserved root in the body.
+    "Target",
     # ``Format`` is accepted for backward compatibility with existing scenes
     # but no longer parsed — the version value was never consumed downstream.
     "Format",
@@ -205,6 +208,11 @@ def _build_title_page(
     openness = fields["Openness"][0].strip() if "Openness" in fields else None
     stage = fields["Stage"][0].strip() if "Stage" in fields else None
 
+    target = False
+    if "Target" in fields:
+        raw, line, col = fields["Target"]
+        target = _parse_bool(raw, path, line, col)
+
     # Extract title/scene_id/character early so we can store them as plain str.
     title_val = fields["Title"][0].strip()
     scene_id_val = fields["Scene Id"][0].strip()
@@ -230,6 +238,7 @@ def _build_title_page(
         location = location,
         openness = openness,
         stage = stage,
+        target = target,
     )
 
 

@@ -47,10 +47,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .allowlists import Allowlists
+from .allowlists import Allowlists, signature_return_kind
 from .dsl import transform as dsl_transform
 from .paren_parser import parse_look_values
 from .ast_nodes import (
+    TARGET_NAME,
     Approval,
     CallScene,
     Choice,
@@ -92,7 +93,10 @@ from .expr_parser import (
     Name,
     UnaryNot,
     parenthesize,
+    parse_expression,
 )
+from .errors import CompileError
+from .lexer import iter_interpolations
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +117,17 @@ _TIME_WORLD_KEYS: frozenset[str] = frozenset({
     "day", "time_index", "weekday", "season", "chapter", "chapter_day", "season_day",
 })
 
+# ``TARGET_NAME`` is the runtime target character declared by ``Target: true``
+# on the title page. Reserved unconditionally here: a scene that names it
+# without declaring it is a validator error, so codegen never has to guess
+# whether it means the label parameter or a scene-local key. It is emitted as a
+# Ren'Py label parameter, which ``Label.execute`` installs through
+# ``renpy.exports.dynamic`` — set on entry, previous value restored when the
+# call returns, so nothing leaks past the scene and no clean-up line is needed
+# (there is nowhere to put one: the dispatching ``renpy.call`` never returns to
+# its caller).
+_TARGET_NAME = TARGET_NAME
+
 
 def _format_seconds(value: float) -> str:
     """Render a pause/sfx duration as a compact int when possible."""
@@ -129,6 +144,61 @@ def _format_set_value(value: bool | int | float | str) -> str:
         escaped = value.replace("\\", "\\\\").replace("\"", "\\\"")
         return f"\"{escaped}\""
     return repr(value)
+
+
+# Variable name the codegen hoists an interpolated call into. Indexed per text
+# block, not per scene: each assignment is consumed by the very next line, so
+# re-using the names across blocks cannot interfere. Named alongside
+# ``_scene_state`` so the emitted script reads as one family.
+_HOISTED_TEXT_VAR = "_scene_text"
+
+
+def _hoist_interpolated_calls(
+    text: str,
+    indent: str,
+    scene_local: set[str],
+    allow: Allowlists,
+    ctx: CodegenContext,
+) -> tuple[str, list[str]]:
+    """Pull ``[fn(...)]`` out of ``text`` into ``$`` assignments before the line.
+
+    Returns ``(rewritten_text, prelude_lines)``.
+
+    Ren'Py *would* evaluate the call in place — ``config.interpolate_exprs`` is
+    true, so ``renpy/substitutions.py`` runs ``py_eval`` on the bracket
+    contents. It is hoisted anyway because interpolation is re-evaluated on
+    **every render** of the string, not once when the line plays: the phone
+    text screen re-interpolates with the ``!i`` flag, and a screen redraw
+    repeats it. Hoisted, the helper runs exactly once, at the point the writer
+    put it, and a helper that raises points at its own line instead of at a
+    repaint.
+
+    Plain paths (``[Rogue.petname]``) are left in the string — Ren'Py resolves
+    those itself and they carry no call.
+    """
+    replacements: list[tuple[str, str]] = []
+    prelude: list[str] = []
+
+    for inner, _col in iter_interpolations(text):
+        stripped = inner.strip()
+        if "(" not in stripped:
+            continue
+        try:
+            expr = parse_expression(stripped)
+        except CompileError:
+            # The validator already rejected this; leave the text untouched so
+            # codegen never invents a second error message for it.
+            continue
+        if not isinstance(expr, Call):
+            continue
+        var = f"{_HOISTED_TEXT_VAR}_{len(prelude)}"
+        rendered = _render_expr(expr, scene_local, allow, ctx)
+        prelude.append(f"{indent}$ {var} = {rendered}")
+        replacements.append((f"[{inner}]", f"[{var}]"))
+
+    for old, new in replacements:
+        text = text.replace(old, new, 1)
+    return text, prelude
 
 
 def _escape_rpy_string(text: str) -> str:
@@ -232,6 +302,8 @@ def _is_scene_local_name(expr, allow: Allowlists) -> bool:
     if allow.characters and expr.name in allow.characters:
         return False
     if expr.name == "player":
+        return False
+    if expr.name == _TARGET_NAME:
         return False
     if expr.name in _TIME_WORLD_KEYS:
         return False
@@ -384,10 +456,17 @@ def _is_overridable_condition_call(expr, allow: Allowlists) -> bool:
     The MVP is intentionally narrow: the target must be a bare
     :class:`Name` whose value is in
     :attr:`Allowlists.condition_functions`, and every argument must be
-    a bare :class:`Name` whose value is a registered character or the
-    ``player`` literal. Calls with literal/attribute/non-allowlisted
-    args fall through to the default rendering and are not exposed in
-    the hub.
+    a bare :class:`Name` whose value is a registered character, the
+    ``player`` literal, or the scene's runtime ``Target``. Calls with
+    literal/attribute/non-allowlisted args fall through to the default
+    rendering and are not exposed in the hub.
+
+    ``Target`` counts as a character argument even though it is not in the
+    allowlist — it *is* a character at run time, just one chosen then. Leaving
+    it out would quietly undo the reason a scene uses one predicate per value
+    (``is_fertility_tier_high(Target)``) instead of one taking the value as a
+    string: the string literal is what makes a call unoverridable, so a scene
+    written the overridable way would still come out unoverridable.
     """
     expr = dsl_transform(expr, allow.character_aliases, allow.function_aliases)
     if not isinstance(expr, Call):
@@ -397,10 +476,20 @@ def _is_overridable_condition_call(expr, allow: Allowlists) -> bool:
         return False
     if target.name not in allow.condition_functions:
         return False
+    # A function returning a value rather than an answer is left unwrapped:
+    # the hub's override is three-state (real / True / False), so forcing one
+    # on a count would make every ``== N`` comparison false and render "True"
+    # where the writer asked for the number. An entry with no declared return
+    # type keeps the previous behaviour and stays overridable.
+    return_kind = signature_return_kind(
+        allow.condition_function_signatures.get(target.name, ""),
+    )
+    if return_kind is not None and return_kind != "bool":
+        return False
     for arg in expr.args:
         if not isinstance(arg, Name):
             return False
-        if arg.name == "player":
+        if arg.name in ("player", TARGET_NAME):
             continue
         if allow.characters and arg.name in allow.characters:
             continue
@@ -622,6 +711,8 @@ def _resolve_name(name: str, scene_local: set[str], allow: Allowlists) -> str:
         return name
     if name == "player":
         return name
+    if name == _TARGET_NAME:
+        return name
     if name in _TIME_WORLD_KEYS:
         return name
     if name in scene_local:
@@ -642,6 +733,8 @@ def _render_call_target(target, scene_local: set[str], allow: Allowlists) -> str
         if allow.characters and target.name in allow.characters:
             return target.name
         if target.name == "player":
+            return target.name
+        if target.name == _TARGET_NAME:
             return target.name
         if target.name in _TIME_WORLD_KEYS:
             return target.name
@@ -875,6 +968,8 @@ def _emit_dialogue(
     block: DialogueBlock,
     allow: Allowlists,
     indent: str,
+    scene_local: set[str],
+    ctx: CodegenContext,
     *,
     force_text_medium: bool = False,
 ) -> list[str]:
@@ -894,16 +989,20 @@ def _emit_dialogue(
     for ``receive_text`` / ``$ JeanGrey.change_mood(...)`` but is not a
     valid Ren'Py Sayer.
     """
+    spoken, hoisted = _hoist_interpolated_calls(
+        block.text, indent, scene_local, allow, ctx,
+    )
+
     if block.speaker == "NARRATOR":
-        return [f"{indent}\"{_escape_rpy_string(block.text)}\""]
+        return [*hoisted, f"{indent}\"{_escape_rpy_string(spoken)}\""]
 
     upper_to_pascal = {name.upper(): name for name in allow.characters}
     pascal = upper_to_pascal.get(block.speaker, block.speaker)
     speaker_token = f"ch_{pascal}"
     companion = pascal  # receive_text / change_* calls target the Companion.
-    text = _escape_rpy_string(block.text)
+    text = _escape_rpy_string(spoken)
 
-    output: list[str] = []
+    output: list[str] = list(hoisted)
     if block.parenthetical is not None:
         # Parenthetical prelude targets the Companion (state object), not
         # the Ren'Py Character sayer — mood/face/arms/etc. live on the
@@ -1132,10 +1231,15 @@ def _emit_body(
             ))
         elif isinstance(node, DialogueBlock):
             lines.extend(_emit_dialogue(
-                node, allow, indent, force_text_medium = force_text_medium,
+                node, allow, indent, scene_local, ctx,
+                force_text_medium = force_text_medium,
             ))
         elif isinstance(node, NarrationBlock):
-            lines.append(f"{indent}\"{_escape_rpy_string(node.text)}\"")
+            narration, prelude = _hoist_interpolated_calls(
+                node.text, indent, scene_local, allow, ctx,
+            )
+            lines.extend(prelude)
+            lines.append(f"{indent}\"{_escape_rpy_string(narration)}\"")
         elif isinstance(node, Pause):
             lines.append(f"{indent}$ renpy.pause({_format_seconds(node.seconds)})")
         elif isinstance(node, Sfx):
@@ -1345,7 +1449,9 @@ def _emit_metadata_block(
         )
     else:
         lines.append(f"{_INDENT}{_INDENT}\"called_scenes\": [],")
-    lines.append(f"{_INDENT}{_INDENT}\"uses_target\": False,")
+    lines.append(
+        f"{_INDENT}{_INDENT}\"uses_target\": {_format_metadata_value(bool(tp.target))},",
+    )
     lines.append(f"{_INDENT}}}")
     return lines
 
@@ -1398,7 +1504,10 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
         if tp.openness or tp.stage:
             lines.append("")
 
-    lines.append(f"label {tp.scene_id}:")
+    if tp.target:
+        lines.append(f"label {tp.scene_id}({_TARGET_NAME}):")
+    else:
+        lines.append(f"label {tp.scene_id}:")
     if tp.scene_type == "cinematic":
         lines.append(f"{_INDENT}$ ongoing_Event = True")
     # Seed scene-local state from the testing-hub override channel.

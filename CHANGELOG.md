@@ -6,8 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-03
+
 ### Added
 
+- **`Target: true` on the title page — a scene about a character chosen at run
+  time.** The scene compiles to `label <scene_id>(Target):` and `Target`
+  becomes a reserved identifier usable wherever a character name is: as a
+  condition-function argument (`[[if are_Characters_friends([JeanGrey, Target])]]`)
+  and in
+  interpolation (`[Target.name]`, for any suffix the allowlist exposes on a
+  real character). One scene now covers what used to need one file per
+  character — a friend giving her opinion of whoever the player asks about.
+  It rides as a Ren'Py **label parameter** rather than a store channel because
+  the engine scopes those dynamically (`renpy.exports.dynamic` in
+  `Label.execute`): set on entry, restored on return, so nothing leaks past the
+  scene and no clean-up line is needed — and there is nowhere to put one, since
+  the dispatching `renpy.call` never returns to its caller.
+  `Target` is reserved **whether or not it is declared**: naming it without
+  `Target: true` is a compile error, not the silent scene-local lookup it would
+  otherwise become, which evaluates to `None` and reads as "the condition is
+  false". It is deliberately **not** a valid speaker and not valid in
+  `[[show]]` / `[[hide]]`: moods, faces and arms are validated per character at
+  compile time, and a face valid for the girl the writer had in mind but
+  missing on another would compile clean and crash only when the second one is
+  the target. The `uses_target` metadata flag, emitted hardcoded `False` since
+  the hub was built, now reports the real value.
+- **A line can say a value a function returns** — `[check_approval(JeanGrey, "love")]`
+  inside dialogue or narration, drawn from the same
+  `condition_functions.yaml` as `[[if]]` (the two ask the same helpers the same
+  question; a second allowlist would mean declaring each of them twice). Arity
+  is checked as everywhere else, and the arguments obey the `[[if]]` grammar —
+  `[fn(x) + 1]` stays refused.
+  The call is **hoisted** into `$ _scene_text_N = fn(...)` on the line before
+  rather than left in the string. Ren'Py would evaluate it in place
+  (`config.interpolate_exprs` is true and `substitutions.py` runs `py_eval` on
+  the bracket contents), but interpolation is re-evaluated on *every render* —
+  the phone-text screen re-interpolates with `!i`, and any redraw repeats it.
+  Hoisted, the helper runs exactly once, where the writer put it, and one that
+  raises points at its own line instead of at a repaint.
 - **An allowlist entry can declare `variants`** — one function listed as
   several named questions in the Condition Builder, each pinning some of its
   parameters. For a parameter that *replaces* the question rather than
@@ -23,49 +60,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   "Characters present here"), which is right for `are_Characters_friends` and
   `check_if_need_to_change` and wrong for a function asking about named
   characters. Nothing in a signature tells the two apart.
-- **A "Glossary" button on every screen** — home, quick compile, a project's
-  screen, and the editor toolbar it already had. The canonical format
-  reference used to be unreachable until a scene was open. It reads bundled
-  docs and needs no project, so nothing stopped it from being available
-  earlier.
-- `windows.py` — `open_singleton_window`, the "re-focus rather than stack a
-  duplicate" rule the modeless reference windows share. It was copy-pasted at
-  four call sites and the two new buttons would have made six.
-  - It now **refuses** an attribute already holding something that is not one
-    of our windows. Tk widgets carry their own attributes — `_w` is the
-    widget's path name, a string — and the old inline version would have
-    overwritten one, corrupting the owner silently, long after the click that
-    did it. Found by a test that picked `_w` as its attribute name.
-- **A mod-only refresh no longer files the game's own values as the mod's.**
-  Several extractors learn a name from *usage* rather than from a declaration
-  site — `history_events` matches every `History.check("…")`, `traits` every
-  `check_trait("…")` — and the mod tree they scan contains the compiler's own
-  compiled scenes. So a base-game name that any mod file merely *read* landed
-  in the project layer as though the mod had introduced it. Nothing failed:
-  `merge()` unions the layers and the value is in the base one anyway. What it
-  undid was the split — the allowlist browser places a value by its
-  `source_file` root, so a game value found under the mod's tree showed on the
-  project side. `tnh_refresh_allowlists` now compares each extracted value
-  against the core layer and leaves the duplicates out, reporting them per
-  topic on the CLI and in `_meta.yaml`'s `warnings`. Measured on the pregnancy
-  mod: 8 traits and 2 history events, every one of them TNH vocabulary.
-  - Applies to **every** topic, and **only** when `--no-include-tnh` is set —
-    that flag is what says "this layer may not hold game values". A run with
-    TNH either produces the core layer itself or was asked for merged output
-    on purpose, and filtering either would gut it.
-  - The core layer defaults to the bundled `allowlists_base`; `--core-allowlists`
-    points at another one. A missing or unreadable layer is reported and
-    skipped, never fatal — the filter is layer hygiene, not a correctness gate.
-  - **A duplicate is a match on the name *and* every metadata field.** `merge()`
-    unions the plain sets, so dropping a duplicate trait can never make a scene
-    fail — but it merges `locations`, `fx` and `moods` as dicts the project
-    layer *wins*: a slugline's `location_id`, an effect's signature and call
-    mode, a mood's face list. An entry reusing a core name with different
-    metadata is a deliberate override and survives; dropping it would silently
-    hand the writer the game's value instead.
-  - The filter runs *after* the "no characters discovered" abort check and
-    *before* the dry-run summary: a mod that adds no character of its own is
-    legitimate, and a dry run must announce the counts a real run would write.
 
 ### Changed
 
@@ -118,50 +112,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     constant.
   - The cost: a scene-local state key can no longer be named `AND`, `Or`,
     `NOT` or `In` in any casing.
-- **Per-arm poses are reachable from the character insert dialog**, behind an
-  "Override each arm" checkbox that reveals a `Left arm` and a `Right arm` row.
-  `left_arm` / `right_arm` have always been legal named-only keys in the
-  parenthetical grammar, but the form only ever offered the `arms` preset, so
-  reaching them meant typing by hand. The `[[show]]` form gets the same
-  checkbox over the rows it already had.
-  - **It reveals, it does not switch modes.** `change_arms` takes the preset as
-    its defaults and lets a side kwarg override that side alone
-    (`npcs.rpy:256`), so `arms=crossed, right_arm=hip` — "crossed, but the
-    right arm on the hip" — is meaningful, and an exclusive toggle would have
-    made it unreachable from the GUI. The preset row stays visible and in play.
-  - A hint under the rows states the part that is easy to get wrong: with no
-    preset there are no defaults, so a side left empty is posed `neutral`
-    rather than left as it was. Now specced in `docs/format_spec.md` §6.4 and
-    in the in-app glossary.
-  - Hiding the rows clears them — a slot the writer can no longer see must not
-    keep feeding the inserted line.
-- **Glossary and Allowlists sit together in the header, on every screen.** They
-  had drifted into three different zones: Allowlists in quick compile's action
-  row but in a project's scene-list row, Glossary in the header on a project
-  but the action row in quick compile. Both open a window to read and neither
-  acts on the scene selection, so they are grouped the way the editor toolbar
-  already grouped them, away from Compile / Validate and away from the
-  per-scene buttons.
-  - The order is `Glossary`, `Allowlists`, `Settings` left to right, on every
-    screen and in the editor toolbar. The toolbar read backwards: these are
-    packed `side=RIGHT`, where the first widget packed lands furthest right,
-    so listing them in reading order reverses them on screen.
-  - A project's header packs its path label **last** as part of this. `pack`
-    hands out width in packing order and the project path is the one label
-    with no bound on its length, so packed first it took what it wanted and
-    pushed the buttons off the edge — visible at any width once a fourth
-    button joined. Packed last it gets the remainder and clips instead.
-- **Text medium hides the visual rows instead of greying them out.** A phone
-  text carries no mood/face/arms/outfit/look, so the insert form now shrinks to
-  the medium and the preview rather than showing six dead dropdowns.
-- **`_DirectiveDialog` reaches its widgets by slot name.** The per-character
-  refill recovered each combo from `grid_slaves` at the slot's index in `_vars`
-  plus one; adding any non-field row to a form would have silently shifted that
-  and left the writer picking from another character's poses. Widgets are
-  registered in `_widgets[key]` as `(caption, input)` when built.
 
 ### Fixed
 
+- **Create project wrote runtime stubs that could not load.** The three `.rpy`
+  stubs it generates (`runtime_stub.rpy`, `metadata_init.rpy`,
+  `testing_eval.rpy`) came out with `{{mod_prefix}}` still in them —
+  `{{mod_prefix}}_scene_metadata = {}` is not valid Python, so a game with
+  those files installed stops on a syntax error when it loads. The templates
+  said `{{mod_prefix}}` while the app substitutes `{{project_prefix}}`: a
+  rename left half-done since 0.1.0. A test now fails on any template
+  placeholder the generators do not substitute.
+  - `python -m tnh_scene_compiler init` did not even get that far: it
+    crashed on its own option, declared `--mod-prefix` and read back as
+    `project_prefix`. The option is now `--project-prefix`; `--mod-prefix`
+    is still accepted.
+  - The setup docs told you to write `mod_prefix:` in the config, which the
+    compiler refuses. The key is `project_prefix:`, and the generated file is
+    `tnh_scene_compiler.<prefix>.yaml`.
+- **The testing hub can no longer force a value-returning condition to a
+  boolean.** Its override is three-state (real / `True` / `False`), which is
+  meaningful for a predicate and wrong for a value: a tester forcing `True` on
+  `get_effective_friendship(JeanGrey, Rogue)` got the tier `1` whatever the
+  real one was (`True == 1` in Python), so the preview took a branch the story
+  could not reach — and, now that a line can say a returned
+  value, would render "True" where the writer asked for the number. The codegen
+  reads the declared return type from the entry's `signature` and skips the
+  wrapper for anything that is not `-> bool`; an entry with no declared return
+  type is unchanged. This also unwrapped `get_Location()`, whose override would
+  have replaced a `Location` object with a boolean.
 - **Negative numbers are usable again — they never worked.** `-17` was listed
   as an allowed literal in §11.9.1 of the authoring conventions, and the
   grammar refused it outright with "Arithmetic is not allowed". That mattered
@@ -194,25 +173,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     re-parsed with Python's own `ast` and matched against the condition as
     written. A string assertion is what let this through — one test had the
     flattened form written down as its expected value.
-- **The character preview showed one thumbnail, not the combination.** Picking
-  a face and then arms left the face on screen: both insert dialogs looked up
-  face → arms → left arm → right arm and stopped at the first image they found,
-  so every slot below the highest one filled was unreachable. In the `[[show]]`
-  form that meant `left_arm` and `right_arm` could only ever be previewed with
-  every other slot empty. The preview now renders **one captioned thumbnail per
-  filled slot**, side by side, which is what a writer is actually assembling.
-  - A slot whose value has no capture is skipped rather than drawn as an empty
-    box, and the caption names the slot as well as the value — `crossed` as a
-    left arm and `crossed` as a right arm are two different pictures sitting
-    next to each other.
-  - The `Insert — <Character>` form no longer stretches. Its fields moved into
-    a frame of their own: the preview used to span their rows, and a ~385px
-    arms thumbnail had grid spread that surplus across them, pulling the
-    combos apart. The dialog is narrower and shorter than before.
-  - Covered by `tests/test_thumbnail_preview.py`, which drives both real
-    dialogs and counts what the preview frame holds. The selection rule
-    (`selected_visual_slots`) and the slot dispatch (`ThumbnailStore.get_slot`)
-    are pure and tested on their own.
 - **The glossary described the partner check wrongly.** It read
   "`are_Characters_in_Partners([JeanGrey, Rogue])` — yes/no, are they dating
   each other". The function asks whether each character listed is a partner of
@@ -263,6 +223,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A "Glossary" button on every screen** — home, quick compile, a project's
+  screen, and the editor toolbar it already had. The canonical format
+  reference used to be unreachable until a scene was open. It reads bundled
+  docs and needs no project, so nothing stopped it from being available
+  earlier.
+- `windows.py` — `open_singleton_window`, the "re-focus rather than stack a
+  duplicate" rule the modeless reference windows share. It was copy-pasted at
+  four call sites and the two new buttons would have made six.
+  - It now **refuses** an attribute already holding something that is not one
+    of our windows. Tk widgets carry their own attributes — `_w` is the
+    widget's path name, a string — and the old inline version would have
+    overwritten one, corrupting the owner silently, long after the click that
+    did it. Found by a test that picked `_w` as its attribute name.
+- **A mod-only refresh no longer files the game's own values as the mod's.**
+  Several extractors learn a name from *usage* rather than from a declaration
+  site — `history_events` matches every `History.check("…")`, `traits` every
+  `check_trait("…")` — and the mod tree they scan contains the compiler's own
+  compiled scenes. So a base-game name that any mod file merely *read* landed
+  in the project layer as though the mod had introduced it. Nothing failed:
+  `merge()` unions the layers and the value is in the base one anyway. What it
+  undid was the split — the allowlist browser places a value by its
+  `source_file` root, so a game value found under the mod's tree showed on the
+  project side. `tnh_refresh_allowlists` now compares each extracted value
+  against the core layer and leaves the duplicates out, reporting them per
+  topic on the CLI and in `_meta.yaml`'s `warnings`. Measured on the pregnancy
+  mod: 8 traits and 2 history events, every one of them TNH vocabulary.
+  - Applies to **every** topic, and **only** when `--no-include-tnh` is set —
+    that flag is what says "this layer may not hold game values". A run with
+    TNH either produces the core layer itself or was asked for merged output
+    on purpose, and filtering either would gut it.
+  - The core layer defaults to the bundled `allowlists_base`; `--core-allowlists`
+    points at another one. A missing or unreadable layer is reported and
+    skipped, never fatal — the filter is layer hygiene, not a correctness gate.
+  - **A duplicate is a match on the name *and* every metadata field.** `merge()`
+    unions the plain sets, so dropping a duplicate trait can never make a scene
+    fail — but it merges `locations`, `fx` and `moods` as dicts the project
+    layer *wins*: a slugline's `location_id`, an effect's signature and call
+    mode, a mood's face list. An entry reusing a core name with different
+    metadata is a deliberate override and survives; dropping it would silently
+    hand the writer the game's value instead.
+  - The filter runs *after* the "no characters discovered" abort check and
+    *before* the dry-run summary: a mod that adds no character of its own is
+    legitimate, and a dry run must announce the counts a real run would write.
 - **A "Using compiled scenes" section in the in-app glossary** — how a
   compiled `.rpy` gets into a mod and runs: a scene is a label, so
   `renpy.call("<Scene Id>")` is the whole story, plus the runtime bootstrap
@@ -594,6 +597,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Per-arm poses are reachable from the character insert dialog**, behind an
+  "Override each arm" checkbox that reveals a `Left arm` and a `Right arm` row.
+  `left_arm` / `right_arm` have always been legal named-only keys in the
+  parenthetical grammar, but the form only ever offered the `arms` preset, so
+  reaching them meant typing by hand. The `[[show]]` form gets the same
+  checkbox over the rows it already had.
+  - **It reveals, it does not switch modes.** `change_arms` takes the preset as
+    its defaults and lets a side kwarg override that side alone
+    (`npcs.rpy:256`), so `arms=crossed, right_arm=hip` — "crossed, but the
+    right arm on the hip" — is meaningful, and an exclusive toggle would have
+    made it unreachable from the GUI. The preset row stays visible and in play.
+  - A hint under the rows states the part that is easy to get wrong: with no
+    preset there are no defaults, so a side left empty is posed `neutral`
+    rather than left as it was. Now specced in `docs/format_spec.md` §6.4 and
+    in the in-app glossary.
+  - Hiding the rows clears them — a slot the writer can no longer see must not
+    keep feeding the inserted line.
+- **Glossary and Allowlists sit together in the header, on every screen.** They
+  had drifted into three different zones: Allowlists in quick compile's action
+  row but in a project's scene-list row, Glossary in the header on a project
+  but the action row in quick compile. Both open a window to read and neither
+  acts on the scene selection, so they are grouped the way the editor toolbar
+  already grouped them, away from Compile / Validate and away from the
+  per-scene buttons.
+  - The order is `Glossary`, `Allowlists`, `Settings` left to right, on every
+    screen and in the editor toolbar. The toolbar read backwards: these are
+    packed `side=RIGHT`, where the first widget packed lands furthest right,
+    so listing them in reading order reverses them on screen.
+  - A project's header packs its path label **last** as part of this. `pack`
+    hands out width in packing order and the project path is the one label
+    with no bound on its length, so packed first it took what it wanted and
+    pushed the buttons off the edge — visible at any width once a fourth
+    button joined. Packed last it gets the remainder and clips instead.
+- **Text medium hides the visual rows instead of greying them out.** A phone
+  text carries no mood/face/arms/outfit/look, so the insert form now shrinks to
+  the medium and the preview rather than showing six dead dropdowns.
+- **`_DirectiveDialog` reaches its widgets by slot name.** The per-character
+  refill recovered each combo from `grid_slaves` at the slot's index in `_vars`
+  plus one; adding any non-field row to a form would have silently shifted that
+  and left the writer picking from another character's poses. Widgets are
+  registered in `_widgets[key]` as `(caption, input)` when built.
 - **The cheatsheet now describes every allowlist layer, not just one.**
   `tnh_generate_cheatsheet` read a single directory, so a project whose own
   allowlists hold only its additions would have produced a cheatsheet with
@@ -642,6 +686,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The character preview showed one thumbnail, not the combination.** Picking
+  a face and then arms left the face on screen: both insert dialogs looked up
+  face → arms → left arm → right arm and stopped at the first image they found,
+  so every slot below the highest one filled was unreachable. In the `[[show]]`
+  form that meant `left_arm` and `right_arm` could only ever be previewed with
+  every other slot empty. The preview now renders **one captioned thumbnail per
+  filled slot**, side by side, which is what a writer is actually assembling.
+  - A slot whose value has no capture is skipped rather than drawn as an empty
+    box, and the caption names the slot as well as the value — `crossed` as a
+    left arm and `crossed` as a right arm are two different pictures sitting
+    next to each other.
+  - The `Insert — <Character>` form no longer stretches. Its fields moved into
+    a frame of their own: the preview used to span their rows, and a ~385px
+    arms thumbnail had grid spread that surplus across them, pulling the
+    combos apart. The dialog is narrower and shorter than before.
+  - Covered by `tests/test_thumbnail_preview.py`, which drives both real
+    dialogs and counts what the preview frame holds. The selection rule
+    (`selected_visual_slots`) and the slot dispatch (`ThumbnailStore.get_slot`)
+    are pure and tested on their own.
 - **The Condition Builder emitted conditions that could not compile.** Three
   widgets produced text the `[[if]]` grammar rejects outright, so five listed
   entries (`are_Characters_friends`, `are_Characters_in_Partners`,

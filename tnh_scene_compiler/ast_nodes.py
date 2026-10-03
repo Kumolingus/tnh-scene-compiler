@@ -9,6 +9,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# Reserved identifier root for the runtime target character declared by
+# ``Target: true`` on the title page. Shared by the validator (which rejects it
+# in a scene that does not declare one) and the codegen (which emits it as the
+# compiled label's parameter), so the two can never drift apart.
+TARGET_NAME = "Target"
+
 
 @dataclass(frozen=True, slots=True)
 class TitlePage:
@@ -28,6 +34,11 @@ class TitlePage:
         tags: Optional list of mod-prefixed tag strings (``Tags:`` key).
         location: Optional slugline text implying ``set_scene`` at entry
             (``Location:`` key).
+        target: ``True`` when the scene takes a runtime target character
+            (``Target: true`` key). The compiled label then carries a
+            ``Target`` parameter the caller passes, and ``Target`` becomes a
+            reserved identifier root inside the body instead of resolving to
+            scene-local state.
         source_line: 1-based line where the title page starts (always 1).
     """
 
@@ -44,6 +55,7 @@ class TitlePage:
     location: str | None = None
     openness: str | None = None
     stage: str | None = None
+    target: bool = False
     source_line: int = 1
 
 

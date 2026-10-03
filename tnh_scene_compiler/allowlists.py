@@ -60,6 +60,26 @@ def signature_arity(signature: str) -> tuple[int, int | None] | None:
     return (required, max_positional)
 
 
+def signature_return_kind(signature: str) -> str | None:
+    """Return the declared return type of an allowlist signature, or ``None``.
+
+    ``"pregnancy_mod_has_fertile_window(Character) -> bool"`` yields ``"bool"``;
+    a signature with no ``->`` yields ``None``, which callers read as "not
+    declared" rather than as any particular type.
+
+    Used to tell a condition apart from a *value*: the testing hub's override
+    is three-state (real / True / False), which is meaningful for a predicate
+    and actively wrong for a function returning a number — forcing ``True``
+    there makes every ``== N`` comparison false and renders "True" where the
+    writer put a count.
+    """
+    _, sep, tail = signature.partition("->")
+    if not sep:
+        return None
+    kind = tail.strip()
+    return kind or None
+
+
 def parse_signature_params(signature: str) -> list[tuple[str, str, str]]:
     """Extract ``(name, type_hint, default)`` tuples from a signature string.
 

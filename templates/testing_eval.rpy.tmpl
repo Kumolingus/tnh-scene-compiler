@@ -1,4 +1,4 @@
-# {{mod_prefix}}_testing_eval_condition — condition wrapper for the testing hub.
+# {{project_prefix}}_testing_eval_condition — condition wrapper for the testing hub.
 #
 # Compiled scenes route eligible condition-function calls through this wrapper
 # so the testing hub can substitute a preview value at runtime without
@@ -6,7 +6,7 @@
 # wrapper short-circuits to the original function call.
 
 init python:
-    def {{mod_prefix}}_testing_eval_condition(name, fn, args, arg_names):
+    def {{project_prefix}}_testing_eval_condition(name, fn, args, arg_names):
         """Evaluate a condition function, respecting testing-hub overrides.
 
         Parameters
@@ -25,7 +25,7 @@ init python:
         bool
             The function result (or the overridden value).
         """
-        overrides = getattr({{mod_prefix}}_runtime, "condition_overrides", None)
+        overrides = getattr({{project_prefix}}_runtime, "condition_overrides", None)
         if overrides is not None:
             key = (name, arg_names)
             if key in overrides:
