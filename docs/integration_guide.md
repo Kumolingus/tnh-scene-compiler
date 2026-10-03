@@ -103,18 +103,18 @@ configured in your project (typically `YourMod/game/my_mod/scenes/`).
 ## Scenes that take a target character
 
 A scene whose title page carries `Target: true` is about a character picked
-while the game runs — the girl chosen from a menu, the other woman in a
-confession. It compiles to a label with one parameter:
+while the game runs — whoever the player chose from a menu. It compiles to a
+label with one parameter:
 
 ```renpy
-label my_mod_fertility_reading(Target):
+label my_mod_ask_about(Target):
     ...
 ```
 
 Call it with the character:
 
 ```renpy
-$ renpy.call("my_mod_fertility_reading", chosen_character)
+$ renpy.call("my_mod_ask_about", chosen_character)
 ```
 
 Ren'Py scopes label parameters dynamically — `Target` is set when the label

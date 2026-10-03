@@ -106,14 +106,14 @@ Useful for CI or pre-commit checks. Exit code 0 = valid, 1 = errors.
 Bootstrap a new project config and runtime stubs:
 
 ```bash
-python -m tnh_scene_compiler init --mod-prefix my_mod
+python -m tnh_scene_compiler init --project-prefix my_mod
 ```
 
 Creates:
 
 | File                       | Purpose                                          |
 | -------------------------- | ------------------------------------------------ |
-| `tnh_scene_compiler.yaml`  | Project config (edit paths to match your layout) |
+| `tnh_scene_compiler.my_mod.yaml` | Project config (edit paths to match your layout) |
 | `runtime_stub.rpy`         | Runtime module for scene state injection         |
 | `metadata_init.rpy`        | Empty metadata dict populated at boot            |
 | `testing_eval.rpy`         | Condition wrapper for the testing hub            |

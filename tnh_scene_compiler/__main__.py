@@ -73,9 +73,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Bootstrap a new mod project.",
     )
     p_init.add_argument(
-        "--mod-prefix",
+        "--project-prefix",
+        "--mod-prefix",  # former spelling, kept so existing commands still work
+        dest="project_prefix",
         required=True,
-        help="Mod prefix (e.g. 'my_romance_mod').",
+        help="Project prefix (e.g. 'my_romance_mod').",
     )
     p_init.add_argument(
         "--output-dir",

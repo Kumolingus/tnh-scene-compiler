@@ -71,11 +71,12 @@ Fountain-TNH scene compiler: converts `.scene` files to Ren'Py `.rpy` scripts fo
 
 - `project_prefix` (not `mod_prefix`) — used everywhere in code, config, and YAML.
 - `project_allowlists` (not `mod_allowlists`), `project_root` (not `mod_root`).
+- Template placeholders too: `templates/*.tmpl` use `{{project_prefix}}`, the only one `init` and the app's Create project substitute. They said `{{mod_prefix}}` from 0.1.0 until 0.2.1, so every generated runtime stub shipped broken and nothing noticed — `tests/test_init_project.py` now fails on any other placeholder. `init`'s option is `--project-prefix`; `--mod-prefix` survives only as an alias.
 
 ## Testing
 
 - Framework: pytest
-- 986 tests in `tests/`, **0 skipped** — read both numbers
+- 989 tests in `tests/`, **0 skipped** — read both numbers
 - Run: `python -m pytest tests/ -q`
 - **A test may not withdraw itself from a passing run.** This went wrong three separate ways before it was written down, so it is enforced by `tests/test_no_silent_skips.py` rather than by this paragraph:
   - **Every `pytest.skip` must be listed in `_SANCTIONED_SKIPS`** with its reason. Two are: no display (plus the `TNH_TESTS_SKIP_TK` opt-out) in `conftest.py`, and the round-trip entry that would need free text nobody enumerated. A skip means *the environment cannot run this* — for **missing or misshapen data**, fail with a message naming what to regenerate. `require_base_allowlists()` is the shared version of that for the tests reading the shipped `allowlists_base/`; the visual-slot fixtures fail the same way, and they matter most exactly when they would have gone quiet, i.e. after a TNH re-extraction.

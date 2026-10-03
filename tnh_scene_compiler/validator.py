@@ -142,8 +142,8 @@ def _strip_time_suffix(text: str) -> str:
 
 _NOT_A_PATH_MESSAGE = (
     "Interpolation {inner!r} is not a plain path or an allowlisted function "
-    "call. Only dotted identifier chains (e.g. `[player.name]`) and calls to a "
-    "function in condition_functions.yaml (e.g. `[days_to_ovulation(Target)]`) "
+    "call. Only dotted identifier chains (e.g. `[Player.name]`) and calls to a "
+    "function in condition_functions.yaml (e.g. `[check_approval(JeanGrey, \"love\")]`) "
     "are allowed."
 )
 

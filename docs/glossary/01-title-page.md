@@ -59,23 +59,23 @@ more, play this in her room — once.*
 ### Scenes about someone chosen while playing
 
 Sometimes a scene is written once but played about a *different* character
-each time — a doctor reading whichever girl the player picked from his menu,
-a confession naming the other woman. Add `Target: true` and write `Target`
-wherever you would write her name:
+each time — a friend giving her opinion of whoever the player asks about.
+Add `Target: true` and write `Target` wherever you would write that
+character's name:
 
 ```
-Title: The fertility reading
-Scene Id: my_project_fertility_reading
-Character: Karaky
+Title: Asking about someone
+Scene Id: my_project_ask_about
+Character: JeanGrey
 Scene Type: hub_option
 Target: true
 
-KARAKY
-Let me look at [Target.name].
+JEANGREY
+You want to know what I think of [Target.name]?
 
-[[if my_project_is_very_fertile(Target)]]
-KARAKY
-She runs hot. More than she should.
+[[if are_Characters_friends([JeanGrey, Target])]]
+JEANGREY
+She's a friend. A good one.
 [[/if]]
 ```
 

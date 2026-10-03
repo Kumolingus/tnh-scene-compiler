@@ -24,21 +24,21 @@ The same brackets can hold a call to one of the project's allowlisted
 functions, so a value the game computes can be said out loud:
 
 ```
-KARAKY
-Her window opens in [my_project_days_until_window(Target)] days.
+JEANGREY
+You want a number? I'm at [check_approval(JeanGrey, "love")].
 ```
 
 It is the same list of functions you use in a
 [condition](#conditions) — anything you can ask in an `[[if]]`, you can also
-say. Which lets you get the plural right:
+say. Which lets you choose the words that go around the number:
 
 ```
-[[if my_project_days_until_window(Target) == 1]]
-KARAKY
-Her window opens tomorrow.
+[[if check_approval(JeanGrey, "love") >= 500]]
+JEANGREY
+[check_approval(JeanGrey, "love")]. Not bad, right?
 [[else]]
-KARAKY
-Her window opens in [my_project_days_until_window(Target)] days.
+JEANGREY
+Only [check_approval(JeanGrey, "love")]. Keep trying.
 [[/if]]
 ```
 

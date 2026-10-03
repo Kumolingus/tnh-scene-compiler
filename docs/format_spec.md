@@ -1259,7 +1259,7 @@ The configuration file lives at the project root and is discovered by walking up
 
 ```yaml
 # REQUIRED: your mod's unique prefix (lowercase snake_case).
-mod_prefix: my_mod
+project_prefix: my_mod
 
 # Directory containing .scene source files (relative to this file).
 scenes_source: scenes_source/
@@ -1281,7 +1281,7 @@ include_base_allowlists: true
 
 | Key                       | Required | Default                        | Description                                             |
 | ------------------------- | -------- | ------------------------------ | ------------------------------------------------------- |
-| `mod_prefix`              | Yes      | ------------------------------ | Unique prefix (`[a-z][a-z0-9_]*`). [^mp]                |
+| `project_prefix`          | Yes      | ------------------------------ | Unique prefix (`[a-z][a-z0-9_]*`). [^mp]                |
 | `scenes_source`           | No       | `scenes_source/`               | Root directory for `.scene` files.                      |
 | `project_allowlists`          | No       | `scenes_source/_allowlists/`   | Directory for project-specific allowlist YAMLs.             |
 | `output`                  | No       | `game/{prefix}/scenes/`        | Output directory for compiled `.rpy` files.             |
@@ -1298,12 +1298,12 @@ names.
 
 Clicking **Create project** in the app (with prefix `my_mod`) generates:
 
-1. `tnh_scene_compiler.yaml` -- project configuration (Appendix A).
+1. `tnh_scene_compiler.my_mod.yaml` -- project configuration (Appendix A).
 2. `runtime_stub.rpy` -- creates the `{mod_prefix}_runtime` Python module in `sys.modules`.
 3. `metadata_init.rpy` -- initialises the `{mod_prefix}_scene_metadata` dict at store scope.
 4. `testing_eval.rpy` -- the condition-override wrapper function.
 
-These `.rpy` files must be placed into the mod's `game/` directory. The `mod_prefix` placeholder is replaced with the actual prefix during
+These `.rpy` files must be placed into the mod's `game/` directory. The `{{project_prefix}}` placeholder is replaced with the actual prefix during
 generation.
 
 ---
@@ -1365,7 +1365,7 @@ Let's sit down.
 ### Config: `tnh_scene_compiler.yaml`
 
 ```yaml
-mod_prefix: my_mod
+project_prefix: my_mod
 scenes_source: scenes_source/
 project_allowlists: scenes_source/_allowlists/
 output: game/my_mod/scenes/

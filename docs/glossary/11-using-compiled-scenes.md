@@ -90,7 +90,7 @@ a label with one parameter, so the character rides as a call argument rather
 than through the runtime module:
 
 ```
-$ renpy.call("my_mod_fertility_reading", chosen_character)
+$ renpy.call("my_mod_ask_about", chosen_character)
 ```
 
 Ren'Py scopes label parameters dynamically: `Target` is set when the label
