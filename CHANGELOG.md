@@ -19,6 +19,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   function (`smack`, `crack`) stays a label, so its compiled call and its
   `cinematic_` override do not change. `phone_buzz` and `knock_on_door` are
   found anywhere under `core/`, since 0.9c removed `core/mechanics/`.
+- **A cinematic scene's `Conditions:` is emitted as a plain string.** The
+  `_events.rpy` entry used to wrap it in `ConditionClass("…")`; TNH 0.9c wraps
+  every event condition itself, and an object passed instead loads fine and
+  raises `TypeError` the first time the scheduler evaluates it. Projects built
+  for 0.9b need the old form.
 
 ### Changed
 

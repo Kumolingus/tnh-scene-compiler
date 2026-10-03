@@ -11,7 +11,7 @@ Output skeleton::
     # Auto-generated from <path>. Do not edit by hand.
 
     define all_Events["<scene_id>"] = {
-        "conditions": ConditionClass("<conditions>"),
+        "conditions": "<conditions>",
         "flags": {"<trigger>"},
         "priority": <int>,
         "repeatable": <bool>,
@@ -757,9 +757,12 @@ def _emit_event_block(scene: Scene) -> list[str]:
     tp = scene.title_page
     lines = [f"define all_Events[{tp.scene_id!r}] = {{"]
 
+    # A plain string: TNH 0.9c wraps every event condition in ConditionClass
+    # itself (build_conditions), and an object passed instead loads fine and
+    # raises TypeError the first time the scheduler evaluates it.
     if tp.conditions:
         escaped = _escape_rpy_string(tp.conditions)
-        lines.append(f"{_INDENT}\"conditions\": ConditionClass(\"{escaped}\"),")
+        lines.append(f"{_INDENT}\"conditions\": \"{escaped}\",")
 
     flag = tp.trigger or "manual"
     lines.append(f"{_INDENT}\"flags\": {{\"{flag}\"}},")

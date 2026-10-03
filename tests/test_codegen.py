@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 from tnh_scene_compiler.allowlists import Allowlists
@@ -134,7 +135,7 @@ def test_codegen_interpolation_is_passed_through(
     assert "[player.petname]" in output
 
 
-def test_event_entry_conditions_wrap_into_condition_class(
+def test_event_entry_conditions_are_a_plain_string(
     fixtures_dir: Path,
 ) -> None:
     text = (fixtures_dir / "with_conditions.scene").read_text(encoding = "utf-8")
@@ -142,8 +143,11 @@ def test_event_entry_conditions_wrap_into_condition_class(
 
     entry = generate_event_entry(scene)
 
-    assert "\"conditions\": ConditionClass(" in entry
-    assert "JeanGrey.love >= 500" in entry
+    # TNH 0.9c wraps the string itself; a ConditionClass object fails there.
+    # Read the entry back as Python: the fixture's double quotes are what the
+    # escaping has to survive.
+    registry = ast.literal_eval(entry.split(" = ", 1)[1])
+    assert registry["conditions"] == 'JeanGrey.love >= 500 and JeanGrey.pregnancy_stage == "early"'
     assert "\"flags\": {\"sleeping\"}" in entry
     assert "\"priority\": 175" in entry
     assert "\"repeatable\": True" in entry

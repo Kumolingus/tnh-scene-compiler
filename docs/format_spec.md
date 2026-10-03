@@ -98,7 +98,8 @@ Location: JEANGREY'S ROOM
 [^trv]: `manual`, `sleeping`, `waking`, `traveling`,
   `getting_ready_for_bed`, or custom mod-prefixed flag. Defaults to
   `manual` when omitted for non-cinematic types.
-[^cond]: Evaluated by TNH's `ConditionClass`.
+[^cond]: Emitted as a plain string, which TNH wraps in `ConditionClass` itself
+  (0.9c). Passed through as written: no DSL rewrite, no validation.
 
 Any key not listed above is a compile error.
 
@@ -1061,7 +1062,7 @@ The `_events.rpy` file is a consolidated output containing every cinematic scene
 # Do not edit by hand.
 
 define all_Events["my_mod_dialogue_jeangrey_greeting"] = {
-    "conditions": ConditionClass("JeanGrey.love >= 300"),
+    "conditions": "JeanGrey.love >= 300",
     "flags": {"sleeping"},
     "priority": 100,
     "repeatable": False,
