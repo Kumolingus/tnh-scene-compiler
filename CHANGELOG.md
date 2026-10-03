@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Effects that TNH 0.9c turned into functions compile to a Python call.**
+  In 0.9c `bamf` and the character animations
+  (`KurtWagner_animations_teleports_in`, `LauraKinney_animations_unsheathes_claws`,
+  `JeanGrey_animations_activate_power`, …) are `def`s, no longer labels, so the
+  `call bamf()` the compiler emitted raised at runtime. The allowlist refresh
+  now lists, next to the labels, the functions of `effects.rpy` that have a
+  `cinematic_<name>` twin and every `<Tag>_animations_*` function, without
+  `call_mode`, so they compile to `$ bamf()`. A name that is both a label and a
+  function (`smack`, `crack`) stays a label, so its compiled call and its
+  `cinematic_` override do not change. `phone_buzz` and `knock_on_door` are
+  found anywhere under `core/`, since 0.9c removed `core/mechanics/`.
+
+### Changed
+
+- `allowlists_base/fx.yaml` describes TNH 0.9c.beta.17: same 29 effects, new
+  source paths and typed signatures, and nine of them now compiled as Python
+  calls. Scenes using a character animation compiled with it need 0.9c — on
+  0.9b those animations are labels.
+
 ## [0.2.1] - 2026-10-03
 
 ### Added

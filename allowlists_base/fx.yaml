@@ -1,148 +1,141 @@
 source: TNH + Mod
-generated_at: '2026-07-22'
+generated_at: '2026-10-03'
 effects:
 - name: bamf
   source_file: game/displayables/effects.rpy
-  source_line: 258
-  signature: bamf(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0, pause = True) -> None
-  call_mode: label
+  source_line: 40
+  signature: 'bamf(x: float = 0.5, y: float = 0.5, initial: float = 1.0, final_alpha: float = 0.0, pause: bool = True, tag:
+    str = "bamf") -> None'
 - name: bone_crack
   source_file: game/displayables/effects.rpy
-  source_line: 310
+  source_line: 274
   signature: bone_crack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: boom
   source_file: game/displayables/effects.rpy
-  source_line: 270
+  source_line: 234
   signature: boom(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: bzilll
   source_file: game/displayables/effects.rpy
-  source_line: 320
+  source_line: 284
   signature: bzilll(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: CharlesXavier_animations_activate_power
   source_file: game/characters/CharlesXavier/animations.rpy
-  source_line: 1
-  signature: CharlesXavier_animations_activate_power() -> None
-  call_mode: label
+  source_line: 3
+  signature: 'CharlesXavier_animations_activate_power(pause: float | None = 0.5) -> None'
 - name: CharlesXavier_animations_deactivate_power
   source_file: game/characters/CharlesXavier/animations.rpy
-  source_line: 11
-  signature: CharlesXavier_animations_deactivate_power() -> None
-  call_mode: label
+  source_line: 9
+  signature: 'CharlesXavier_animations_deactivate_power(pause: float = 0.5) -> None'
 - name: clang
   source_file: game/displayables/effects.rpy
-  source_line: 340
+  source_line: 304
   signature: clang(x = 0.5, y = 0.5, z = 0, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: clash
   source_file: game/displayables/effects.rpy
-  source_line: 330
+  source_line: 294
   signature: clash(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: click
   source_file: game/displayables/effects.rpy
-  source_line: 357
+  source_line: 321
   signature: click(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: crack
   source_file: game/displayables/effects.rpy
-  source_line: 367
+  source_line: 331
   signature: crack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: crash
   source_file: game/displayables/effects.rpy
-  source_line: 373
+  source_line: 336
   signature: crash(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: green_smack
   source_file: game/displayables/effects.rpy
-  source_line: 467
+  source_line: 426
   signature: green_smack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: JeanGrey_animations_activate_power
   source_file: game/characters/JeanGrey/animations.rpy
-  source_line: 1
-  signature: JeanGrey_animations_activate_power() -> None
-  call_mode: label
+  source_line: 3
+  signature: 'JeanGrey_animations_activate_power(pause: float | None = 0.5) -> None'
 - name: JeanGrey_animations_deactivate_power
   source_file: game/characters/JeanGrey/animations.rpy
-  source_line: 6
-  signature: JeanGrey_animations_deactivate_power() -> None
-  call_mode: label
+  source_line: 9
+  signature: 'JeanGrey_animations_deactivate_power(pause: float = 0.5) -> None'
 - name: kaboom
   source_file: game/displayables/effects.rpy
-  source_line: 379
+  source_line: 341
   signature: kaboom(x = 0.5, y = 0.5, initial = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: knock_on_door
-  source_file: game/core/mechanics/knocking.rpy
-  source_line: 229
+  source_file: game/core/behavior/knocking.rpy
+  source_line: 248
   signature: 'knock_on_door(x: float = 0.5, y: float = 0.4, times: int = 1, intensity: float = 1.5, layer: str = "effects",
     pause: bool = True) -> None'
 - name: KurtWagner_animations_teleports_in
   source_file: game/characters/KurtWagner/animations.rpy
-  source_line: 40
-  signature: KurtWagner_animations_teleports_in(dialogue = None, x = None, y = None, add = True) -> None
-  call_mode: label
+  source_line: 19
+  signature: 'KurtWagner_animations_teleports_in(dialogue: str | None = None, x: float | None = None, y: float | None = None,
+    add: bool = True) -> None'
 - name: KurtWagner_animations_teleports_out
   source_file: game/characters/KurtWagner/animations.rpy
-  source_line: 45
+  source_line: 54
   signature: KurtWagner_animations_teleports_out() -> None
-  call_mode: label
 - name: LauraKinney_animations_sheathes_claws
   source_file: game/characters/LauraKinney/animations.rpy
-  source_line: 6
-  signature: LauraKinney_animations_sheathes_claws(x = 0.675, y = 0.25, hand = "both") -> None
-  call_mode: label
+  source_line: 16
+  signature: 'LauraKinney_animations_sheathes_claws(x: float = 0.675, y: float = 0.25, hand: str = "both") -> None'
 - name: LauraKinney_animations_unsheathes_claws
   source_file: game/characters/LauraKinney/animations.rpy
-  source_line: 1
-  signature: LauraKinney_animations_unsheathes_claws(x = 0.675, y = 0.25, hand = "both") -> None
-  call_mode: label
+  source_line: 3
+  signature: 'LauraKinney_animations_unsheathes_claws(x: float = 0.675, y: float = 0.25, hand: str = "both") -> None'
 - name: phone_buzz
-  source_file: game/core/mechanics/phone.rpy
+  source_file: game/core/phone/effects.rpy
   source_line: 3
   signature: 'phone_buzz(x: float = 0.5, y: float = 0.5, times: int = 1, intensity: float = 0.5, layer: str = "effects", pause:
     bool = True) -> None'
 - name: pow
   source_file: game/displayables/effects.rpy
-  source_line: 419
+  source_line: 381
   signature: pow(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: roar
   source_file: game/displayables/effects.rpy
-  source_line: 425
+  source_line: 386
   signature: roar(x = 0.5, y = 0.5, intensity = 1.0, duration = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: shirk
   source_file: game/displayables/effects.rpy
-  source_line: 448
+  source_line: 409
   signature: shirk(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: smack
   source_file: game/displayables/effects.rpy
-  source_line: 458
+  source_line: 419
   signature: smack(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: snakt
   source_file: game/displayables/effects.rpy
-  source_line: 473
+  source_line: 431
   signature: snakt(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0, duration = 0.01) -> None
   call_mode: label
 - name: snikt
   source_file: game/displayables/effects.rpy
-  source_line: 482
+  source_line: 438
   signature: snikt(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0, duration = 0.01) -> None
   call_mode: label
 - name: zing
   source_file: game/displayables/effects.rpy
-  source_line: 491
+  source_line: 445
   signature: zing(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
 - name: zirk
   source_file: game/displayables/effects.rpy
-  source_line: 500
+  source_line: 452
   signature: zirk(x = 0.5, y = 0.5, intensity = 1.0, final_alpha = 0.0) -> None
   call_mode: label
