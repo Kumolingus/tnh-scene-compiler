@@ -52,7 +52,7 @@ def _errors(condition: str, allow: Allowlists) -> list[str]:
     "get_max_friendship(Player, JeanGrey) >= 1",
     "get_best_Friend(Player, [JeanGrey, Rogue])",
     "get_worst_Enemy(JeanGrey, [Player, Rogue])",
-    "Character_is_in_close_proximity(Player)",
+    "is_close_by(Player)",
 ])
 def test_player_is_refused(condition: str, base_allow: Allowlists) -> None:
     messages = _errors(condition, base_allow)
@@ -62,7 +62,7 @@ def test_player_is_refused(condition: str, base_allow: Allowlists) -> None:
 
 @pytest.mark.parametrize("condition", [
     # Subject, not participant.
-    'chance_of_repeat_Event(Player.History, "asked_on_date") >= 0.5',
+    'chance_of_repeat(Player.History, "asked_on_date") >= 0.5',
     'Player.History.check("asked_on_date") > 0',
     'Player.check_trait("has_family")',
     # The ordinary forms must be untouched.
@@ -91,7 +91,7 @@ def test_the_error_says_what_to_write_instead(base_allow: Allowlists) -> None:
     assert "check_approval" in (relationship.hint or "")
 
     scene = parse(
-        _HEAD + "[[if Character_is_in_close_proximity(Player)]]\nOk.\n[[/if]]\n",
+        _HEAD + "[[if is_close_by(Player)]]\nOk.\n[[/if]]\n",
         path="c.scene",
     )
     proximity = validate(scene, base_allow)[0]

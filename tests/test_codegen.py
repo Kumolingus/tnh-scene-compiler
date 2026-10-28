@@ -5,8 +5,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import yaml
+
+from tests.conftest import require_base_allowlists
 from tnh_scene_compiler.allowlists import Allowlists
 from tnh_scene_compiler.codegen import (
+    _LOOK_EYES,
     CodegenContext,
     generate,
     generate_event_entry,
@@ -207,8 +211,9 @@ def test_codegen_face_look_outfit_all_emit_change_calls(allowlists: Allowlists) 
 
     # A paired face + look folds into a single change_face so brows/mouth come
     # from the face preset; the old wiping change_face(getattr(...,"face",None))
-    # call and the bare .eyes write are gone (item-4 fix).
-    assert "$ JeanGrey.change_face(\"smirk\", eyes = \"at_player\")" in output
+    # call and the bare .eyes write are gone (item-4 fix). at_player is the
+    # camera, which TNH draws as "neutral" eyes.
+    assert "$ JeanGrey.change_face(\"smirk\", eyes = \"neutral\")" in output
     assert "getattr(JeanGrey, \"face\", None)" not in output
     assert "$ JeanGrey.eyes = " not in output
     assert (
@@ -246,8 +251,48 @@ def test_codegen_look_set_emits_eyes_set_literal(allowlists: Allowlists) -> None
     output = generate(scene, allowlists, _CTX)
 
     # A set look folds into the face call as a Python set literal so the sprite
-    # random-draws a member each render for a livelier gaze.
-    assert "$ JeanGrey.change_face(\"smirk\", eyes = {\"down\", \"away\"})" in output
+    # random-draws a member each render for a livelier gaze; `away` expands to
+    # the two side glances it stands for.
+    assert "$ JeanGrey.change_face(\"smirk\", eyes = {\"down\", \"left\", \"right\"})" in output
+
+
+def _emitted_eyes(output: str) -> set[str]:
+    """Return the eye values of the one ``change_face`` call in *output*."""
+    line = next(line.strip()[2:] for line in output.splitlines() if ".change_face(" in line)
+    call = ast.parse(line).body[0].value
+    value = ast.literal_eval(next(k.value for k in call.keywords if k.arg == "eyes"))
+    return {value} if isinstance(value, str) else set(value)
+
+
+def test_codegen_look_away_averts_the_gaze(allowlists: Allowlists) -> None:
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "JEANGREY (look=away)\nLine.\n"
+    )
+
+    output = generate(parse(text, path = "inline.scene"), allowlists, _CTX)
+
+    # TNH has no "away" eye expression: emitted as is, change_face posed the
+    # eyes "neutral" — straight at the player, the opposite of the intent.
+    assert _emitted_eyes(output) == {"left", "right"}
+
+
+def test_codegen_no_look_token_reaches_change_face_untranslated() -> None:
+    shipped = yaml.safe_load(
+        (require_base_allowlists() / "looks.yaml").read_text(encoding = "utf-8"),
+    )["values"]
+    tokens = [entry["name"] for entry in shipped]
+    assert set(_LOOK_EYES) <= set(tokens), "a translated look is no longer shipped"
+    allow = Allowlists(characters = ["JeanGrey"], characters_upper = {"JEANGREY"}, looks = set(tokens))
+
+    for token in tokens:
+        text = (
+            "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+            f"JEANGREY (look={token})\nLine.\n"
+        )
+        eyes = _emitted_eyes(generate(parse(text, path = "inline.scene"), allow, _CTX))
+        # A sugar token must never reach the game: it is not an eye expression.
+        assert not eyes & set(_LOOK_EYES), f"look={token} emitted {eyes}"
 
 
 def test_codegen_stage_emits_add_characters_with_mapped_direction(
@@ -501,7 +546,10 @@ def test_codegen_text_medium_emits_send_text_for_player(allowlists: Allowlists) 
 
     output = generate(scene, allowlists, _CTX)
 
-    assert "$ send_text(current_phone_Chat, \"I'm here.\")" in output
+    # phone_Chat is the conversation open_texts put on screen; TNH 0.9c removed
+    # 0.9b's current_phone_Chat, so the old name raised NameError on send.
+    assert "$ send_text(phone_Chat, \"I'm here.\")" in output
+    assert "current_phone_Chat" not in output
 
 
 def test_codegen_phone_scene_omits_ongoing_event_wrapping(allowlists: Allowlists) -> None:

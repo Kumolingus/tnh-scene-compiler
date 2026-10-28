@@ -24,6 +24,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every event condition itself, and an object passed instead loads fine and
   raises `TypeError` the first time the scheduler evaluates it. Projects built
   for 0.9b need the old form.
+- **The player's phone texts no longer crash on TNH 0.9c.** `PLAYER (text)`
+  compiled to `send_text(current_phone_Chat, …)`; 0.9c renamed that variable to
+  `phone_Chat`, so the first reply the player sent raised `NameError`.
+- **`[[if X.nearby]]` calls a function that exists.** The shortcut compiled to
+  `Character_is_in_close_proximity(X)`, which TNH 0.9c renamed to
+  `is_close_by(X)`.
+- **`look=away` turns the eyes away.** A look is passed to `change_face` as
+  the eyes, and the game keeps only an eye expression the pose has — any other
+  value is posed `neutral`. Neither `away` nor `at_player` is one, in 0.9b or
+  0.9c, so both were silently drawn `neutral`, which for `away` means looking
+  straight at the player. `away` now compiles to a random pick of `left` /
+  `right`, and `at_player` to `neutral`.
 
 ### Changed
 
@@ -31,6 +43,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   source paths and typed signatures, and nine of them now compiled as Python
   calls. Scenes using a character animation compiled with it need 0.9c — on
   0.9b those animations are labels.
+- Three base-game functions are listed under their TNH 0.9c names:
+  `check_if_need_to_change` is `needs_to_change` (in the conditions and in
+  `[[run]]`; its second parameter is now `Arrivals`), `chance_of_repeat_Event`
+  is `chance_of_repeat` (`Item` is now `item`), and
+  `Character_is_in_close_proximity` is `is_close_by`. A scene written with the
+  old names no longer validates — rename the call; the arguments are the same.
 
 ## [0.2.1] - 2026-10-03
 

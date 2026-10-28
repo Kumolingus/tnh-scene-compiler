@@ -1178,8 +1178,8 @@ def _validate_standalone_call(
 #    return 0`, and love/trust already measure how a companion feels about the
 #    player, so there is nothing to name;
 #  * `Partners` *is* the player's own set of partners;
-#  * `Character_is_in_close_proximity` tests the three on-screen sprite slots,
-#    which the player is never in.
+#  * `is_close_by` tests the three on-screen sprite slots, which the player is
+#    never in.
 #
 # Every one of them fails silently — no exception, a valid-looking condition
 # that is simply always false. Across ~2000 calls the base game never passes
@@ -1209,7 +1209,7 @@ _PLAYER_EXCLUDING_FUNCTIONS: dict[str, str] = {
     "get_effective_friendship": _RELATIONSHIP_HINT,
     "get_max_friendship": _RELATIONSHIP_HINT,
     "get_worst_Enemy": _RELATIONSHIP_HINT,
-    "Character_is_in_close_proximity": _PROXIMITY_HINT,
+    "is_close_by": _PROXIMITY_HINT,
 }
 
 

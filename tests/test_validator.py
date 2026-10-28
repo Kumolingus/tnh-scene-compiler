@@ -698,7 +698,7 @@ def test_sugar_is_not_flagged_as_property() -> None:
 
 
 def test_object_property_passes_as_a_call_argument() -> None:
-    # chance_of_repeat_Event's first argument is a bare `Char.History`, which
+    # chance_of_repeat's first argument is a bare `Char.History`, which
     # reaches the property validator (attributes inside call args are
     # collected). Registering History — even as `usable_bare: false`, which
     # only hides it from the builder — must make the whole condition validate.
@@ -706,15 +706,15 @@ def test_object_property_passes_as_a_call_argument() -> None:
         characters = ["JeanGrey"], characters_upper = {"JEANGREY"},
         character_properties = {"desire", "History"},
         character_properties_bare = {"desire"},
-        condition_functions = {"chance_of_repeat_Event"},
+        condition_functions = {"chance_of_repeat"},
         condition_function_signatures = {
-            "chance_of_repeat_Event":
-                "chance_of_repeat_Event(History, Item: str, chance: float = 0) -> float",
+            "chance_of_repeat":
+                "chance_of_repeat(History, item: str, chance: float = 0) -> float",
         },
     )
     scene = _scene(
         _PROP_HEAD
-        + '[[if chance_of_repeat_Event(JeanGrey.History, "kissed") >= 0.5]]\n'
+        + '[[if chance_of_repeat(JeanGrey.History, "kissed") >= 0.5]]\n'
         + "Ok.\n[[/if]]\n",
     )
     assert validate(scene, allow) == []

@@ -44,13 +44,13 @@ class TestBuildConditionCatalog:
             condition_functions={
                 "get_effective_friendship",         # Relationships -> promoted
                 "get_time_since",                   # Time -> Location & time
-                "Character_is_in_close_proximity",  # sugar duplicate -> excluded
+                "is_close_by",                      # sugar duplicate -> excluded
                 "mystery_fn",                       # no category -> Advanced
             },
             condition_function_categories={
                 "get_effective_friendship": "Relationships",
                 "get_time_since": "Time",
-                "Character_is_in_close_proximity": "Character status",
+                "is_close_by": "Character status",
             },
             condition_function_labels={
                 "get_effective_friendship": "Effective friendship (tier)",
@@ -90,7 +90,7 @@ class TestBuildConditionCatalog:
         # promoted, because the built-ins reach a strict subset of them.
         catalog = build_condition_catalog(self._allow())
         targets = [e.target for entries in catalog.values() for e in entries]
-        assert "Character_is_in_close_proximity" not in targets
+        assert "is_close_by" not in targets
 
     def test_uncategorized_function_falls_to_advanced(self):
         catalog = build_condition_catalog(self._allow())
@@ -387,8 +387,8 @@ class TestIsCharacterCollectionParam:
         assert is_character_collection_param("Characters", "") is True
 
     def test_compound_characters_name(self):
-        # The allowlist strips arriving_Characters' type to a bare name, so the
-        # name suffix is what makes it a collection.
+        # An allowlist signature often strips the type to a bare name, so a
+        # `*_Characters` suffix alone makes it a collection.
         assert is_character_collection_param("arriving_Characters", "") is True
 
     def test_container_type_of_character(self):

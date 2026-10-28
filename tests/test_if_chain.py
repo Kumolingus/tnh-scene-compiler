@@ -153,6 +153,26 @@ def test_codegen_friends_with_emits_list_argument(allowlists: Allowlists) -> Non
     assert "are_Characters_friends([JeanGrey, Rogue])" in output
 
 
+def test_codegen_nearby_emits_a_listed_base_function(allowlists: Allowlists) -> None:
+    # `.nearby` is sugar for one base-game function. TNH 0.9c renamed it
+    # (Character_is_in_close_proximity -> is_close_by) and the rewrite kept
+    # emitting the old name, a NameError in game. Checking the emitted name
+    # against the shipped condition functions ties the sugar to the list that
+    # gets re-audited on every TNH update.
+    from tests.conftest import require_base_allowlists
+
+    src = _PREFIX + (
+        "[[if JeanGrey.nearby]]\n"
+        "JEANGREY\nLine.\n"
+        "[[/if]]\n"
+    )
+
+    output = generate(parse(src, path = "inline.scene"), allowlists, _CTX)
+
+    assert "is_close_by(JeanGrey)" in output
+    assert "is_close_by" in Allowlists.load(require_base_allowlists()).condition_functions
+
+
 def test_codegen_empty_branch_gets_pass(allowlists: Allowlists) -> None:
     # Comment-only branch body should still emit a ``pass`` so Ren'Py lints.
     src = _PREFIX + (

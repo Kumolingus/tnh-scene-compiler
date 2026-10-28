@@ -14,7 +14,7 @@ Supported rewrites:
     Character.mood == "x"    → Character.get_status() == "x"
     Character.friends_with(Y) → are_Characters_friends([Character, Y])
     Character.did("event")   → Character.History.check("event") > 0
-    Character.nearby         → Character_is_in_close_proximity(Character)
+    Character.nearby         → is_close_by(Character)
     Character.personality("t") → Character.check_personality("t")
     Character.personality("t", n) → Character.check_personality("t", n)
 """
@@ -294,10 +294,15 @@ def _transform_call(
 # ---------------------------------------------------------------------------
 
 def _transform_attribute(node: Attribute, ca: dict[str, str]) -> Expr:
-    """Handle ``Character.nearby`` → ``Character_is_in_close_proximity(Character)``."""
+    """Handle ``Character.nearby`` → ``is_close_by(Character)``.
+
+    ``is_close_by`` (``core/characters/utilities.rpy``) is TNH 0.9c's name for
+    0.9b's ``Character_is_in_close_proximity``: present, and in one of the
+    three on-screen slots.
+    """
     if len(node.parts) == 1 and node.parts[0] == "nearby":
         return Call(
-            target=Name("Character_is_in_close_proximity", col_offset=node.col_offset),
+            target=Name("is_close_by", col_offset=node.col_offset),
             args=(Name(node.root.name, col_offset=node.root.col_offset),),
             col_offset=node.col_offset,
         )

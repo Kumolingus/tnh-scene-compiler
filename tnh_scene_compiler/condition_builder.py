@@ -87,7 +87,7 @@ _FUNC_CATEGORY_TO_TOP: dict[str, str] = {
 # while the function takes any number at any tier. Both are promoted instead,
 # under labels that say what they add.
 _SUGAR_DUPLICATE_FUNCTIONS: frozenset[str] = frozenset({
-    "Character_is_in_close_proximity",   # Nearby check — same single argument
+    "is_close_by",   # Nearby check — same single argument
 })
 
 # Top-level category -> glossary search term for the "?" quick-access button.
@@ -457,8 +457,8 @@ def default_collection_mode(pdefault: str, declared: str = "") -> str:
 
     Otherwise it is derived. A **required** collection is one the game
     itself fills from a location (`are_Characters_friends`,
-    `check_if_need_to_change`), so it leads with "present here". An
-    **optional** one (it has a default, e.g. ``arriving_Characters = None``)
+    `needs_to_change`), so it leads with "present here". An
+    **optional** one (it has a default, e.g. ``Arrivals = None``)
     starts on the explicit pick, because presuming everyone present would
     change the question being asked.
     """
@@ -1262,7 +1262,7 @@ class _ConditionClausePanel(ttk.Frame):
         self._add_description(parent, row, "friendship")
 
     def _params_nearby(self, parent: ttk.Frame) -> None:
-        # Character_is_in_close_proximity(Char) — an argument, and asking it
+        # is_close_by(Char) — an argument, and asking it
         # about the player would ask whether the player is where they are.
         row = self._add_character_field(parent, "Character", 0, as_argument=True)
         self._add_description(parent, row, "nearby")

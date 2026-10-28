@@ -16,9 +16,9 @@
 #     source_file: game/core/base/character.rpy
 
 operations:
-  - name: check_if_need_to_change
+  - name: needs_to_change
     category: Clothing
-    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True)"
+    signature: "needs_to_change(Characters, Arrivals: Iterable[CharacterClass] = None, clothing: bool = True, mess: bool = True)"
     notes: |
       PLAY the "fix your outfit / clean up" interaction for the characters
       who need it — one is skipped when she is comfortable (friends, level
@@ -28,5 +28,5 @@ operations:
       test, use this to make it happen. The condition's ``check`` argument
       is deliberately not offered here — omitting it is what runs the
       interaction.
-    source_file: game/core/mechanics/clothing.rpy
-    source_line: 21
+    source_file: game/core/clothing/appropriateness.rpy
+    source_line: 42

@@ -82,7 +82,7 @@ functions:
   # `Characters` is declared "pick" because this function asks about named
   # characters. The signature-derived default (a required collection leads
   # with "everyone present here") is right for are_Characters_friends and
-  # check_if_need_to_change, and here would ask "is everyone in the room my
+  # needs_to_change, and here would ask "is everyone in the room my
   # partner".
   - name: are_Characters_in_Partners
     category: Relationships
@@ -192,11 +192,11 @@ functions:
       or last period, not a number of days.
     source_file: game/core/mechanics/utilities.rpy
     source_line: 143
-  - name: Character_is_in_close_proximity
+  - name: is_close_by
     category: Character status
-    signature: "Character_is_in_close_proximity(Character) -> bool"
-    source_file: game/core/mechanics/utilities.rpy
-    source_line: 265
+    signature: "is_close_by(Character) -> bool"
+    source_file: game/core/characters/utilities.rpy
+    source_line: 40
 
   # -- Location -----------------------------------------------------------
   - name: get_Location
@@ -248,39 +248,39 @@ functions:
     source_line: 3
 
   # -- Clothing (writer-facing checks) ------------------------------------
-  - name: check_if_need_to_change
+  - name: needs_to_change
     category: Clothing
     label: "Needs to change clothes"
-    signature: "check_if_need_to_change(Characters, arriving_Characters = None, clothing: bool = True, mess: bool = True, check: bool = True) -> bool"
+    signature: "needs_to_change(Characters, Arrivals: Iterable[CharacterClass] = None, clothing: bool = True, mess: bool = True, check: bool = True) -> bool"
     notes: |
       Whether any of the characters needs to fix their outfit (too revealing
-      for who is arriving) or clean up a mess. arriving_Characters are the
-      characters entering the scene; one who is comfortable (friends, level
-      >= 2) with all of them is skipped. Leave check on True: it makes this a
-      pure question. The game's own default is False, which actually PLAYS the
+      for who is arriving) or clean up a mess. Arrivals are the characters
+      entering the scene; one who is comfortable (friends, level >= 2) with
+      all of them is skipped. Leave check on True: it makes this a pure
+      question. The game's own default is False, which actually PLAYS the
       change / cleanup interaction — to do that on purpose, use
-      [[run check_if_need_to_change(...)]] instead of an [[if]].
-    source_file: game/core/mechanics/clothing.rpy
-    source_line: 21
+      [[run needs_to_change(...)]] instead of an [[if]].
+    source_file: game/core/clothing/appropriateness.rpy
+    source_line: 42
 
   # -- History ------------------------------------------------------------
-  - name: chance_of_repeat_Event
+  - name: chance_of_repeat
     category: History
     label: "Chance of a repeat event"
-    signature: "chance_of_repeat_Event(History, Item: str, chance: float = 0, limit_day_chance: float = 1.0, limit_day: int = 5) -> float"
+    signature: "chance_of_repeat(History, item: str, chance: float = 0, limit_day_chance: float = 1.0, limit_day: int = 5) -> float"
     notes: |
       Returns a probability (0..1), not a yes/no: how likely a repeatable event
       should fire again, growing the longer since it last happened. It is 0
       right after the event, then rises to limit_day_chance (default 1.0) by
       limit_day days (default 5). Use it to space out a repeat — compare it
       (e.g. >= 0.5) or roll against it in mod code. Pick whose history to read
-      in the History row; Item is picked from the known history events.
+      in the History row; item is picked from the known history events.
     param_choices:
       History:
         source: characters
         suffix: ".History"
-      Item:
+      item:
         source: history_events
         quote: true
-    source_file: game/core/definitions/history.rpy
-    source_line: 128
+    source_file: game/core/base/history.rpy
+    source_line: 146

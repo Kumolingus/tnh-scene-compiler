@@ -288,6 +288,10 @@ They **combine** with `arms` rather than replacing it: the preset supplies both 
 and a side you do not name is posed `neutral` -- *not* left as it was. Name both sides, or give a preset, whenever you care about the
 side you are not changing.
 
+`look` sets the eyes. Most values are eye expressions passed as they are (`down`, `up`, `left`, `right`, `closed`, `neutral`); two
+are named gazes the game has no expression for, so they compile to the eyes it draws for them: `at_player` to `neutral` (the camera
+is the player) and `away` to a random pick of `left` / `right`.
+
 ### 6.5 Multiline form
 
 For readability when 4+ attributes are present, put the parenthetical on the line after the speaker:
@@ -344,8 +348,8 @@ I'm not panicking.
 
 `spoken` is the default medium. It is legal but redundant to write explicitly.
 
-When the speaker is `PLAYER`, `(text)` compiles to `$ send_text(current_phone_Chat, "...")`. For any other character, it compiles to `$
-receive_text(<Character>, "...")`.
+When the speaker is `PLAYER`, `(text)` compiles to `$ send_text(phone_Chat, "...")` -- `phone_Chat` is the conversation the last
+`[[phone open <Character>]]` put on screen. For any other character, it compiles to `$ receive_text(<Character>, "...")`.
 
 ---
 
@@ -972,11 +976,11 @@ functions:
 - name: are_Characters_in_Partners
   signature: "are_Characters_in_Partners(A: Character, B: Character, knows_about: bool = True) -> bool"
   category: Relationships
-- name: chance_of_repeat_Event
-  signature: "chance_of_repeat_Event(History, Item: str, ...) -> float"
+- name: chance_of_repeat
+  signature: "chance_of_repeat(History, item: str, ...) -> float"
   category: History
   param_choices:
-    Item:                       # dynamic source: every known history event, quoted
+    item:                       # dynamic source: every known history event, quoted
       source: history_events
       quote: true
 ```

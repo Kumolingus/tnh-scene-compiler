@@ -231,10 +231,10 @@ def is_character_collection_param(name: str, type_hint: str) -> bool:
 
     The mirror of :func:`is_character_param` for the container case it
     deliberately excludes: a ``Characters`` / ``*_Characters`` name (the
-    convention used by ``get_best_Friend(Character, Characters)`` and
-    ``check_if_need_to_change(Characters, arriving_Characters, ...)``) or an
+    convention used by ``get_best_Friend(Character, Characters)``) or an
     explicit container type over ``Character`` (``Iterable[CharacterClass]``,
-    ``set[Character]``, ``list[Character]``, ...). The name check matters
+    as ``needs_to_change`` declares its ``Arrivals``; ``set[Character]``,
+    ``list[Character]``, ...). The name check matters
     because the allowlist signatures often strip the type down to the bare
     name. The Condition Builder renders a multi-character picker for these and
     assembles a set literal (e.g. ``{JeanGrey, Rogue}``), rather than the
@@ -398,7 +398,7 @@ def _read_collection_modes(item: dict[str, Any]) -> dict[str, str]:
     default is derived from the signature — a required collection is one
     the game fills from a location, so it leads with "present here" — and
     that derivation is right for `are_Characters_friends` and
-    `check_if_need_to_change` but wrong for a function asking about named
+    `needs_to_change` but wrong for a function asking about named
     characters, where it would silently ask "is everyone in the room …".
     Nothing in a signature distinguishes the two, so it is declared.
 

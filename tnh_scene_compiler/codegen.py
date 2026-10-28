@@ -869,19 +869,38 @@ def _emit_set_scene(
     return lines
 
 
+# Look tokens the base game has no eye expression for, mapped to the eyes TNH
+# draws for that gaze. ``change_face`` keeps an ``eyes=`` value only when it is
+# in the pose's own eye set and poses the eyes "neutral" otherwise
+# (``core/characters/npcs.rpy``, ``change_face``) — so emitted verbatim, both
+# fell back to "neutral" without a word, and ``away`` looked straight at the
+# player. ``at_player`` is the camera, which TNH draws as "neutral"; ``away``
+# is the averted glance, a draw between the two side looks (0.9c spells the
+# same draw "side").
+_LOOK_EYES: dict[str, tuple[str, ...]] = {
+    "at_player": ("neutral",),
+    "away": ("left", "right"),
+}
+
+
 def _eyes_expr(look: str) -> str:
     """Render a ``look`` value as an ``eyes=`` argument for ``change_face``.
 
-    A scalar look becomes a quoted string (``"down"``); a set look becomes a
-    Python set literal (``{"down", "neutral"}``) so ``change_face`` random-draws
+    Each token is first translated through ``_LOOK_EYES``; the result is a
+    quoted string when one eye value remains (``"down"``) and a Python set
+    literal otherwise (``{"left", "right"}``), so ``change_face`` random-draws
     a member each render for a livelier gaze (the dominant base-game idiom).
     """
-    tokens = parse_look_values(look)
-    if not tokens:
+    eyes: list[str] = []
+    for token in parse_look_values(look):
+        for value in _LOOK_EYES.get(token, (token,)):
+            if value not in eyes:
+                eyes.append(value)
+    if not eyes:
         return "\"neutral\""
-    if len(tokens) == 1:
-        return f"\"{tokens[0]}\""
-    members = ", ".join(f"\"{token}\"" for token in tokens)
+    if len(eyes) == 1:
+        return f"\"{eyes[0]}\""
+    members = ", ".join(f"\"{value}\"" for value in eyes)
     return "{" + members + "}"
 
 
@@ -1020,10 +1039,12 @@ def _emit_dialogue(
     if emit_as_text:
         # Phone-text medium compiles to the TNH core primitives
         # (``send_text`` when the Player is the speaker, ``receive_text``
-        # otherwise).
+        # otherwise). ``phone_Chat`` is the conversation ``open_texts`` put
+        # on screen (``interfaces/phone/main.rpy``); TNH 0.9b named it
+        # ``current_phone_Chat``.
         if companion == "Player":
             output.append(
-                f"{indent}$ send_text(current_phone_Chat, \"{text}\")",
+                f"{indent}$ send_text(phone_Chat, \"{text}\")",
             )
         else:
             output.append(

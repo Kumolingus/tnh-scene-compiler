@@ -413,22 +413,22 @@ def test_optional_location_current_omits_the_argument(
 
 @pytest.fixture()
 def allow_dynamic_item() -> Allowlists:
-    """chance_of_repeat_Event: Item pulls its suggestions from history_events."""
+    """chance_of_repeat: item pulls its suggestions from history_events."""
     return Allowlists(
         characters=["JeanGrey"],
         characters_upper={"JEANGREY"},
         history_events={"kissed_player", "anal"},
-        condition_functions={"chance_of_repeat_Event"},
+        condition_functions={"chance_of_repeat"},
         condition_function_signatures={
-            "chance_of_repeat_Event": (
-                "chance_of_repeat_Event(History, Item: str, chance: float = 0) -> float"
+            "chance_of_repeat": (
+                "chance_of_repeat(History, item: str, chance: float = 0) -> float"
             ),
         },
-        condition_function_categories={"chance_of_repeat_Event": "History"},
-        condition_function_labels={"chance_of_repeat_Event": "Chance of a repeat event"},
+        condition_function_categories={"chance_of_repeat": "History"},
+        condition_function_labels={"chance_of_repeat": "Chance of a repeat event"},
         condition_function_param_choices={
-            "chance_of_repeat_Event": {
-                "Item": {"source": "history_events", "quote": True},
+            "chance_of_repeat": {
+                "item": {"source": "history_events", "quote": True},
             },
         },
     )
@@ -442,17 +442,17 @@ def test_dynamic_source_param_renders_as_choices(tk_root, allow_dynamic_item) ->
     _select(clause, "Chance of a repeat event")
 
     item_field = clause._func_params[1]
-    assert item_field.name == "Item"
+    assert item_field.name == "item"
     assert item_field.kind == PARAM_WIDGET_CHOICES
 
     clause._func_params[0].var.set("JeanGrey.History")
     item_field.var.set('"kissed_player"')
     assert clause.get_condition().startswith(
-        'chance_of_repeat_Event(JeanGrey.History, "kissed_player"',
+        'chance_of_repeat(JeanGrey.History, "kissed_player"',
     )
 
 
-def test_arriving_characters_is_also_a_multi_select(tk_root) -> None:
+def test_arrivals_is_also_a_multi_select(tk_root) -> None:
     from tnh_scene_compiler.condition_builder import (
         PARAM_WIDGET_BOOL,
         PARAM_WIDGET_CHARACTER_SET,
@@ -461,23 +461,24 @@ def test_arriving_characters_is_also_a_multi_select(tk_root) -> None:
     allow = Allowlists(
         characters=["JeanGrey", "Rogue"],
         characters_upper={"JEANGREY", "ROGUE"},
-        condition_functions={"check_if_need_to_change"},
+        condition_functions={"needs_to_change"},
         condition_function_signatures={
-            "check_if_need_to_change": (
-                "check_if_need_to_change(Characters, arriving_Characters = None, "
+            "needs_to_change": (
+                "needs_to_change(Characters, Arrivals: Iterable[CharacterClass] = None, "
                 "check: bool = False) -> bool"
             ),
         },
-        condition_function_categories={"check_if_need_to_change": "Clothing"},
-        condition_function_labels={"check_if_need_to_change": "Needs to change clothes"},
+        condition_function_categories={"needs_to_change": "Clothing"},
+        condition_function_labels={"needs_to_change": "Needs to change clothes"},
     )
     dlg = _make_dialog(tk_root, allow)
     clause = _panel(dlg, 0)
     _select(clause, "Needs to change clothes")
 
     assert clause._func_params[0].kind == PARAM_WIDGET_CHARACTER_SET  # Characters
-    assert clause._func_params[1].kind == PARAM_WIDGET_CHARACTER_SET  # arriving_Characters
-    assert clause._func_params[2].kind == PARAM_WIDGET_BOOL  # clothing
+    # Arrivals has no *_Characters suffix: its container type is what makes it one.
+    assert clause._func_params[1].kind == PARAM_WIDGET_CHARACTER_SET  # Arrivals
+    assert clause._func_params[2].kind == PARAM_WIDGET_BOOL  # check
 
 
 @pytest.fixture()
