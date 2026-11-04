@@ -1,4 +1,4 @@
-define all_Locations["loc_SchoolSite_Library"] = {
+define ALL_LOCATIONS["SchoolSite.Library"] = {
     "name": _("School Library"),
     "tag": "Library",
     "module": "SchoolSite",
@@ -8,7 +8,7 @@ define all_Locations["loc_SchoolSite_Library"] = {
     },
 }
 
-define all_Locations["loc_SchoolSite_Cafeteria"] = {
+define ALL_LOCATIONS["Cafeteria"] = {
     "name": _("Cafeteria"),
     "tag": "Cafeteria",
     "module": "SchoolSite",
@@ -18,4 +18,4 @@ define all_Locations["loc_SchoolSite_Cafeteria"] = {
 }
 
 # This one uses .copy() and should trigger a warning, not an entry.
-define all_Locations["loc_SchoolSite_LibraryBackroom"] = all_Locations["loc_SchoolSite_Library"].copy()
+define ALL_LOCATIONS["SchoolSite.LibraryBackroom"] = ALL_LOCATIONS["SchoolSite.Library"].copy()

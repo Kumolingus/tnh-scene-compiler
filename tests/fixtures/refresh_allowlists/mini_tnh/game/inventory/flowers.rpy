@@ -1,4 +1,4 @@
-define all_Items["flowers"] = {
+define ALL_ITEMS["flowers"] = {
     "name": _("flowers"),
 
     "shop_type": "gift",
@@ -7,7 +7,7 @@ define all_Items["flowers"] = {
     "price": 2,
 }
 
-define all_Items["camera"] = {
+define ALL_ITEMS["camera"] = {
     "name": _("camera"),
 
     "shop_type": "gift",

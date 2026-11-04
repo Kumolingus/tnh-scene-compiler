@@ -3,8 +3,9 @@
 Rules (spec §5.2):
 
 - Scan every ``.rpy`` across TNH (when included) and the mod for
-  ``define all_Locations["loc_..."] = {`` declarations with an explicit
-  dict body.
+  ``define ALL_LOCATIONS["<location_id>"] = {`` declarations with an
+  explicit dict body. TNH 0.9c.beta.28 keys a location by area and room
+  (``BayvilleTown.Mall``) or by a bare room key (``PlayerRoom``).
 - Use a naive brace counter to isolate the dict body, then find the
   ``"name": _("human text")`` (or ``"name": "human text"``) entry.
 - Derive the slugline as ``display_name.upper()``.
@@ -13,7 +14,7 @@ Rules (spec §5.2):
     - name: "BAYVILLE MALL"
       source_file: ...
       source_line: 1
-      location_id: loc_BayvilleTown_Mall
+      location_id: BayvilleTown.Mall
       display_name: Bayville Mall
 
 - Also emit a ``locations_overrides.yaml`` scaffold on first run, never
@@ -26,7 +27,7 @@ Rules (spec §5.2):
 
 Limitations (V2):
 
-- Locations declared as ``all_Locations["loc_x"] = all_Locations["loc_y"].copy()``
+- Locations declared as ``ALL_LOCATIONS["x"] = ALL_LOCATIONS["y"].copy()``
   are skipped. A future pass can resolve them by looking up the parent's
   name, but for now the author receives a warning.
 """
@@ -39,14 +40,16 @@ from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext, Warning
 from ..scanner import iter_all_rpy, safe_read_text
 
+_LOCATION_ID = r'(?P<location_id>[A-Za-z_][A-Za-z0-9_.]*)'
+
 _EXPLICIT_LOCATION_RE = re.compile(
-    r'^[ \t]*define[ \t]+all_Locations\[\s*"(?P<location_id>loc_[A-Za-z0-9_]+)"\s*\][ \t]*=[ \t]*\{',
+    r'^[ \t]*define[ \t]+ALL_LOCATIONS\[\s*"' + _LOCATION_ID + r'"\s*\][ \t]*=[ \t]*\{',
     re.MULTILINE,
 )
 
 _COPY_LOCATION_RE = re.compile(
-    r'^[ \t]*define[ \t]+all_Locations\[\s*"(?P<location_id>loc_[A-Za-z0-9_]+)"\s*\][ \t]*='
-    r'[ \t]*all_Locations\[',
+    r'^[ \t]*define[ \t]+ALL_LOCATIONS\[\s*"' + _LOCATION_ID + r'"\s*\][ \t]*='
+    r'[ \t]*ALL_LOCATIONS\[',
     re.MULTILINE,
 )
 

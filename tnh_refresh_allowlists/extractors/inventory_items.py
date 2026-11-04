@@ -3,18 +3,19 @@
 Rules:
 
 - Scan every ``.rpy`` across TNH (when included) and the mod.
-- Match ``define all_Items["<key>"] = {...}`` — the registration pattern used
+- Match ``define ALL_ITEMS["<key>"] = {...}`` — the registration pattern used
   by ``game/inventory/<key>.rpy``.
 - Produce a single flat ``inventory_items.yaml``.
 
-The key is what ``Character.Inventory.get_active(string=...)`` /
-``get_number(string=...)`` take: ``Inventory.add`` stores a plain item under
-``Item.string`` (``core/definitions/inventory.rpy``), which is this key.
+The key is what ``Character.Inventory.get_active(tag)`` /
+``get_number(tag)`` take: ``Inventory.add`` stores a plain item under its
+``tag`` (``get_Item_key`` in ``core/inventory/utilities.py``), and an item's
+tag is its ``ALL_ITEMS`` key.
 
-Clothing is deliberately **not** collected. It goes through the other branch
-of the same method — ``Items[Item.tag]``, where ``tag`` falls back to the
-clothing id — and those ids live in per-character ``Clothes`` mappings with a
-different shape. A writer needing one types it; the dropdown stays editable.
+Clothing is deliberately **not** collected. ``get_Item_key`` stores it under
+its ``unique_tag`` instead, and those ids live in per-character ``Clothes``
+mappings with a different shape. A writer needing one types it; the dropdown
+stays editable.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
 from ..scanner import iter_all_rpy, safe_read_text
 
-_ITEM_RE = re.compile(r'define\s+all_Items\s*\[\s*"(?P<name>[^"]+)"\s*\]')
+_ITEM_RE = re.compile(r'define\s+ALL_ITEMS\s*\[\s*"(?P<name>[^"]+)"\s*\]')
 
 
 def extract(context: ScanContext) -> ExtractionResult:

@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the `_events.rpy` the compiler wrote stopped the game at launch
   (`KeyError: 'all_Events'`). Projects built for 0.9c.beta.17 or 0.9b need
   the old name.
+- **The allowlist refresh finds a project's locations and inventory items on
+  TNH 0.9c.beta.28.** beta.28 renamed `all_Locations` and `all_Items` to
+  `ALL_LOCATIONS` and `ALL_ITEMS`, and keys a location as `BayvilleTown.Mall`
+  or `PlayerRoom` instead of `loc_…`. The refresh wrote an empty
+  `locations.yaml` and `inventory_items.yaml`, so a scene opening in one of
+  the project's own locations stopped compiling. Projects built for
+  0.9c.beta.17 or 0.9b need the old names.
 - **Effects that TNH 0.9c turned into functions compile to a Python call.**
   In 0.9c `bamf` and the character animations
   (`KurtWagner_animations_teleports_in`, `LauraKinney_animations_unsheathes_claws`,

@@ -15,7 +15,7 @@ def test_extracts_explicit_dict_locations(mini_context):
 def test_skips_copy_locations_and_warns(mini_context):
     result = locations.extract(mini_context)
     names = {entry.name for entry in result.entries}
-    assert "loc_SchoolSite_LibraryBackroom" not in names
+    assert "SchoolSite.LibraryBackroom" not in names
     assert any("LibraryBackroom" in warning.message for warning in result.warnings)
 
 
@@ -23,8 +23,16 @@ def test_entries_carry_metadata(mini_context):
     result = locations.extract(mini_context)
     library = next(entry for entry in result.entries if entry.name == "SCHOOL LIBRARY")
     metadata = dict(library.metadata)
-    assert metadata.get("location_id") == "loc_SchoolSite_Library"
+    assert metadata.get("location_id") == "SchoolSite.Library"
     assert metadata.get("display_name") == "School Library"
+
+
+def test_reads_bare_room_keys_as_well_as_dotted_ids(mini_context):
+    # TNH 0.9c.beta.28 keys a location either by area and room
+    # ("XavierSchool.Infirmary") or by a bare room key ("CharlesXavierRoom").
+    result = locations.extract(mini_context)
+    cafeteria = next(entry for entry in result.entries if entry.name == "CAFETERIA")
+    assert dict(cafeteria.metadata).get("location_id") == "Cafeteria"
 
 
 def test_source_line_is_one_based(mini_context):
@@ -45,8 +53,8 @@ def test_first_declaration_keeps_a_shared_slugline_and_warns(tmp_path):
     game_root = tmp_path / "tnh"
     (game_root / "game" / "locations").mkdir(parents = True)
     (game_root / "game" / "locations" / "rooms.rpy").write_text(
-        'define all_Locations["loc_Bedroom"] = {\n    "name": _("My Room"),\n}\n'
-        'define all_Locations["loc_Shower"] = {\n    "name": _("My Room"),\n}\n',
+        'define ALL_LOCATIONS["loc_Bedroom"] = {\n    "name": _("My Room"),\n}\n'
+        'define ALL_LOCATIONS["loc_Shower"] = {\n    "name": _("My Room"),\n}\n',
         encoding = "utf-8",
     )
 
@@ -77,11 +85,11 @@ def test_deduplicates_same_location_id(tmp_path):
     dup_root = tmp_path / "tnh"
     (dup_root / "game" / "locations").mkdir(parents = True)
     (dup_root / "game" / "locations" / "a.rpy").write_text(
-        'define all_Locations["loc_X_Y"] = {\n    "name": _("Y"),\n}\n',
+        'define ALL_LOCATIONS["loc_X_Y"] = {\n    "name": _("Y"),\n}\n',
         encoding = "utf-8",
     )
     (dup_root / "game" / "locations" / "b.rpy").write_text(
-        'define all_Locations["loc_X_Y"] = {\n    "name": _("Y duplicate"),\n}\n',
+        'define ALL_LOCATIONS["loc_X_Y"] = {\n    "name": _("Y duplicate"),\n}\n',
         encoding = "utf-8",
     )
 
