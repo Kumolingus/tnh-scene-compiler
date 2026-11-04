@@ -35,7 +35,7 @@ def test_codegen_scene_rpy_has_label_but_no_event_block(
 
     # Phase 6D: event registration is centralised in _events.rpy; the
     # per-scene .rpy must carry only the label block.
-    assert "define all_Events" not in output
+    assert "define ALL_EVENTS" not in output
     assert "label mymod_scene_minimal:" in output
     assert "$ ongoing_Event = True" in output
     assert "$ ongoing_Event = False" in output
@@ -50,7 +50,7 @@ def test_generate_event_entry_emits_events_block(
 
     entry = generate_event_entry(scene)
 
-    assert "define all_Events['mymod_scene_minimal']" in entry
+    assert "define ALL_EVENTS['mymod_scene_minimal']" in entry
     assert "\"flags\": {\"manual\"}" in entry
 
 
@@ -65,15 +65,15 @@ def test_generate_events_rpy_aggregates_cinematic_scenes(
     output = generate_events_rpy([scene_a, scene_b], _CTX)
 
     assert "Auto-generated" in output
-    assert "define all_Events['mymod_scene_minimal']" in output
-    assert "define all_Events['mymod_scene_narration_only']" in output
+    assert "define ALL_EVENTS['mymod_scene_minimal']" in output
+    assert "define ALL_EVENTS['mymod_scene_narration_only']" in output
 
 
 def test_generate_events_rpy_empty_scene_list_still_produces_header() -> None:
     output = generate_events_rpy([], _CTX)
 
     assert "Auto-generated" in output
-    assert "define all_Events" not in output
+    assert "define ALL_EVENTS" not in output
 
 
 def test_codegen_emits_set_the_scene_for_body_slugline(
@@ -607,7 +607,7 @@ def test_generate_events_rpy_skips_non_cinematic_scenes(
 
     events = generate_events_rpy([scene], _CTX)
 
-    assert "define all_Events" not in events
+    assert "define ALL_EVENTS" not in events
 
 
 def test_codegen_escapes_backslash_and_quote(allowlists: Allowlists) -> None:

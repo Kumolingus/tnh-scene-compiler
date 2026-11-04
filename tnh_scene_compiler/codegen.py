@@ -10,7 +10,7 @@ Output skeleton::
 
     # Auto-generated from <path>. Do not edit by hand.
 
-    define all_Events["<scene_id>"] = {
+    define ALL_EVENTS["<scene_id>"] = {
         "conditions": "<conditions>",
         "flags": {"<trigger>"},
         "priority": <int>,
@@ -748,14 +748,14 @@ def _render_call_target(target, scene_local: set[str], allow: Allowlists) -> str
 
 
 def _emit_event_block(scene: Scene) -> list[str]:
-    """Return the ``define all_Events[...]`` block lines for a cinematic scene.
+    """Return the ``define ALL_EVENTS[...]`` block lines for a cinematic scene.
 
     Public via :func:`generate_event_entry` — the per-scene ``.rpy`` no
     longer inlines this block; the CLI collects every scene's event entry
     into a single ``_events.rpy`` via :func:`generate_events_rpy`.
     """
     tp = scene.title_page
-    lines = [f"define all_Events[{tp.scene_id!r}] = {{"]
+    lines = [f"define ALL_EVENTS[{tp.scene_id!r}] = {{"]
 
     # A plain string: TNH 0.9c wraps every event condition in ConditionClass
     # itself (build_conditions), and an object passed instead loads fine and
@@ -782,7 +782,7 @@ def _emit_event_block(scene: Scene) -> list[str]:
 
 
 def generate_event_entry(scene: Scene) -> str:
-    """Return the ``define all_Events[...] = {...}`` block for ``scene``.
+    """Return the ``define ALL_EVENTS[...] = {...}`` block for ``scene``.
 
     Emitted for cinematic scenes; phone/texting/hub_option scenes omit
     event registration per §11.13 and this function returns an empty
@@ -1496,7 +1496,7 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
     For ``texting`` scenes every dialogue line is forced to phone-text
     medium (§11.13) regardless of the parenthetical's explicit medium.
 
-    The ``all_Events[...]`` entry lives in the centralised
+    The ``ALL_EVENTS[...]`` entry lives in the centralised
     ``_events.rpy`` produced by :func:`generate_events_rpy`.
     """
     lines: list[str] = []

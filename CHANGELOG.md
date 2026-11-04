@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Cinematic scenes register their event under TNH 0.9c.beta.28's
+  `ALL_EVENTS`.** beta.28 renamed the event registry from `all_Events`, so
+  the `_events.rpy` the compiler wrote stopped the game at launch
+  (`KeyError: 'all_Events'`). Projects built for 0.9c.beta.17 or 0.9b need
+  the old name.
 - **Effects that TNH 0.9c turned into functions compile to a Python call.**
   In 0.9c `bamf` and the character animations
   (`KurtWagner_animations_teleports_in`, `LauraKinney_animations_unsheathes_claws`,
