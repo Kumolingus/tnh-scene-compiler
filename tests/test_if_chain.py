@@ -136,11 +136,12 @@ def test_codegen_expression_with_function_call(allowlists: Allowlists) -> None:
 
 
 def test_codegen_friends_with_emits_list_argument(allowlists: Allowlists) -> None:
-    # Regression: are_Characters_friends() takes ONE iterable of characters,
+    # Regression: the friendship function takes ONE iterable of characters,
     # not two positional character args. The old codegen emitted
     # are_Characters_friends(JeanGrey, Rogue) — a lone CharacterClass bound
     # to the Iterable[CharacterClass] param, which never raises IndexError
     # under Python's __getitem__ iteration fallback and hangs the game.
+    # TNH 0.9c.beta.28 renamed it are_friends.
     src = _PREFIX + (
         "[[if JeanGrey.friends_with(Rogue)]]\n"
         "JEANGREY\nLine.\n"
@@ -150,7 +151,7 @@ def test_codegen_friends_with_emits_list_argument(allowlists: Allowlists) -> Non
     scene = parse(src, path = "inline.scene")
     output = generate(scene, allowlists, _CTX)
 
-    assert "are_Characters_friends([JeanGrey, Rogue])" in output
+    assert "are_friends([JeanGrey, Rogue])" in output
 
 
 def test_codegen_nearby_emits_a_listed_base_function(allowlists: Allowlists) -> None:

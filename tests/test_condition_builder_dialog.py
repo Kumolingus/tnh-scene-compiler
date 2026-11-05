@@ -261,17 +261,19 @@ def test_character_collection_param_defaults_to_everyone_present(
     assert clause._func_params[1].kind == PARAM_WIDGET_CHARACTER_SET
 
     clause._func_params[0].var.set("JeanGrey")
-    # A required collection leads with the form the game itself uses.
+    # A required collection leads with the form the game itself uses: the
+    # current room's own set (TNH 0.9c.beta.28 has no function for it).
     assert clause.get_condition() == (
-        "get_best_Friend(JeanGrey, get_present_Characters(get_Location()))"
+        "get_best_Friend(JeanGrey, Player.Location.Present)"
     )
 
     clause._func_params[1].mode_var.set(COLLECTION_MODE_VISIBLE)
-    clause._func_params[1].current_var.set(False)
-    clause._func_params[1].var.set('"Jean\'s Room"')
     assert clause.get_condition() == (
-        "get_best_Friend(JeanGrey, get_visible_Characters(\"Jean's Room\"))"
+        "get_best_Friend(JeanGrey, Player.Location.Visible)"
     )
+    # No room to pick: a condition can only name the one the player is in.
+    assert clause._func_params[1].current_var is None
+    assert clause._func_params[1].var is None
 
 
 def test_character_collection_param_builds_a_list_literal(
@@ -342,17 +344,21 @@ def test_bool_and_declared_choice_params_build_the_call(
 
 @pytest.fixture()
 def allow_location() -> Allowlists:
-    """A function taking a Location param, with sluglines to suggest."""
+    """A project function taking a Location param, with sluglines to suggest.
+
+    The base layer has none since TNH 0.9c.beta.28 (a location is an object
+    there), so this stands for a project's own helper.
+    """
     return Allowlists(
         characters=["JeanGrey", "Rogue"],
         characters_upper={"JEANGREY", "ROGUE"},
         locations={"Jean's Room": "loc_JeanRoom", "Danger Room": "loc_Danger"},
-        condition_functions={"get_present_Characters"},
+        condition_functions={"count_guests"},
         condition_function_signatures={
-            "get_present_Characters": "get_present_Characters(Location) -> set[Character]",
+            "count_guests": "count_guests(Location) -> int",
         },
-        condition_function_categories={"get_present_Characters": "Location"},
-        condition_function_labels={"get_present_Characters": "Characters present"},
+        condition_function_categories={"count_guests": "Location"},
+        condition_function_labels={"count_guests": "Guests in a room"},
     )
 
 
@@ -363,33 +369,33 @@ def test_location_param_defaults_to_current_then_takes_a_slugline(
 
     dlg = _make_dialog(tk_root, allow_location)
     clause = _panel(dlg, 0)
-    _select(clause, "Characters present")
+    _select(clause, "Guests in a room")
 
     field = clause._func_params[0]
     assert field.kind == PARAM_WIDGET_LOCATION
     # "Current location?" is on by default -> the current room, no typing needed.
     assert field.current_var.get() is True
-    assert clause.get_condition() == "get_present_Characters(get_Location())"
+    assert clause.get_condition() == "count_guests(Player.Location)"
 
     # Untick it and pick a slugline; it inserts quoted so it is a valid str arg.
     field.current_var.set(False)
     field.var.set('"Jean\'s Room"')
-    assert clause.get_condition() == 'get_present_Characters("Jean\'s Room")'
+    assert clause.get_condition() == 'count_guests("Jean\'s Room")'
 
 
 @pytest.fixture()
 def allow_optional_location() -> Allowlists:
-    """get_Location itself: an *optional* location parameter."""
+    """A project function with an *optional* location parameter."""
     return Allowlists(
         characters=["JeanGrey"],
         characters_upper={"JEANGREY"},
         locations={"Jean's Room": "loc_JeanRoom"},
-        condition_functions={"get_Location"},
+        condition_functions={"room_is_lit"},
         condition_function_signatures={
-            "get_Location": "get_Location(location: str | None = None) -> Location | None",
+            "room_is_lit": "room_is_lit(location: str | None = None) -> bool",
         },
-        condition_function_categories={"get_Location": "Location"},
-        condition_function_labels={"get_Location": "Get a location"},
+        condition_function_categories={"room_is_lit": "Location"},
+        condition_function_labels={"room_is_lit": "Room is lit"},
     )
 
 
@@ -398,17 +404,17 @@ def test_optional_location_current_omits_the_argument(
 ) -> None:
     dlg = _make_dialog(tk_root, allow_optional_location)
     clause = _panel(dlg, 0)
-    _select(clause, "Get a location")
+    _select(clause, "Room is lit")
     field = clause._func_params[0]
 
-    # Optional param + "Current location" on -> the arg is dropped, not nested:
-    # get_Location(), never get_Location(get_Location()).
+    # Optional param + "Current location" on -> the arg is dropped and the
+    # function falls back to the current room itself.
     assert field.omit_when_current is True
-    assert clause.get_condition() == "get_Location()"
+    assert clause.get_condition() == "room_is_lit()"
 
     field.current_var.set(False)
     field.var.set('"Jean\'s Room"')
-    assert clause.get_condition() == 'get_Location("Jean\'s Room")'
+    assert clause.get_condition() == 'room_is_lit("Jean\'s Room")'
 
 
 @pytest.fixture()
@@ -665,16 +671,16 @@ def allow_features() -> Allowlists:
             "JeanGrey": {"date", "flirt"},
             "CharlesXavier": {"chatting"},
         },
-        character_methods={"feature_enabled", "check_trait"},
+        character_methods={"is_feature_enabled", "check_trait"},
         character_method_signatures={
-            "feature_enabled": "Character.feature_enabled(feature_name: str) -> bool",
+            "is_feature_enabled": "Character.is_feature_enabled(feature: str) -> bool",
             "check_trait": "Character.check_trait(trait: str) -> bool",
         },
         character_method_categories={
-            "feature_enabled": "Features", "check_trait": "Traits",
+            "is_feature_enabled": "Features", "check_trait": "Traits",
         },
         character_method_param_choices={
-            "feature_enabled": {"feature_name": {"source": "features", "quote": True}},
+            "is_feature_enabled": {"feature": {"source": "features", "quote": True}},
             "check_trait": {"trait": {"source": "traits", "quote": True}},
         },
     )
@@ -690,7 +696,7 @@ def test_per_character_choices_follow_the_character(tk_root, allow_features) -> 
     clause = _panel(dlg, 0)
     _select(clause, "Character method (any)")
     clause._vars["method_category"].set("Features")
-    clause._vars["method_name"].set("feature_enabled")
+    clause._vars["method_name"].set("is_feature_enabled")
 
     clause._vars["character"].set("JeanGrey")
     clause._on_character_changed()
@@ -745,7 +751,7 @@ def test_switching_method_drops_the_destroyed_combo(tk_root, allow_features) -> 
     clause = _panel(dlg, 0)
     _select(clause, "Character method (any)")
     clause._vars["method_category"].set("Features")
-    clause._vars["method_name"].set("feature_enabled")
+    clause._vars["method_name"].set("is_feature_enabled")
     assert len(clause._per_char_choice_widgets) == 1
 
     clause._vars["method_category"].set("Traits")

@@ -250,11 +250,12 @@ def is_character_collection_param(name: str, type_hint: str) -> bool:
 def is_location_param(name: str, type_hint: str) -> bool:
     """Return ``True`` if a parsed parameter expects a single location.
 
-    Matches the bare ``Location`` / ``location`` name convention the condition
-    allowlist uses (e.g. ``get_present_Characters(Location)``) or an explicit
-    ``Location`` type hint. The base-game functions type these ``str |
-    LocationClass``, so a slugline **string** is a valid argument — the
-    Condition Builder offers the known sluglines (quoted) as suggestions.
+    Matches the bare ``Location`` / ``location`` name convention an allowlist
+    signature uses (e.g. ``count_guests(Location)``) or an explicit
+    ``Location`` type hint. No base-game condition function takes one since
+    TNH 0.9c.beta.28 (a location is an object there); for a project function
+    that takes a slugline **string**, the Condition Builder offers the known
+    sluglines (quoted) as suggestions.
     Container types (a set of locations) are excluded — free text there.
     """
     if name in ("Location", "location"):
@@ -397,7 +398,7 @@ def _read_collection_modes(item: dict[str, Any]) -> dict[str, str]:
     Which of the three forms a character-collection field opens on. The
     default is derived from the signature — a required collection is one
     the game fills from a location, so it leads with "present here" — and
-    that derivation is right for `are_Characters_friends` and
+    that derivation is right for `are_friends` and
     `needs_to_change` but wrong for a function asking about named
     characters, where it would silently ask "is everyone in the room …".
     Nothing in a signature distinguishes the two, so it is declared.
@@ -409,6 +410,40 @@ def _read_collection_modes(item: dict[str, Any]) -> dict[str, str]:
         return {}
     return {
         str(key): value.strip().lower()
+        for key, value in raw.items()
+        if isinstance(key, str) and isinstance(value, str) and value.strip()
+    }
+
+
+def _read_module(item: dict[str, Any]) -> str:
+    """Return an entry's ``module`` (a dotted Python module path), or ``""``.
+
+    Set for a function the game holds in a Python module without binding
+    it into the default store, where a compiled scene runs: the codegen
+    imports it from that module before the scene uses it. Anything that is
+    not a dotted identifier is ignored rather than emitted into an import
+    line.
+    """
+    raw = item.get("module")
+    if not isinstance(raw, str):
+        return ""
+    module = raw.strip()
+    if not all(part.isidentifier() for part in module.split(".")):
+        return ""
+    return module
+
+
+def _read_retired(payload: dict[str, Any] | None) -> dict[str, str]:
+    """Return a file's ``retired`` mapping: old name -> hint for the writer.
+
+    A name the game removed or renamed stays out of the callable set; the
+    validator shows its hint when a scene still uses it.
+    """
+    raw = payload.get("retired") if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        key: value.strip()
         for key, value in raw.items()
         if isinstance(key, str) and isinstance(value, str) and value.strip()
     }
@@ -598,7 +633,7 @@ class Allowlists:
         char_moods: Per-character mood additions (not including the shared).
         char_faces / char_outfits: one set per character.
         char_features: per-character feature names for
-            ``Character.feature_enabled("...")``. Genuinely per-character —
+            ``Character.is_feature_enabled("...")``. Genuinely per-character —
             the sets share no common value — so a consumer must resolve them
             against a selected character rather than flattening them.
         char_clothing_items: per-character clothing **inventory keys**
@@ -611,6 +646,13 @@ class Allowlists:
         looks: Global look values (``looks.yaml``). Same list for every
             character.
         stages: Global stage values (``stages.yaml``).
+        function_modules: condition function / run operation name -> the
+            Python module holding it, for a function the game keeps out of
+            its default store (an entry's ``module`` key). A compiled scene
+            that calls one imports it from there first.
+        retired_condition_functions / retired_character_methods: a name
+            the game removed or renamed -> the hint the validator shows
+            when a scene still uses it (each file's ``retired`` mapping).
     """
 
     characters: list[str] = field(default_factory=list)
@@ -661,6 +703,9 @@ class Allowlists:
     inventory_items: set[str] = field(default_factory=set)
     character_aliases: dict[str, str] = field(default_factory=dict)
     function_aliases: dict[str, str] = field(default_factory=dict)
+    function_modules: dict[str, str] = field(default_factory=dict)
+    retired_condition_functions: dict[str, str] = field(default_factory=dict)
+    retired_character_methods: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def load(cls, allowlists_dir: Path) -> Allowlists:
@@ -693,6 +738,9 @@ class Allowlists:
         run_operations: set[str] = set()
         run_operation_signatures: dict[str, str] = {}
         run_operation_categories: dict[str, str] = {}
+        # Shared by run operations and condition functions: both are called
+        # by bare name from a compiled scene, so both need the import.
+        function_modules: dict[str, str] = {}
         if run_operations_payload and isinstance(
             run_operations_payload.get("operations"), list,
         ):
@@ -705,6 +753,9 @@ class Allowlists:
                     cat = item.get("category")
                     if isinstance(cat, str):
                         run_operation_categories[item["name"]] = cat
+                    module = _read_module(item)
+                    if module:
+                        function_modules[item["name"]] = module
 
         # Engine-effects allowlist. Two layers, merged here (same pattern as
         # locations / interpolation):
@@ -781,6 +832,10 @@ class Allowlists:
                     collection_modes = _read_collection_modes(item)
                     if collection_modes:
                         condition_function_collection_modes[item["name"]] = collection_modes
+                    module = _read_module(item)
+                    if module:
+                        function_modules[item["name"]] = module
+        retired_condition_functions = _read_retired(condition_functions_payload)
 
         character_methods_payload = _read_yaml(
             allowlists_dir / "character_methods.yaml",
@@ -808,6 +863,7 @@ class Allowlists:
                     choices = _read_param_choices(item)
                     if choices:
                         character_method_param_choices[item["name"]] = choices
+        retired_character_methods = _read_retired(character_methods_payload)
 
         # Character-properties allowlist (hand-maintained). Read-only bare
         # attributes usable in a condition (``Character.desire >= 0.5``). Each
@@ -920,6 +976,9 @@ class Allowlists:
             inventory_items = inventory_items,
             character_aliases = character_aliases,
             function_aliases = function_aliases,
+            function_modules = function_modules,
+            retired_condition_functions = retired_condition_functions,
+            retired_character_methods = retired_character_methods,
         )
 
     # --- UI helpers ---------------------------------------------------------
@@ -1160,6 +1219,15 @@ class Allowlists:
             inventory_items=self.inventory_items | other.inventory_items,
             character_aliases={**self.character_aliases, **other.character_aliases},
             function_aliases={**self.function_aliases, **other.function_aliases},
+            function_modules={**self.function_modules, **other.function_modules},
+            retired_condition_functions={
+                **self.retired_condition_functions,
+                **other.retired_condition_functions,
+            },
+            retired_character_methods={
+                **self.retired_character_methods,
+                **other.retired_character_methods,
+            },
         )
 
     @classmethod

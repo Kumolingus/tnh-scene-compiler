@@ -80,7 +80,7 @@ _FUNC_CATEGORY_TO_TOP: dict[str, str] = {
 # individually, since the entry would duplicate the sugar check.
 #
 # Only an exact duplicate belongs here. check_approval and
-# are_Characters_friends were listed too, but each built-in reaches a strict
+# are_friends were listed too, but each built-in reaches a strict
 # subset: "Love / Trust check" emits one axis against a literal number, while
 # check_approval also does combined love+trust and named thresholds; the
 # "Friendship check" sugar hardcodes two characters and never emits `level`,
@@ -456,7 +456,7 @@ def default_collection_mode(pdefault: str, declared: str = "") -> str:
     failing: a typo in an allowlist should not empty the field.
 
     Otherwise it is derived. A **required** collection is one the game
-    itself fills from a location (`are_Characters_friends`,
+    itself fills from a location (`are_friends`,
     `needs_to_change`), so it leads with "present here". An
     **optional** one (it has a default, e.g. ``Arrivals = None``)
     starts on the explicit pick, because presuming everyone present would
@@ -591,7 +591,10 @@ def format_character_collection(characters: list[str]) -> str:
 
 # How a character-collection parameter is filled. "Pick characters" writes the
 # names out; the other two defer to the game, which is how these arguments are
-# actually produced at runtime.
+# actually produced at runtime: the current room's own sets. TNH 0.9c.beta.28
+# has no function for another room's (``get_present_Characters`` is gone) and
+# the [[if]] grammar has no attribute after a call, so "here" is the room the
+# player is in.
 COLLECTION_MODE_PICK: str = "Pick characters"
 COLLECTION_MODE_PRESENT: str = "Characters present here"
 COLLECTION_MODE_VISIBLE: str = "Characters visible here"
@@ -606,19 +609,18 @@ COLLECTION_MODE_BY_KEY: dict[str, str] = {
     "visible": COLLECTION_MODE_VISIBLE,
 }
 
-_COLLECTION_MODE_FUNCTIONS: dict[str, str] = {
-    COLLECTION_MODE_PRESENT: "get_present_Characters",
-    COLLECTION_MODE_VISIBLE: "get_visible_Characters",
+COLLECTION_MODE_EXPRESSIONS: dict[str, str] = {
+    COLLECTION_MODE_PRESENT: "Player.Location.Present",
+    COLLECTION_MODE_VISIBLE: "Player.Location.Visible",
 }
+
+# The current room, as the game names it.
+CURRENT_LOCATION: str = "Player.Location"
 
 
 def location_argument(current: bool, slugline: str) -> str:
-    """Render a location choice: the current room, or an explicit slugline.
-
-    Shared by the location parameter widget and the character-collection
-    modes, which ask the writer the same "here, or which room?" question.
-    """
-    return "get_Location()" if current else slugline
+    """Render a location choice: the current room, or an explicit slugline."""
+    return CURRENT_LOCATION if current else slugline
 
 
 def flow_text(text: str) -> str:
@@ -762,7 +764,7 @@ class _ParamField:
     char_vars: list[tuple[str, tk.BooleanVar]] | None = None
     current_var: tk.BooleanVar | None = None
     # Location only: this param takes an *optional* location, so "current" means
-    # "no argument" (drop it) rather than passing get_Location() explicitly.
+    # "no argument" (drop it) rather than passing Player.Location explicitly.
     omit_when_current: bool = False
     # Date only: the time-of-day period name (``var`` holds the day number).
     period_var: tk.StringVar | None = None
@@ -776,18 +778,16 @@ class _ParamField:
         """Return the current argument string (``""`` -> caller falls back to default)."""
         if self.kind == PARAM_WIDGET_CHARACTER_SET:
             mode = self.mode_var.get() if self.mode_var is not None else COLLECTION_MODE_PICK
-            func = _COLLECTION_MODE_FUNCTIONS.get(mode)
-            if func is not None:
-                current = self.current_var.get() if self.current_var is not None else True
-                slugline = self.var.get() if self.var is not None else ""
-                return f"{func}({location_argument(current, slugline)})"
+            expression = COLLECTION_MODE_EXPRESSIONS.get(mode)
+            if expression is not None:
+                return expression
             picked = [c for c, v in (self.char_vars or []) if v.get()]
             return format_character_collection(picked)
         if self.kind == PARAM_WIDGET_LOCATION and self.current_var is not None:
             if self.current_var.get():
                 # Optional param -> "" so it drops out (the assembler omits a
                 # trailing current-location arg); required -> the current room.
-                return "" if self.omit_when_current else "get_Location()"
+                return "" if self.omit_when_current else CURRENT_LOCATION
             return self.var.get() if self.var is not None else ""
         if self.kind == PARAM_WIDGET_DATE:
             if self.mode_var is not None and self.mode_var.get() == DATE_MODE_EVENT:
@@ -1237,7 +1237,7 @@ class _ConditionClausePanel(ttk.Frame):
         self._add_description(parent, row, "mood")
 
     def _params_friendship(self, parent: ttk.Frame) -> None:
-        # `A.friends_with(B)` becomes are_Characters_friends([A, B]) — both
+        # `A.friends_with(B)` becomes are_friends([A, B]) — both
         # sides are arguments, and friendships exist only between companions.
         row = self._add_character_field(parent, "Character", 0, as_argument=True)
         others = non_player_characters(self._characters)
@@ -1488,9 +1488,9 @@ class _ConditionClausePanel(ttk.Frame):
 
         The game fills these arguments from a location ("everyone in the
         room"), so that is what the field leads with — "Characters present
-        here" / "Characters visible here", each with the same "Current
-        location" toggle the location parameter uses, rendering
-        ``get_present_Characters(get_Location())``.
+        here" / "Characters visible here", rendering
+        ``Player.Location.Present`` / ``Player.Location.Visible``: the room
+        the player is in, the only one a condition can name.
 
         "Pick characters" names them instead. A wide row of checkbuttons for a
         large cast would fight the clause list's fixed width, so the picking
@@ -1523,21 +1523,15 @@ class _ConditionClausePanel(ttk.Frame):
         button = ttk.Button(pick_frame, width=22)
         button.grid(row=0, column=0, sticky=tk.W)
 
-        location_frame = ttk.Frame(holder)
-        location_frame.grid(row=2, column=0, sticky=tk.W, pady=(2, 0))
-        current_var, slug_var = self._build_location_controls(location_frame)
-
         def _refresh_label() -> None:
             chosen = sum(1 for _c, var in char_vars if var.get())
             button.configure(text=f"Choose…  ({chosen})" if chosen else "Choose…")
 
         def _toggle(*_a: object) -> None:
             if mode_var.get() == COLLECTION_MODE_PICK:
-                location_frame.grid_remove()
                 pick_frame.grid()
             else:
                 pick_frame.grid_remove()
-                location_frame.grid()
             self._notify_change()
 
         button.configure(
@@ -1552,7 +1546,7 @@ class _ConditionClausePanel(ttk.Frame):
         _toggle()
         return _ParamField(
             pname, pdefault, PARAM_WIDGET_CHARACTER_SET, char_vars=char_vars,
-            var=slug_var, current_var=current_var, mode_var=mode_var,
+            mode_var=mode_var,
         )
 
     def _open_character_set_picker(
@@ -1592,17 +1586,17 @@ class _ConditionClausePanel(ttk.Frame):
     ) -> _ParamField:
         """Build a location field: a "Current location?" toggle + slugline picker.
 
-        Ticked (the default) inserts ``get_Location()`` — the current room —
-        without the writer having to know that call. Unticked reveals an
-        editable dropdown of the known sluglines (inserted quoted, since the
-        base-game functions accept a slugline ``str``) and pre-selects the
+        Ticked (the default) inserts ``Player.Location`` — the current room —
+        without the writer having to know that name. Unticked reveals an
+        editable dropdown of the known sluglines (inserted quoted, for a
+        project function that takes a slugline ``str``) and pre-selects the
         first so the argument is never left empty.
         """
         holder = ttk.Frame(parent)
         holder.grid(row=row, column=1, sticky=tk.W, pady=1)
         current_var, var = self._build_location_controls(holder, initial=pdefault)
         # An optional location param (has a default, e.g. `location=None`) treats
-        # "current" as "no argument"; a required one passes get_Location().
+        # "current" as "no argument"; a required one passes Player.Location.
         return _ParamField(
             pname, pdefault, PARAM_WIDGET_LOCATION, var=var,
             current_var=current_var, omit_when_current=bool(pdefault.strip()),
@@ -1617,13 +1611,10 @@ class _ConditionClausePanel(ttk.Frame):
         """Grid a "Current location" toggle + slugline combo into *holder*.
 
         Ticked (the default) means the current room; unticked reveals an
-        editable dropdown of the known sluglines, inserted **quoted** (the
-        base-game functions accept a slugline ``str``) and pre-selected on the
-        first so the argument is never left empty. Returns the two vars —
+        editable dropdown of the known sluglines, inserted **quoted** (for a
+        project function that takes a slugline ``str``) and pre-selected on
+        the first so the argument is never left empty. Returns the two vars —
         :func:`location_argument` renders them.
-
-        Shared by the location parameter and the character-collection modes,
-        which ask the writer the same question.
         """
         current_var = tk.BooleanVar(value=True)
         var = tk.StringVar(value=initial)
@@ -1825,9 +1816,9 @@ class _ConditionClausePanel(ttk.Frame):
     def _is_omitted_location(field: _ParamField) -> bool:
         """True for an optional location arg left on "current" — dropped if trailing.
 
-        Keeps ``get_Location()`` from becoming ``get_Location(get_Location())``:
-        when an optional ``location`` param is on "Current location", the call
-        should simply omit it rather than pass the current room explicitly.
+        When an optional ``location`` param is on "Current location", the call
+        simply omits it and lets the function fall back to the current room,
+        rather than passing ``Player.Location`` explicitly.
         """
         return (
             field.kind == PARAM_WIDGET_LOCATION

@@ -28,7 +28,7 @@
 # not be harder to fill than the one next to it just because it duplicates
 # something. "Do not promote it" is not a reason to leave its form worse.
 source: TNH base game
-generated_at: '2026-05-13'
+generated_at: '2026-11-05'
 methods:
   # -- Traits (BaseClass / TraitClass) ------------------------------------
   - name: check_trait
@@ -42,8 +42,8 @@ methods:
       trait:
         source: traits
         quote: true
-    source_file: game/core/definitions/base.rpy
-    source_line: 91
+    source_file: game/core/base/traits.py
+    source_line: 148
   - name: get_trait
     category: Traits
     signature: "Character.get_trait(trait: str, default = None) -> Any"
@@ -55,8 +55,8 @@ methods:
       trait:
         source: traits
         quote: true
-    source_file: game/core/definitions/base.rpy
-    source_line: 99
+    source_file: game/core/base/traits.py
+    source_line: 161
 
   # -- Personality (CharacterClass) ---------------------------------------
   - name: check_personality
@@ -72,28 +72,28 @@ methods:
       trait:
         source: personalities
         quote: true
-    source_file: game/core/definitions/characters.rpy
-    source_line: 79
+    source_file: game/core/characters/base.py
+    source_line: 217
 
   # -- Mood and status (NPCClass) -----------------------------------------
   - name: is_in_normal_mood
     category: Mood and status
     signature: "Character.is_in_normal_mood(check_alone_time: bool = True) -> bool"
-    source_file: game/core/definitions/npcs.rpy
-    source_line: 93
+    source_file: game/core/characters/npcs.py
+    source_line: 150
   - name: get_status
     category: Mood and status
     signature: "Character.get_status() -> str | None"
-    source_file: game/core/definitions/npcs.rpy
-    source_line: 83
-  - name: default_mood
+    source_file: game/core/characters/npcs.py
+    source_line: 136
+  - name: get_default_mood
     category: Mood and status
-    signature: "Character.default_mood() -> str"
-    source_file: game/core/definitions/npcs.rpy
-    source_line: 102
+    signature: "Character.get_default_mood() -> str"
+    source_file: game/core/characters/npcs.py
+    source_line: 163
 
   # -- Relationships (NPCClass) -------------------------------------------
-  # Delegates straight to get_Characters_opinion (npcs.rpy:379), so it returns
+  # Delegates straight to get_friendship (npcs.py:435), so it returns
   # a FriendshipTier and NOT a raw score — the earlier "e.g. >= 50" note sent
   # writers toward a condition that can never be true (the scale tops out at 3).
   - name: get_friendship
@@ -104,15 +104,15 @@ methods:
       score. Scale: enemies=-2, rivals=-1, acquaintances=0, friends=1, good
       friends=2, best friends=3. Use the Compare row, e.g. `>= 2` for "at least
       good friends". One-directional: A's opinion of B is not B's opinion of A.
-      "Opinion of another (tier)" under Relationships is the same check with a
-      friendlier form.
-    source_file: game/core/definitions/npcs.rpy
-    source_line: 378
+      "Friendship, as one sees it (tier)" under Relationships is the same check
+      with a friendlier form.
+    source_file: game/core/characters/npcs.py
+    source_line: 435
 
   # -- Features (NPCClass) ------------------------------------------------
-  - name: feature_enabled
+  - name: is_feature_enabled
     category: Features
-    signature: "Character.feature_enabled(feature_name: str) -> bool"
+    signature: "Character.is_feature_enabled(feature: str) -> bool"
     notes: |
       True when the character supports a named feature (e.g. "date", "flirt",
       "texting", "sleepover"). The list is that character's own — the sets vary
@@ -120,20 +120,20 @@ methods:
       when you change the character above. A trait of the same name also
       counts, which is why the list is a suggestion and stays editable.
     param_choices:
-      feature_name:
+      feature:
         source: features
         quote: true
-    source_file: game/core/definitions/npcs.rpy
-    source_line: 443
+    source_file: game/core/characters/npcs.py
+    source_line: 537
 
   # -- History (via Character.History) -------------------------------------
-  # The tracker lists below are HistoryClass.TRACKER_NAMES (history.rpy:13),
+  # The tracker lists below are the HistoryTracker values (history.py:36),
   # kept in the source's declaration order (shortest window first). Quoted with
   # single quotes so the prefilled 'persistent' default matches an entry of the
   # dropdown it is shown in.
   - name: check
     category: History
-    signature: "Character.History.check(Item: str, tracker: str = 'persistent', after = 0) -> int"
+    signature: "Character.History.check(item: str, tracker: str = 'persistent', after = 0) -> int"
     notes: |
       How many times the character did this, as a COUNT — use the Compare row
       (e.g. `>= 2` for "at least twice"). The History check does the same thing
@@ -144,7 +144,7 @@ methods:
       season, chapter, week, day, or the current event. after is a day number —
       leave it at 0 for "no lower bound".
     param_choices:
-      Item:
+      item:
         source: history_events
         quote: true
       tracker:
@@ -159,8 +159,8 @@ methods:
         - "'chapter'"
         - "'persistent'"
         - "'permanent'"
-    source_file: game/core/definitions/history.rpy
-    source_line: 48
+    source_file: game/core/base/history.py
+    source_line: 165
   - name: check_when
     category: History
     signature: "Character.History.check_when(item: str, tracker: str = 'persistent') -> tuple[int, int, float]"
@@ -187,51 +187,54 @@ methods:
         - "'chapter'"
         - "'persistent'"
         - "'permanent'"
-    source_file: game/core/definitions/history.rpy
-    source_line: 67
+    source_file: game/core/base/history.py
+    source_line: 191
 
   # -- Inventory (via Character.Inventory) ---------------------------------
-  # ``filter`` is matched against the item's filter_type (inventory.rpy:103).
-  # The base game only ever sets two, and all 58 of its items set one — but an
-  # item with no filter_type would raise on `filter in None`, so a project
-  # adding items should keep setting it.
-  # ``string`` suggests both kinds of thing an inventory holds: plain items,
-  # keyed by Item.string (the flat inventory_items allowlist), and clothing,
-  # keyed by Item.tag (inventory.rpy:79-82) — i.e. "<Owner>_<id>", which is
+  # ``filter`` is matched as a substring of the item's filter_type
+  # (items.py:235). The base game only ever sets two; an item with no
+  # filter_type passes when filter is None and never matches a filter.
+  # ``tag`` suggests both kinds of thing an inventory holds: plain items,
+  # keyed by their ALL_ITEMS tag (the flat inventory_items allowlist), and
+  # clothing, keyed by its owner-qualified tag — i.e. "<Owner>_<id>", which is
   # what the per-character clothing_items allowlist carries. One lookup
   # reaches both, so the dropdown offers both.
   - name: get_active
     category: Inventory
-    signature: "Character.Inventory.get_active(string: str, filter: str | None = None, Owner: Any = False) -> bool"
+    signature: "Character.Inventory.get_active(tag: str, filter: str | None = None, Owner: Any = False) -> bool"
     notes: |
       Whether the character has this item and it is currently active (worn,
-      switched on…). string is the item's key, e.g. "flowers". Leave filter at
+      switched on…). tag is the item's key, e.g. "flowers". Leave filter at
       None unless you mean to narrow to gifts. Owner stays False for "anyone's
       copy"; give a character to require that they own it.
     param_choices:
-      string:
+      tag:
         source: inventory_strings
         quote: true
       filter:
         - "None"
         - '"gifts"'
         - '"key_gifts"'
-    source_file: game/core/definitions/inventory.rpy
-    source_line: 113
+    source_file: game/core/inventory/items.py
+    source_line: 259
   - name: get_number
     category: Inventory
-    signature: "Character.Inventory.get_number(string: str, filter: str | None = None, Owner: Any = False) -> int"
+    signature: "Character.Inventory.get_number(tag: str, filter: str | None = None, Owner: Any = False) -> int"
     notes: |
       How many of this item the character holds — a COUNT, so use the Compare
-      row (e.g. `>= 1` for "has at least one"). Same string / filter / Owner
+      row (e.g. `>= 1` for "has at least one"). Same tag / filter / Owner
       rules as the active check.
     param_choices:
-      string:
+      tag:
         source: inventory_strings
         quote: true
       filter:
         - "None"
         - '"gifts"'
         - '"key_gifts"'
-    source_file: game/core/definitions/inventory.rpy
-    source_line: 110
+    source_file: game/core/inventory/items.py
+    source_line: 256
+
+retired:
+  default_mood: "Renamed get_default_mood in TNH 0.9c.beta.28."
+  feature_enabled: "Renamed is_feature_enabled in TNH 0.9c.beta.28."

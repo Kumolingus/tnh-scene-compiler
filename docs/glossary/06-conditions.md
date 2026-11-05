@@ -154,9 +154,11 @@ What has already happened, and where things stand in the world:
 
 - **History** — `JeanGrey.did("kissed_player")` — yes/no, has this happened
   (written by the [record directive](#history)).
-- **Location** — `get_present_Characters(...)`, `get_Room_Owner(...)` — who's
-  where. Often used with `in`: `Rogue in get_present_Characters(...)`.
-- **Days since** — `get_time_since(date)` returns a number of days; compare it.
+- **Location** — `Player.Location.Present`, `Player.Location.Owner` — who is
+  in the room the player is in, and whose room it is. Often used with `in`:
+  `Rogue in Player.Location.Present`.
+- **Periods since** — `get_time_since(date)` counts time-of-day periods (4 per
+  day, not days); compare it, e.g. `>= 4` for about a day.
 
 ### Scene flags & world state
 

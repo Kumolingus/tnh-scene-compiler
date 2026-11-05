@@ -2,10 +2,10 @@
 
 A compiler that accepts in silence says the condition is fine. These calls
 are not merely unlikely — they are false whatever happens in the story,
-because `Player` is not in the game's `all_Characters` at all
-(`definitions.rpy` keeps `all_Characters_plus_Player` separate), so
-`register_Friendships` never records a tie involving it and `check_approval`
-opens with `if Character not in GameState.all_Companions: return 0`.
+because `Player` is not in the game's `ALL_CHARACTERS` at all (it keeps
+`ALL_CHARACTERS_PLUS_PLAYER` separate), so `register_Friendships` never
+records a tie involving it and `check_approval` opens with
+`if Character not in store.GameState.ALL_COMPANIONS: return 0`.
 
 The line is **argument versus subject**. `Player.History` (316 uses in the
 base game) and `Player.check_trait` (109) stay valid: the player is the
@@ -42,16 +42,15 @@ def _errors(condition: str, allow: Allowlists) -> list[str]:
 
 
 @pytest.mark.parametrize("condition", [
-    "are_Characters_friends([Player, JeanGrey])",
-    "are_Characters_friends([JeanGrey, Player], 2)",
+    "are_friends([Player, JeanGrey])",
+    "are_friends([JeanGrey, Player], 2)",
     'are_Characters_in_Partners([Player], False)',
     'check_approval(Player, None, "dating")',
     "get_effective_friendship(Player, JeanGrey) >= 2",
-    "get_Characters_opinion(JeanGrey, Player) >= 1",
+    "get_friendship(JeanGrey, Player) >= 1",
     "get_base_friendship(Player, JeanGrey) >= 1",
     "get_max_friendship(Player, JeanGrey) >= 1",
     "get_best_Friend(Player, [JeanGrey, Rogue])",
-    "get_worst_Enemy(JeanGrey, [Player, Rogue])",
     "is_close_by(Player)",
 ])
 def test_player_is_refused(condition: str, base_allow: Allowlists) -> None:
@@ -66,14 +65,14 @@ def test_player_is_refused(condition: str, base_allow: Allowlists) -> None:
     'Player.History.check("asked_on_date") > 0',
     'Player.check_trait("has_family")',
     # The ordinary forms must be untouched.
-    "are_Characters_friends([Rogue, JeanGrey])",
+    "are_friends([Rogue, JeanGrey])",
     "are_Characters_in_Partners([JeanGrey], False)",
     'check_approval(JeanGrey, None, "dating")',
     "get_effective_friendship(JeanGrey, Rogue) >= 2",
     # Not guarded: it reads Character.History, which the player has, so this
     # is a nonsensical question rather than an impossible one. Refusing it
     # would claim more than the base game supports.
-    "seen_Player_recently(Player)",
+    "has_seen_Player_recently(Player)",
 ])
 def test_legitimate_uses_still_validate(
     condition: str, base_allow: Allowlists,
@@ -84,7 +83,7 @@ def test_legitimate_uses_still_validate(
 def test_the_error_says_what_to_write_instead(base_allow: Allowlists) -> None:
     """A writer told only "no" has to guess; the two families differ."""
     scene = parse(
-        _HEAD + "[[if are_Characters_friends([Player, JeanGrey])]]\nOk.\n[[/if]]\n",
+        _HEAD + "[[if are_friends([Player, JeanGrey])]]\nOk.\n[[/if]]\n",
         path="c.scene",
     )
     relationship = validate(scene, base_allow)[0]
@@ -95,5 +94,5 @@ def test_the_error_says_what_to_write_instead(base_allow: Allowlists) -> None:
         path="c.scene",
     )
     proximity = validate(scene, base_allow)[0]
-    assert "get_present_Characters" in (proximity.hint or "")
+    assert "Player.Location.Present" in (proximity.hint or "")
     assert "check_approval" not in (proximity.hint or "")

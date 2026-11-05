@@ -73,7 +73,7 @@ Target: true
 JEANGREY
 You want to know what I think of [Target.name]?
 
-[[if are_Characters_friends([JeanGrey, Target])]]
+[[if are_friends([JeanGrey, Target])]]
 JEANGREY
 She's a friend. A good one.
 [[/if]]

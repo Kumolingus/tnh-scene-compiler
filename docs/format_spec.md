@@ -960,11 +960,13 @@ Each parameter picks its input widget automatically:
   character who does not support it. With no character selected, or one that has no declared set (a project may add its own), the union of
   every known set is offered rather than an empty dropdown. Every other source is the same list for everyone.
 - a single **`Character`** parameter → a character picker; a **`Character` collection** (a `Characters` / `*_Characters` name, or a container
-  type such as `Iterable[Character]` / `set[Character]`) → a multi-select that assembles a set literal (`{JeanGrey, Rogue}`).
+  type such as `Iterable[Character]` / `set[Character]`) → a choice of three forms: **Characters present here** (`Player.Location.Present`),
+  **Characters visible here** (`Player.Location.Visible`, which adds the background crowd) and **Pick characters**, a multi-select that
+  assembles a list literal (`[JeanGrey, Rogue]`). "Here" is the room the player is in: the game has no condition form for another room.
 - a single **location** parameter (a bare `Location` / `location` name, or a `Location` type) → a **"Current location?"** toggle. Ticked (the
-  default) targets the current room and hides the slugline dropdown; for a *required* location it inserts `get_Location()`, for an *optional*
-  one it simply omits the argument (so `get_Location()` never nests into `get_Location(get_Location())`). Unticked reveals an editable
-  dropdown of the known sluglines, inserted **quoted** (`"Jean's Room"`) since the base-game functions accept a slugline `str`.
+  default) targets the current room and hides the slugline dropdown; for a *required* location it inserts `Player.Location`, for an
+  *optional* one it simply omits the argument. Unticked reveals an editable dropdown of the known sluglines, inserted **quoted**
+  (`"Jean's Room"`), for a project function that takes a slugline `str`. No base-game condition function takes a location.
 - a **`bool`** parameter → a `True` / `False` picker.
 - a **`(day, time_index)` date** parameter (`tuple[int, int]`) → a plain-language **Day** number and a named **time-of-day** dropdown
   (Morning / Midday / Evening / Night / Late Night), assembled into the `(day, index)` tuple — so a writer is not faced with a raw
@@ -979,11 +981,21 @@ functions:
 - name: chance_of_repeat
   signature: "chance_of_repeat(History, item: str, ...) -> float"
   category: History
+  module: core.base             # not in the game's default store: imported by the compiled scene
   param_choices:
     item:                       # dynamic source: every known history event, quoted
       source: history_events
       quote: true
+retired:                        # old name -> what the validator tells a writer still using it
+  get_present_Characters: "Removed in TNH 0.9c.beta.28: the characters in the current room are Player.Location.Present."
 ```
+
+- **`module`** (condition functions and `run_operations.yaml` operations) names the Python module that holds a function the game does not
+  bind into its default store, where a compiled scene runs. A scene that calls one, in a condition or inside a `[[run]]` argument, compiles
+  with `from <module> import <name>` in an `init python:` block at the top of its `.rpy`. Leave it out for a name the store already has.
+- **`retired`** (top level of `condition_functions.yaml` and `character_methods.yaml`) maps a name the game removed or renamed to the hint
+  shown when a scene still uses it: the scene fails with "no longer exists in the game" and that hint, also when the name is called inside a
+  `[[run]]` argument. A name a project registers itself always wins over a retired one.
 
 #### arms/<Char>.yaml
 

@@ -530,7 +530,7 @@ def _arity_allowlists() -> Allowlists:
             ),
         },
         condition_functions = {
-            "ready_for_parenthood", "announcer_was_present", "are_Characters_friends",
+            "ready_for_parenthood", "announcer_was_present", "are_friends",
         },
         condition_function_signatures = {
             "ready_for_parenthood": (
@@ -539,8 +539,8 @@ def _arity_allowlists() -> Allowlists:
             "announcer_was_present": (
                 "pregnancy_mod_announcement_announcer_was_present() -> bool"
             ),
-            "are_Characters_friends": (
-                "are_Characters_friends(Characters, level: int = 1) -> bool"
+            "are_friends": (
+                "are_friends(Characters, level: int = 1) -> bool"
             ),
         },
     )
@@ -623,7 +623,7 @@ def test_condition_function_arity_too_many_is_rejected() -> None:
 
 
 def test_friends_with_sugar_transforms_to_single_list_arg_arity_ok() -> None:
-    # Regression: are_Characters_friends(Characters, level=1) requires 1
+    # Regression: are_friends(Characters, level=1) requires 1
     # arg minimum, 2 max. The DSL used to emit it as 2 separate positional
     # args (Character, Y) instead of one list [Character, Y] — this test
     # locks in the corrected 1-arg shape passing arity validation.

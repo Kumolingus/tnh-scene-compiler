@@ -8,6 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Conditions use TNH 0.9c.beta.28's names.** beta.28 renamed
+  `are_Characters_friends` to `are_friends`, `get_Characters_opinion` to
+  `get_friendship`, `seen_Player_recently` to `has_seen_Player_recently`, and
+  the methods `default_mood` and `feature_enabled` to `get_default_mood` and
+  `is_feature_enabled`; the condition list, the Condition Builder and
+  `X.friends_with(Y)` now write the new names. `are_friends` reads each
+  character's opinion of the whole group, the game's own test for its group
+  scenes.
+- **`get_time_since`, `chance_of_repeat` and `get_max_friendship` work on
+  TNH 0.9c.beta.28.** The game still has them but no longer makes them
+  available to scenes, so a scene using one raised `NameError` in play. A
+  compiled scene that uses one now imports it at the top of its `.rpy`,
+  including in a `[[run]]` argument or a value said in a line.
+- **"Characters present here" and "Characters visible here" read the room
+  the player is in.** beta.28 removed `get_present_Characters`,
+  `get_visible_Characters`, `get_Room_Owner` and `get_Location`, so the
+  Condition Builder now writes `Player.Location.Present` and
+  `Player.Location.Visible`. It no longer offers another room: the game has
+  no condition for one, and the old form always read that room as empty.
+  Whose room it is: `Player.Location.Owner == JeanGrey`. `get_worst_Enemy` is
+  gone, with no replacement.
+- **A scene still using a removed name says what replaced it.** It fails to
+  compile with "no longer exists in the game" and the new form (also inside
+  a `[[run]]` argument), instead of suggesting a similar-looking name or
+  crashing in play.
 - **Cinematic scenes register their event under TNH 0.9c.beta.28's
   `ALL_EVENTS`.** beta.28 renamed the event registry from `all_Events`, so
   the `_events.rpy` the compiler wrote stopped the game at launch

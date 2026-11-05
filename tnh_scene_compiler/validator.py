@@ -760,6 +760,7 @@ def _validate_run(
             ),
         ))
         return
+    _reject_retired_calls_in_run(node, allow, errors, path)
     arity_error = _arity_error(
         kind = "[[run]] operation",
         name = node.target_name,
@@ -771,6 +772,52 @@ def _validate_run(
     )
     if arity_error is not None:
         errors.append(arity_error)
+
+
+def _reject_retired_calls_in_run(
+    node: Run,
+    allow: Allowlists,
+    errors: list[CompileError],
+    path: str,
+) -> None:
+    """Refuse a retired function called inside a ``[[run]]`` argument.
+
+    Only the operation itself is checked against an allowlist — its
+    arguments may call a project's own helpers, which no list knows — so a
+    name the game removed (``get_present_Characters(...)`` handed to
+    ``needs_to_change``) would otherwise compile and raise ``NameError`` in
+    play. A registered name always wins: a project may define its own
+    function under a name the game retired.
+    """
+    retired = allow.retired_condition_functions
+    if not retired:
+        return
+    for call in _collect_calls(parse_expression(node.call_text)):
+        if not isinstance(call.target, Name):
+            continue
+        name = call.target.name
+        if name in retired and name not in allow.condition_functions | allow.run_operations:
+            errors.append(_retired_name_error(
+                "Function", name, retired[name], path, node.line, node.col,
+            ))
+
+
+def _retired_name_error(
+    kind: str,
+    name: str,
+    hint: str,
+    path: str,
+    line: int,
+    col: int,
+) -> CompileError:
+    """The error for a name the game no longer has, with what replaced it."""
+    return CompileError(
+        path = path,
+        line = line,
+        col = col,
+        message = f"{kind} {name!r} no longer exists in the game.",
+        hint = hint,
+    )
 
 
 def _validate_give_trait(
@@ -1140,6 +1187,13 @@ def _validate_standalone_call(
         ))
         return
     if func_name not in allow.condition_functions:
+        if func_name in allow.retired_condition_functions:
+            errors.append(_retired_name_error(
+                "Condition function", func_name,
+                allow.retired_condition_functions[func_name],
+                path, line, call.col_offset,
+            ))
+            return
         suggestions = allow.suggest_condition_function(func_name)
         hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
         errors.append(CompileError(
@@ -1170,13 +1224,16 @@ def _validate_standalone_call(
 # Functions the base game structurally excludes the player from. Passing
 # ``Player`` is a category error rather than a value that happens to fail:
 #
-#  * `Player` is not in `all_Characters` (`definitions.rpy` keeps
-#    `all_Characters_plus_Player` separate), so it is not in `all_Companions`,
-#    so `register_Friendships` never records a tie involving it — the seven
-#    friendship functions return tier 0 for it, forever;
-#  * `check_approval` opens with `if Character not in GameState.all_Companions:
-#    return 0`, and love/trust already measure how a companion feels about the
-#    player, so there is nothing to name;
+#  * `Player` is not in `ALL_CHARACTERS` (the game keeps
+#    `ALL_CHARACTERS_PLUS_PLAYER` separate), so it is not in `ALL_COMPANIONS`,
+#    so `register_Friendships` never records a tie involving it — the
+#    friendship functions return tier 0 for it, forever, and `are_friends`
+#    is False for any group that includes it (the player's own opinion of
+#    the others is read as nil);
+#  * `check_approval` opens with `if Character not in
+#    store.GameState.ALL_COMPANIONS: return 0` (core/characters/approval.py),
+#    and love/trust already measure how a companion feels about the player,
+#    so there is nothing to name;
 #  * `Partners` *is* the player's own set of partners;
 #  * `is_close_by` tests the three on-screen sprite slots, which the player is
 #    never in.
@@ -1184,7 +1241,7 @@ def _validate_standalone_call(
 # Every one of them fails silently — no exception, a valid-looking condition
 # that is simply always false. Across ~2000 calls the base game never passes
 # `Player` to one of these, and no mod can change that without rewriting the
-# game's own data structures. `seen_Player_recently` is deliberately absent:
+# game's own data structures. `has_seen_Player_recently` is deliberately absent:
 # it reads `Character.History`, which the player does have, so it is merely a
 # nonsensical question rather than an impossible one.
 # Mapped to the redirection each one needs: a writer told only "no" has to
@@ -1197,18 +1254,17 @@ _RELATIONSHIP_HINT = (
 )
 _PROXIMITY_HINT = (
     "The player is always where the player is. To ask about the room, use "
-    "get_present_Characters() or get_visible_Characters()."
+    "Player.Location.Present or Player.Location.Visible."
 )
 _PLAYER_EXCLUDING_FUNCTIONS: dict[str, str] = {
-    "are_Characters_friends": _RELATIONSHIP_HINT,
     "are_Characters_in_Partners": _RELATIONSHIP_HINT,
+    "are_friends": _RELATIONSHIP_HINT,
     "check_approval": _RELATIONSHIP_HINT,
     "get_base_friendship": _RELATIONSHIP_HINT,
     "get_best_Friend": _RELATIONSHIP_HINT,
-    "get_Characters_opinion": _RELATIONSHIP_HINT,
     "get_effective_friendship": _RELATIONSHIP_HINT,
+    "get_friendship": _RELATIONSHIP_HINT,
     "get_max_friendship": _RELATIONSHIP_HINT,
-    "get_worst_Enemy": _RELATIONSHIP_HINT,
     "is_close_by": _PROXIMITY_HINT,
 }
 
@@ -1284,6 +1340,13 @@ def _validate_method_call(
         ))
         return
     if method_name not in allow.character_methods:
+        if method_name in allow.retired_character_methods:
+            errors.append(_retired_name_error(
+                "Character method", method_name,
+                allow.retired_character_methods[method_name],
+                path, line, call.col_offset,
+            ))
+            return
         suggestions = allow.suggest_character_method(method_name)
         hint = f"Did you mean: {', '.join(suggestions)}?" if suggestions else None
         errors.append(CompileError(

@@ -11,7 +11,7 @@ The tool serves every TNH mod creator, not one mod: no rule here encodes a parti
 
 ## Commands
 
-- Tests: `python -m pytest tests/ -q` — 1000 tests, **0 skipped**: read both numbers.
+- Tests: `python -m pytest tests/ -q` — 1010 tests, **0 skipped**: read both numbers.
 - CLI (`compile`, `validate`, `init`), GUI, allowlist refresh, cheatsheet, thumbnail import, release build: `docs/dev_guide.md`.
 - Build: `pyinstaller tnh_scene_compiler.spec`. Release: push a `v*` tag to trigger `.github/workflows/release.yml`.
 - Thumbnails are not bundled in the exe: `scripts/build_release.py` ships `thumbnails.zip`, to unzip next to the exe after every build (the script wipes `dist/`).

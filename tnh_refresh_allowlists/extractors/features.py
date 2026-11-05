@@ -14,7 +14,7 @@ The sets are genuinely per-character and share no common value: in the
 2026-07 build they range from 2 entries (CharlesXavier) to 23 (Rogue), which
 is why this is extracted per character rather than as one flat list.
 
-``Character.feature_enabled(name)`` also answers True for a *trait* of the
+``Character.is_feature_enabled(name)`` also answers True for a *trait* of the
 same name, but traits carry their own allowlist — only the declared feature
 sets are collected here.
 """

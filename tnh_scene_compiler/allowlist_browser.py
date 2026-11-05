@@ -247,7 +247,7 @@ ALLOWLIST_TOPICS: tuple[AllowlistTopic, ...] = (
         filename="features", item_key="values",
         per_character=True, has_shared=False, maintenance=MAINTENANCE_GENERATED,
         summary=(
-            "Feature names for the Character.feature_enabled(\"...\") condition, "
+            "Feature names for the Character.is_feature_enabled(\"...\") condition, "
             "one set per character — they share no common value."
         ),
     ),

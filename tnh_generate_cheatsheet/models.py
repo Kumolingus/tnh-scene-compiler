@@ -43,7 +43,7 @@ class CharacterData:
         arms_right: Right-arm values (YAML ``right_arm`` subgroup).
         outfits: All outfit values for this character.
         features: Feature names this character supports, for the
-            ``Character.feature_enabled("...")`` condition. Unlike the others
+            ``Character.is_feature_enabled("...")`` condition. Unlike the others
             these vary widely between characters and share no common value.
     """
 

@@ -10,6 +10,9 @@ Output skeleton::
 
     # Auto-generated from <path>. Do not edit by hand.
 
+    init python:                         # only when a called function
+        from <module> import <name>      # declares a ``module``
+
     define ALL_EVENTS["<scene_id>"] = {
         "conditions": "<conditions>",
         "flags": {"<trigger>"},
@@ -576,6 +579,98 @@ def _collect_condition_specs(body, allow: Allowlists) -> list[dict[str, object]]
 
 
 # --- Called-scenes collection (testing-hub chain enumeration) ---------------
+
+
+# --- Imports of module-held functions ----------------------------------------
+
+
+def _called_function_names(expr) -> set[str]:
+    """Return every bare function name ``expr`` calls, nested calls included."""
+    if isinstance(expr, Call):
+        names = {expr.target.name} if isinstance(expr.target, Name) else set()
+        for arg in expr.args:
+            names |= _called_function_names(arg)
+        return names
+    if isinstance(expr, BoolOp):
+        return set().union(*(_called_function_names(o) for o in expr.operands))
+    if isinstance(expr, UnaryNot):
+        return _called_function_names(expr.operand)
+    if isinstance(expr, Compare):
+        names = _called_function_names(expr.left)
+        for _op, right in expr.ops_and_rights:
+            names |= _called_function_names(right)
+        return names
+    if isinstance(expr, Member):
+        return _called_function_names(expr.left) | _called_function_names(expr.right)
+    if isinstance(expr, ListExpr):
+        return set().union(*(_called_function_names(e) for e in expr.elements))
+    return set()
+
+
+def _collect_module_imports(body, allow: Allowlists) -> dict[str, list[str]]:
+    """Return ``{module: [names]}`` for each module-held function the scene calls.
+
+    A compiled scene runs in the game's default store, and since TNH
+    0.9c.beta.28 some functions a condition may call live in a Python
+    module the store does not import (``core.time.get_time_since``). The
+    allowlist names that module (``Allowlists.function_modules``); the
+    scene file then imports the name itself, the way the game's own
+    ``.rpy`` files do. Conditions are read after the DSL rewrite, so a
+    sugar that compiles to such a call counts; ``[[run]]`` text is read
+    too, since its arguments may call one, and so is every ``[fn(...)]``
+    a line of dialogue, narration or a choice option says.
+    """
+    if not allow.function_modules:
+        return {}
+    names: set[str] = set()
+
+    def visit_condition(condition) -> None:
+        names.update(_called_function_names(
+            dsl_transform(condition, allow.character_aliases, allow.function_aliases),
+        ))
+
+    def visit_text(text: str) -> None:
+        for inner, _col in iter_interpolations(text):
+            if "(" not in inner:
+                continue
+            try:
+                names.update(_called_function_names(parse_expression(inner.strip())))
+            except CompileError:
+                continue  # the validator reports it
+
+    def visit(nodes) -> None:
+        for node in nodes:
+            if isinstance(node, IfChain):
+                for branch in node.branches:
+                    if branch.condition is not None:
+                        visit_condition(branch.condition)
+                    visit(branch.body)
+            elif isinstance(node, Choice):
+                for option in node.options:
+                    if option.condition is not None:
+                        visit_condition(option.condition)
+                    visit_text(option.text)
+                    visit(option.body)
+            elif isinstance(node, Run):
+                names.update(_called_function_names(parse_expression(node.call_text)))
+            elif isinstance(node, (DialogueBlock, NarrationBlock)):
+                visit_text(node.text)
+
+    visit(body)
+    imports: dict[str, list[str]] = {}
+    for name in sorted(names):
+        module = allow.function_modules.get(name)
+        if module:
+            imports.setdefault(module, []).append(name)
+    return dict(sorted(imports.items()))
+
+
+def _emit_module_imports(imports: dict[str, list[str]]) -> list[str]:
+    """Return the ``init python:`` block binding *imports* into the default store."""
+    lines = ["init python:"]
+    for module, names in imports.items():
+        lines.append(f"{_INDENT}from {module} import {', '.join(names)}")
+    return lines
 
 
 def _collect_called_scenes(body) -> list[str]:
@@ -1506,6 +1601,11 @@ def generate(scene: Scene, allow: Allowlists, ctx: CodegenContext) -> str:
     lines.append("")
 
     tp = scene.title_page
+
+    module_imports = _collect_module_imports(scene.body, allow)
+    if module_imports:
+        lines.extend(_emit_module_imports(module_imports))
+        lines.append("")
 
     # Testing-hub metadata — declared at module scope so the per-scene
     # entries aggregate into ``{project_prefix}_scene_metadata`` at boot.

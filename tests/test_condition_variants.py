@@ -155,7 +155,7 @@ def test_functions_without_variants_are_unaffected(
 ) -> None:
     friends = [
         e for e in _relationship_entries(base_allow)
-        if e.target == "are_Characters_friends"
+        if e.target == "are_friends"
     ]
     assert len(friends) == 1
     assert friends[0].variant == -1

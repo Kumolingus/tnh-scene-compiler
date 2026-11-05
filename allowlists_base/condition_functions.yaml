@@ -15,16 +15,29 @@
 # no generic "any function" list behind it.
 # ``label`` is the friendly display name shown there (falls back to the
 # function name). Both optional.
+#
+# ``module`` names the Python module that holds a function the game does
+# not bind into its default store. A compiled scene runs in that store, so
+# for such an entry the compiled file opens with
+# ``from <module> import <name>`` in an ``init python`` block, the way the
+# game's own .rpy files reach the same functions. Leave it out for a name the
+# store already has (TNH binds most of them in game/definitions/core.rpy).
+#
+# ``retired`` maps a name the game removed or renamed to the hint the
+# validator shows when a scene still uses it: a writer upgrading an older
+# scene learns what replaced it instead of being offered a near-miss
+# spelling. A retired name is not callable.
 source: TNH base game
-generated_at: '2026-05-13'
+generated_at: '2026-11-05'
 functions:
   # -- Approval -------------------------------------------------------------
-  # The real function takes three more parameters (extra_condition, multiplier,
-  # default) that are deliberately not declared here: every declared parameter
-  # is emitted into the call, so exposing them would write
-  # `check_approval(A, None, 500, None, 1.0, (0, 0))` for no gain. The defaults
-  # below are load-bearing for the same reason — without them the builder emits
-  # an empty argument (`check_approval(A, , )`) when a field is left untouched.
+  # The real function takes five more parameters (extra_condition, multiplier,
+  # default, gate, public) that are deliberately not declared here: every
+  # declared parameter is emitted into the call, so exposing them would write
+  # `check_approval(A, None, 500, None, 1.0, (0, 0), True, False)` for no gain.
+  # The defaults below are load-bearing for the same reason — without them
+  # the builder emits an empty argument (`check_approval(A, , )`) when a field
+  # is left untouched.
   - name: check_approval
     category: Approval
     label: "Love / trust (combined or by tier)"
@@ -50,26 +63,29 @@ functions:
         - '"dating"'
         - '"relationship"'
         - '"love"'
-    source_file: game/core/mechanics/approval.rpy
-    source_line: 16
+    source_file: game/core/characters/approval.py
+    source_line: 220
 
   # -- Relationships ----------------------------------------------------------
-  - name: are_Characters_friends
+  - name: are_friends
     category: Relationships
     label: "Friends (a group, at a tier)"
-    signature: "are_Characters_friends(Characters, level: int = 1) -> bool"
+    signature: "are_friends(Characters, level: int = 1) -> bool"
     notes: |
-      True when EVERY pair in the group is friends at least at `level`. The
-      simple Friendship check is this function with two characters at level 1;
-      use this one to check a whole group, or to demand more than plain
+      True when EVERY character's opinion of the rest of the group reaches
+      `level`. An opinion is the game's own measure: the friendship tier,
+      softened by attraction and lowered by jealousy over the player's
+      partners, then pulled toward the member liked least. The simple
+      Friendship check is this function with two characters at level 1; use
+      this one to check a whole group, or to demand more than plain
       friendship. Scale: 1 friends, 2 good friends, 3 best friends.
     param_choices:
       level:
         - "1"
         - "2"
         - "3"
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 15
+    source_file: game/core/friendships/mechanics.py
+    source_line: 295
   # Two entries, not one. `knows_about` does not refine the question, it
   # replaces it: left at the game's default the call also walks every OTHER
   # partner and fails on the first one who has not been told about the
@@ -81,7 +97,7 @@ functions:
   #
   # `Characters` is declared "pick" because this function asks about named
   # characters. The signature-derived default (a required collection leads
-  # with "everyone present here") is right for are_Characters_friends and
+  # with "everyone present here") is right for are_friends and
   # needs_to_change, and here would ask "is everyone in the room my
   # partner".
   - name: are_Characters_in_Partners
@@ -113,8 +129,8 @@ functions:
           same as the plain check, with two it also asks whether the player
           has come clean. It is False while a disclosure is still pending,
           even though the relationship itself is real.
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 24
+    source_file: game/core/friendships/mechanics.py
+    source_line: 304
   - name: get_best_Friend
     category: Relationships
     label: "Best friend (of a group)"
@@ -123,18 +139,8 @@ functions:
       Of the characters in the group, the one the first character likes most
       (highest effective friendship). Returns a Character, or None when the
       group is empty — in an [[if]] it is truthy once someone qualifies.
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 53
-  - name: get_worst_Enemy
-    category: Relationships
-    label: "Worst enemy (of a group)"
-    signature: "get_worst_Enemy(Character, Characters) -> Character | None"
-    notes: |
-      Of the characters in the group, the one the first character likes least
-      (lowest effective friendship). Returns a Character, or None when the
-      group is empty.
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 72
+    source_file: game/core/friendships/mechanics.py
+    source_line: 350
   # The 4 below return a FriendshipTier (IntEnum: Enemies=-2, Rivals=-1,
   # Acquaintances=0, Friends=1, GoodFriends=2, BestFriends=3), so a writer
   # compares against a plain integer, e.g. get_effective_friendship(A, B)
@@ -148,29 +154,31 @@ functions:
     label: "Effective friendship (tier)"
     signature: "get_effective_friendship(A: Character, B: Character) -> FriendshipTier"
     notes: |
-      Returns a tier number — use the Compare row (e.g. `>= 2`). Scale:
-      enemies=-2, rivals=-1, acquaintances=0, friends=1, good friends=2,
-      best friends=3.
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 115
-  - name: get_Characters_opinion
+      The pair's tier after the stronger side's animosity. Returns a tier
+      number — use the Compare row (e.g. `>= 2`). Scale: enemies=-2,
+      rivals=-1, acquaintances=0, friends=1, good friends=2, best friends=3.
+    source_file: game/core/friendships/mechanics.py
+    source_line: 162
+  - name: get_friendship
     category: Relationships
-    label: "Opinion of another (tier)"
-    signature: "get_Characters_opinion(A: Character, B: Character) -> FriendshipTier"
+    label: "Friendship, as one sees it (tier)"
+    signature: "get_friendship(A: Character, B: Character) -> FriendshipTier"
     notes: |
-      A's opinion of B (one-directional, not symmetric). Returns a tier
-      number — use the Compare row. Scale: enemies=-2 ... best friends=3.
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 102
+      The tier as A sees it, after A's own animosity (one-directional, not
+      symmetric: how A sees B is not how B sees A). Returns a tier number —
+      use the Compare row. Scale: enemies=-2 ... best friends=3.
+    source_file: game/core/friendships/mechanics.py
+    source_line: 155
   - name: get_base_friendship
     category: Relationships
     label: "Base friendship (tier)"
     signature: "get_base_friendship(A: Character, B: Character) -> FriendshipTier"
     notes: |
-      Baseline tier before temporary mood swings. Returns a tier number —
-      use the Compare row. Scale: enemies=-2 ... best friends=3.
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 123
+      The pair's tier from the friendship score alone, ignoring animosity.
+      Returns a tier number — use the Compare row. Scale: enemies=-2 ...
+      best friends=3.
+    source_file: game/core/friendships/mechanics.py
+    source_line: 169
   - name: get_max_friendship
     category: Relationships
     label: "Max friendship reached (tier)"
@@ -178,58 +186,35 @@ functions:
     notes: |
       Highest tier the pair ever reached. Returns a tier number — use the
       Compare row. Scale: enemies=-2 ... best friends=3.
-    source_file: game/core/mechanics/friendship.rpy
-    source_line: 131
+    module: core.friendships
+    source_file: game/core/friendships/mechanics.py
+    source_line: 176
 
   # -- Character status ---------------------------------------------------
-  - name: seen_Player_recently
+  - name: has_seen_Player_recently
     category: Character status
     label: "Seen the player recently"
-    signature: "seen_Player_recently(Character) -> bool"
+    signature: "has_seen_Player_recently(Character) -> bool"
     notes: |
-      True if the character has seen the player this time-of-day period or the
-      previous one — TNH has 4 periods per day, so "recently" means the current
-      or last period, not a number of days.
-    source_file: game/core/mechanics/utilities.rpy
-    source_line: 143
+      True if the character has seen the player more than once recently, or
+      at all in the last time-of-day period outside the morning — TNH has 4
+      periods per day, so "recently" means the current or last period, not a
+      number of days.
+    source_file: game/core/characters/utilities.py
+    source_line: 105
   - name: is_close_by
     category: Character status
     signature: "is_close_by(Character) -> bool"
-    source_file: game/core/characters/utilities.rpy
-    source_line: 40
+    source_file: game/core/characters/utilities.py
+    source_line: 95
 
   # -- Location -----------------------------------------------------------
-  - name: get_Location
-    category: Location
-    label: "Get a location"
-    signature: "get_Location(location: str | None = None) -> Location | None"
-    source_file: game/core/mechanics/utilities.rpy
-    source_line: 243
-  - name: get_Room_Owner
-    category: Location
-    label: "Room owner"
-    signature: "get_Room_Owner(location: str | None = None) -> Character | None"
-    source_file: game/core/mechanics/utilities.rpy
-    source_line: 258
-  - name: get_present_Characters
-    category: Location
-    label: "Characters present"
-    signature: "get_present_Characters(Location) -> set[Character]"
-    notes: |
-      The set of characters physically present at a location. Location is
-      required: pick a slugline (e.g. "Jean's Room") or type get_Location()
-      for the current room. In an [[if]] the set is truthy when not empty.
-    source_file: game/core/mechanics/characters.rpy
-    source_line: 5
-  - name: get_visible_Characters
-    category: Location
-    label: "Characters visible"
-    signature: "get_visible_Characters(Location) -> set[Character]"
-    notes: |
-      Like "Characters present", plus background characters (minus silhouettes)
-      at the location. Same Location argument rules.
-    source_file: game/core/mechanics/characters.rpy
-    source_line: 32
+  # No function here: TNH 0.9c.beta.28 reads the room through attributes of
+  # the location object, which a condition can use directly —
+  # `JeanGrey in Player.Location.Present` (in the room),
+  # `Player.Location.Visible` (plus the background crowd),
+  # `Player.Location.Owner == JeanGrey` (whose room it is). The Condition
+  # Builder writes the first two for a character-collection parameter.
 
   # -- Time ---------------------------------------------------------------
   - name: get_time_since
@@ -244,10 +229,13 @@ functions:
       is read from her history. Careful: an event that never happened reads as
       a very long time ago, so check it happened at all first. The "specific
       day" form is for a day number you already have.
-    source_file: game/core/mechanics/time.rpy
-    source_line: 3
+    module: core.time
+    source_file: game/core/time/utilities.py
+    source_line: 117
 
   # -- Clothing (writer-facing checks) ------------------------------------
+  # The game's trailing `travel` parameter is not declared: every declared
+  # parameter is emitted, and its default (False) is what a condition wants.
   - name: needs_to_change
     category: Clothing
     label: "Needs to change clothes"
@@ -260,8 +248,8 @@ functions:
       question. The game's own default is False, which actually PLAYS the
       change / cleanup interaction — to do that on purpose, use
       [[run needs_to_change(...)]] instead of an [[if]].
-    source_file: game/core/clothing/appropriateness.rpy
-    source_line: 42
+    source_file: game/core/clothing/appropriateness.py
+    source_line: 103
 
   # -- History ------------------------------------------------------------
   - name: chance_of_repeat
@@ -271,10 +259,11 @@ functions:
     notes: |
       Returns a probability (0..1), not a yes/no: how likely a repeatable event
       should fire again, growing the longer since it last happened. It is 0
-      right after the event, then rises to limit_day_chance (default 1.0) by
-      limit_day days (default 5). Use it to space out a repeat — compare it
-      (e.g. >= 0.5) or roll against it in mod code. Pick whose history to read
-      in the History row; item is picked from the known history events.
+      on the day of the event, then rises from chance (default 0) to
+      limit_day_chance (default 1.0) over limit_day days (default 5). Use it
+      to space out a repeat — compare it (e.g. >= 0.5) or roll against it in
+      mod code. Pick whose history to read in the History row; item is picked
+      from the known history events.
     param_choices:
       History:
         source: characters
@@ -282,5 +271,16 @@ functions:
       item:
         source: history_events
         quote: true
-    source_file: game/core/base/history.rpy
-    source_line: 146
+    module: core.base
+    source_file: game/core/base/history.py
+    source_line: 17
+
+retired:
+  are_Characters_friends: "Renamed are_friends in TNH 0.9c.beta.28, which now reads each character's opinion of the group."
+  get_Characters_opinion: "Renamed get_friendship in TNH 0.9c.beta.28."
+  seen_Player_recently: "Renamed has_seen_Player_recently in TNH 0.9c.beta.28."
+  get_worst_Enemy: "Removed in TNH 0.9c.beta.28, with no replacement."
+  get_Location: "Removed from conditions in TNH 0.9c.beta.28, where a location is an object: the current room is Player.Location."
+  get_present_Characters: "Removed in TNH 0.9c.beta.28: the characters in the current room are Player.Location.Present."
+  get_visible_Characters: "Removed in TNH 0.9c.beta.28: use Player.Location.Visible (the room plus its background crowd)."
+  get_Room_Owner: "Removed in TNH 0.9c.beta.28: use Player.Location.Owner, e.g. Player.Location.Owner == JeanGrey."

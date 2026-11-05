@@ -12,7 +12,7 @@ Supported rewrites:
     Character.has("x")       → Character.check_trait("x")
     Character.mood == "normal" → Character.is_in_normal_mood()
     Character.mood == "x"    → Character.get_status() == "x"
-    Character.friends_with(Y) → are_Characters_friends([Character, Y])
+    Character.friends_with(Y) → are_friends([Character, Y])
     Character.did("event")   → Character.History.check("event") > 0
     Character.nearby         → is_close_by(Character)
     Character.personality("t") → Character.check_personality("t")
@@ -239,15 +239,15 @@ def _transform_call(
                 col_offset=node.col_offset,
             )
 
-        # Character.friends_with(Y) → are_Characters_friends([Character, Y])
-        # are_Characters_friends() takes a single iterable of characters, not
+        # Character.friends_with(Y) → are_friends([Character, Y])
+        # are_friends() takes a single iterable of characters, not
         # two positional args — passing them separately binds a lone
         # CharacterClass to the Iterable[CharacterClass] parameter, which
         # never raises IndexError under Python's __getitem__ iteration
         # fallback and hangs the game in an infinite loop.
         if method == "friends_with" and len(args) == 1:
             return Call(
-                target=Name("are_Characters_friends", col_offset=node.col_offset),
+                target=Name("are_friends", col_offset=node.col_offset),
                 args=(
                     ListExpr(
                         elements=(
