@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **The thumbnail import names effect thumbnails the editor cannot show.**
+  When `effects/_fx_mapping.yaml` files a thumbnail under an effect name that
+  `fx.yaml` does not list, for example an effect the game has renamed,
+  `scripts/import_thumbnails.py` prints a `WARNING` with that name and the
+  closest listed one. Before, its `FX:` line reported a full match.
+
 ### Fixed
 
 - **`[[record]]` and `[[set_personality]]` no longer stop the game.** They

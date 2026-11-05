@@ -194,7 +194,10 @@ python scripts/import_thumbnails.py path/to/TNH-VisualReference
 ```
 
 Requires Pillow. The script also generates FX effect thumbnails from
-`effects/_fx_mapping.yaml`.
+`effects/_fx_mapping.yaml`, and warns about every mapped effect name that
+`allowlists_base/fx.yaml` does not list: the editor looks thumbnails up by
+allowlisted name, so such a thumbnail is never shown. After a game update
+that renames effects, fix the names in the mapping and re-run.
 
 Convenience batch script: `scripts/import-thumbnails.bat`.
 

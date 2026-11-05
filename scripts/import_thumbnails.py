@@ -19,16 +19,6 @@ from typing import Any
 
 import yaml
 
-try:
-    from PIL import Image
-except ImportError:
-    print(
-        "ERROR: Pillow is required for thumbnail generation.\n"
-        "Install it with:  pip install Pillow",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-
 FACE_THUMB_WIDTH = 156
 ARMS_THUMB_WIDTH = 200
 FX_THUMB_WIDTH = 200
@@ -130,8 +120,27 @@ def _find_png(
 
 # -- Thumbnail generation ----------------------------------------------------
 
+def _require_pillow() -> None:
+    """Exit with an install hint when Pillow is missing.
+
+    Pillow is imported where it is used, not at module level, so the
+    matching and reporting logic stays importable (and testable) without it.
+    """
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        print(
+            "ERROR: Pillow is required for thumbnail generation.\n"
+            "Install it with:  pip install Pillow",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def _resize_and_save(src: Path, dst: Path, target_width: int) -> None:
     """Resize *src* to *target_width* (keeping aspect ratio) and save to *dst*."""
+    from PIL import Image
+
     dst.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(src) as img:
         w, h = img.size
@@ -273,7 +282,51 @@ def _process_fx(
     else:
         print()
 
+    _report_unknown_fx_names(fx_map.values())
+
     return result
+
+
+def _load_fx_names() -> list[str]:
+    """Return the effect names of the ``fx.yaml`` allowlist, empty when it is missing."""
+    return _values_names(_read_yaml(ALLOWLISTS_DIR / "fx.yaml"), key="effects")
+
+
+def _report_unknown_fx_names(fx_names: Any) -> list[str]:
+    """Warn about mapped FX names the ``fx.yaml`` allowlist does not list.
+
+    The editor looks an FX thumbnail up by its allowlisted name, so a mapped
+    name the allowlist lacks (an effect the game renamed or removed) yields a
+    thumbnail nobody can reach, while the file count above still reads as a
+    full match.
+
+    Parameters:
+        fx_names: the names the mapping files thumbnails under.
+
+    Returns:
+        The unknown names, sorted; empty when all are listed or when there is
+        no allowlist to check against.
+    """
+    allowlisted = _load_fx_names()
+    if not allowlisted:
+        print(f"  FX names not checked: no effects in {ALLOWLISTS_DIR / 'fx.yaml'}")
+        return []
+
+    known = set(allowlisted)
+    unknown = sorted({name for name in fx_names if name not in known})
+    if not unknown:
+        return []
+
+    print(
+        f"  WARNING: {len(unknown)} mapped FX name(s) not in fx.yaml; "
+        "the editor never shows these thumbnails:"
+    )
+    for name in unknown:
+        close = difflib.get_close_matches(name, allowlisted, n=1, cutoff=0.6)
+        hint = f" (closest allowlisted name: {close[0]})" if close else ""
+        print(f"    {name}{hint}")
+
+    return unknown
 
 
 # -- Main --------------------------------------------------------------------
@@ -303,6 +356,9 @@ def main() -> None:
         help=f"Thumbnail width for arms (default: {ARMS_THUMB_WIDTH}px).",
     )
     args = parser.parse_args()
+
+    # before the output folder is wiped, as the module-level import used to
+    _require_pillow()
 
     face_width = args.face_width
     arms_width = args.arms_width
