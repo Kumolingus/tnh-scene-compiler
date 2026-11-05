@@ -3,10 +3,11 @@
 Rules:
 
 - Scan every ``.rpy`` across TNH (when included) and the mod.
-- Match ``define <Character>_supported_features = {"a", "b", ...}`` — the
+- Match ``define CHARACTERS.<Character>.supported_features = {"a", "b", ...}``
+  (TNH 0.9c.beta.28; ``define <Character>_supported_features`` before) — the
   registration pattern used by ``characters/<Character>/definitions/features.rpy``
   and read back by ``NPCClass.supported_features``
-  (``core/definitions/npcs.rpy``).
+  (``core/characters/npcs.py`` since beta.28).
 - Produce one output file per character under ``features/<Character>.yaml``.
 - Duplicate names within a character are dropped, keeping the first occurrence.
 
@@ -25,10 +26,11 @@ import re
 
 from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
+from ..patterns import character_attribute, character_of
 from ..scanner import iter_all_rpy, safe_read_text
 
 _FEATURES_RE = re.compile(
-    r"define\s+(?P<character>[A-Z][A-Za-z0-9]+)_supported_features\s*=\s*"
+    r"define\s+" + character_attribute("supported_features") + r"\s*=\s*"
     r"\{(?P<body>[^}]*)\}",
     re.DOTALL,
 )
@@ -46,7 +48,7 @@ def extract(context: ScanContext) -> ExtractionResult:
 
         cleaned = strip_noise(text)
         for block in _FEATURES_RE.finditer(cleaned):
-            character = block.group("character")
+            character = character_of(block)
             entries = result.per_character.setdefault(character, [])
             seen = {entry.name for entry in entries}
             body_start = block.start("body")

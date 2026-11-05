@@ -19,8 +19,10 @@ from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
 from ..scanner import iter_all_rpy, safe_read_text
 
+# Inside a character's named store the character itself is `store.<Tag>`
+# (`OutfitClass(store.KittyPryde, "Nude")` on TNH 0.9c.beta.28).
 _OUTFIT_RE = re.compile(
-    r'OutfitClass\s*\(\s*(?P<character>[A-Z][A-Za-z0-9]+)\s*,\s*"(?P<name>[^"]+)"',
+    r'OutfitClass\s*\(\s*(?:store\.)?(?P<character>[A-Z][A-Za-z0-9]+)\s*,\s*"(?P<name>[^"]+)"',
     re.DOTALL,
 )
 

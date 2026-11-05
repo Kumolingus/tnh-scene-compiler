@@ -152,6 +152,114 @@ def test_mechanics_functions_still_found_in_the_09b_layout(tmp_path):
     assert "phone_buzz" in entries
 
 
+# TNH 0.9c.beta.28 moves the effects into named stores and the mechanics into
+# Python modules the default store imports (displayables/effects.rpy,
+# characters/LauraKinney/animations.rpy, definitions/core.rpy, core/phone/effects.py).
+_BETA28_EFFECTS_RPY = """init python in displayables.effects:
+
+    def play_random(effects: list[str], x: float = 0.5) -> None:
+        pass
+
+    def bamf(x: float = 0.5, y: float = 0.5, pause: bool = True) -> None:
+        pass
+
+label cinematic_bamf(x = 0.5, y = 0.5, pause = True):
+    return
+"""
+
+_BETA28_LAURA_ANIMATIONS_RPY = """init python in CHARACTERS.LauraKinney.animations:
+
+    from renpy import exports as renpy
+
+    def unsheathe_claws(x: float = 0.675, y: float = 0.25, hand: str = "both") -> None:
+        def inner() -> None:
+            pass
+
+    def sheathe_claws(x: float = 0.675, y: float = 0.25, hand: str = "both") -> None:
+        pass
+"""
+
+_BETA28_KURT_ANIMATIONS_RPY = """init python in CHARACTERS.KurtWagner:
+
+    def teleport_animators(source, rogue2d) -> list:
+        return []
+
+init python in CHARACTERS.KurtWagner.animations:
+
+    def teleports_in(dialogue: str | None = None, x: float | None = None) -> None:
+        pass
+"""
+
+_BETA28_CORE_RPY = """init -98 python:
+
+    from core.behavior import (
+        knock_on_door,
+    )
+    from core.phone import (
+        ChatClass,
+        buzz as phone_buzz,
+    )
+"""
+
+
+def _write_beta28_tree(tmp_path: Path) -> None:
+    """Lay out the 0.9c.beta.28-shaped FX sources under ``tmp_path``."""
+    game = tmp_path / "TheNullHypothesis" / "game"
+    _write(game / "displayables" / "effects.rpy", _BETA28_EFFECTS_RPY)
+    for tag, text in (("LauraKinney", _BETA28_LAURA_ANIMATIONS_RPY), ("KurtWagner", _BETA28_KURT_ANIMATIONS_RPY)):
+        _write(game / "characters" / tag / "character.rpy", "")
+        _write(game / "characters" / tag / "animations.rpy", text)
+    _write(game / "definitions" / "core.rpy", _BETA28_CORE_RPY)
+    _write(game / "core" / "behavior" / "__init__.py", "from .knocking import knock_on_door\n")
+    _write(game / "core" / "behavior" / "knocking.py", (
+        "def knock_on_door(x: float = 0.5, y: float = 0.4, times: int = 1) -> None:\n"
+        "    pass\n"
+    ))
+    _write(game / "core" / "phone" / "__init__.py", "from .effects import buzz\nfrom .chats import ChatClass\n")
+    _write(game / "core" / "phone" / "effects.py", (
+        "def buzz(x: float = 0.5, y: float = 0.5, times: int = 1) -> None:\n"
+        "    pass\n"
+    ))
+
+
+def test_a_character_animation_in_its_named_store_keeps_the_flat_name_and_calls_its_home(tmp_path):
+    # The writer names it the way the game's own compatibility alias does;
+    # the scene calls the function where the game keeps it.
+    _write_beta28_tree(tmp_path)
+
+    entries = _entries_by_name(tmp_path)
+
+    laura = entries["LauraKinney_animations_sheathe_claws"]
+    assert laura["call"] == "CHARACTERS.LauraKinney.animations.sheathe_claws"
+    assert laura["signature"] == (
+        'LauraKinney_animations_sheathe_claws(x: float = 0.675, y: float = 0.25, hand: str = "both") -> None'
+    )
+    assert entries["KurtWagner_animations_teleports_in"]["call"] == "CHARACTERS.KurtWagner.animations.teleports_in"
+    # A nested helper, an import and the character's own store are no effects.
+    assert "LauraKinney_animations_inner" not in entries
+    assert not any("teleport_animators" in name for name in entries)
+
+
+def test_an_effect_in_the_effects_store_calls_its_home(tmp_path):
+    _write_beta28_tree(tmp_path)
+
+    entries = _entries_by_name(tmp_path)
+
+    assert entries["bamf"]["call"] == "displayables.effects.bamf"
+    assert "play_random" not in entries
+
+
+def test_a_mechanics_effect_the_store_imports_is_found_in_its_module(tmp_path):
+    _write_beta28_tree(tmp_path)
+
+    entries = _entries_by_name(tmp_path)
+
+    assert entries["phone_buzz"]["signature"] == "phone_buzz(x: float = 0.5, y: float = 0.5, times: int = 1) -> None"
+    assert entries["knock_on_door"]["signature"] == "knock_on_door(x: float = 0.5, y: float = 0.4, times: int = 1) -> None"
+    # A store name needs no other call path.
+    assert "call" not in entries["phone_buzz"] and "call" not in entries["knock_on_door"]
+
+
 def test_nothing_is_listed_without_the_base_game(tmp_path):
     _write_09c_tree(tmp_path)
     context = _context(tmp_path)

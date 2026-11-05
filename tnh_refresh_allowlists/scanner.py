@@ -29,6 +29,38 @@ def iter_all_rpy(context: ScanContext) -> Iterable[Path]:
     yield from iter_rpy_files(context.project_root)
 
 
+def iter_python_files(root: Path) -> Iterable[Path]:
+    """Yield every ``.py`` file of the game under ``root``, in sorted order.
+
+    Only ``root/game`` is walked when it exists: a TNH build ships the engine
+    (``renpy/``) and the Python standard library (``lib/``) beside it, which
+    hold no game vocabulary. Dot directories and ``__pycache__`` are skipped.
+    """
+    game = root / "game"
+    base = game if game.is_dir() else root
+    if not base.exists():
+        return
+
+    for path in sorted(base.rglob("*.py")):
+        parts = path.relative_to(base).parts
+        if any(part.startswith(".") or part == "__pycache__" for part in parts):
+            continue
+        yield path
+
+
+def iter_all_sources(context: ScanContext) -> Iterable[Path]:
+    """Yield every ``.rpy`` and game ``.py`` file across TNH (when included) and the mod.
+
+    TNH 0.9c.beta.28 moved much of its logic into Python modules, so a value a
+    writer may type can be used only in a ``.py`` file.
+    """
+    if context.include_tnh:
+        yield from iter_rpy_files(context.base_game_root)
+        yield from iter_python_files(context.base_game_root)
+    yield from iter_rpy_files(context.project_root)
+    yield from iter_python_files(context.project_root)
+
+
 def safe_read_text(path: Path) -> str | None:
     """Return ``path``'s text as UTF-8, or ``None`` on decode error."""
     try:

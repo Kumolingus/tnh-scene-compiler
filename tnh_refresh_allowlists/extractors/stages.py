@@ -2,8 +2,13 @@
 
 Rules (spec §5.5):
 
-- Scan ``TheNullHypothesis/game/core/definitions/definitions.rpy`` for
-  ``define stage_<name> = <value>`` lines and list every matching name.
+- Scan the game's definitions file for ``define stage_<name> = <value>``
+  lines and list every matching name: ``core/base/definitions.rpy`` since
+  TNH 0.9c.beta.28, which names them ``STAGE_<NAME>``, else
+  ``core/definitions/definitions.rpy``. A scene writes the lowercase name
+  (``stage=stage_left``), which compiles to an ``add_Characters`` direction,
+  never to the constant, so the writer's vocabulary does not follow the
+  game's case.
 - Short, stable list; no fallback discovery across other files.
 """
 
@@ -15,7 +20,7 @@ from pathlib import Path
 from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext, Warning
 
-_STAGE_RE = re.compile(r"^[ \t]*define[ \t]+(?P<name>stage_[A-Za-z0-9_]+)[ \t]*=", re.MULTILINE)
+_STAGE_RE = re.compile(r"^[ \t]*define[ \t]+(?P<name>(?:stage|STAGE)_[A-Za-z0-9_]+)[ \t]*=", re.MULTILINE)
 
 # The compiler can only place a character at one of the three on-screen slots
 # that ``add_Characters`` understands (see ``codegen._STAGE_DIRECTION_MAP``).
@@ -28,7 +33,10 @@ _EMITTABLE_STAGES = frozenset({"stage_left", "stage_center", "stage_right"})
 
 
 def _definitions_path(context: ScanContext) -> Path:
-    return context.base_game_root / "game" / "core" / "definitions" / "definitions.rpy"
+    """The definitions file of the scanned build, the beta.28 one when present."""
+    core = context.base_game_root / "game" / "core"
+    beta28 = core / "base" / "definitions.rpy"
+    return beta28 if beta28.exists() else core / "definitions" / "definitions.rpy"
 
 
 def extract(context: ScanContext) -> ExtractionResult:
@@ -61,7 +69,7 @@ def extract(context: ScanContext) -> ExtractionResult:
 
     cleaned = strip_noise(text)
     for match in _STAGE_RE.finditer(cleaned):
-        name = match.group("name")
+        name = match.group("name").lower()
         if name not in _EMITTABLE_STAGES:
             # Far-stage coordinate with no add_Characters emission path — skip.
             continue

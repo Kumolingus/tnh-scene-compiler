@@ -60,10 +60,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **The allowlist refresh finds a project's locations and inventory items on
   TNH 0.9c.beta.28.** beta.28 renamed `all_Locations` and `all_Items` to
   `ALL_LOCATIONS` and `ALL_ITEMS`, and keys a location as `BayvilleTown.Mall`
-  or `PlayerRoom` instead of `loc_…`. The refresh wrote an empty
-  `locations.yaml` and `inventory_items.yaml`, so a scene opening in one of
-  the project's own locations stopped compiling. Projects built for
-  0.9c.beta.17 or 0.9b need the old names.
+  instead of `loc_…`. The refresh wrote an empty `locations.yaml` and
+  `inventory_items.yaml`, so a scene opening in one of the project's own
+  locations stopped compiling. A character's room, which beta.28 builds by
+  copying a template (`XavierSchool.RogueRoom`), gets its slugline too.
+  Projects built for 0.9c.beta.17 or 0.9b need the old names.
+- **The allowlist refresh reads the rest of TNH 0.9c.beta.28.** beta.28 keeps
+  a character's faces, arms, moods, features and clothes in the character's
+  namespace (`CHARACTERS.Rogue.faces`), records history with
+  `History.update`, writes many checks in single quotes or in `.py` files, and
+  registers its piercings in one block. The refresh missed all of these, so a
+  project refreshed against beta.28 lost most faces, arms, traits and history
+  events, and the 17 piercings, and the validator refused them. It now reads
+  them.
 - **Effects that TNH 0.9c turned into functions compile to a Python call.**
   In 0.9c `bamf` and the character animations
   (`KurtWagner_animations_teleports_in`, `LauraKinney_animations_unsheathes_claws`,

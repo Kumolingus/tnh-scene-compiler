@@ -53,6 +53,34 @@ def test_no_extraction_when_include_tnh_is_false(mini_mod_only_context):
     assert result.entries == []
 
 
+def test_reads_the_beta28_uppercase_constants_under_their_writer_names(tmp_path):
+    # TNH 0.9c.beta.28 moved the constants to core/base/definitions.rpy and
+    # renamed them STAGE_LEFT …; a scene still writes `stage=stage_left`,
+    # which compiles to an add_Characters direction, not to the constant.
+    definitions = tmp_path / "game" / "core" / "base" / "definitions.rpy"
+    definitions.parent.mkdir(parents = True)
+    definitions.write_text(
+        "define STAGE_FAR_LEFT = 0.25\n"
+        "define STAGE_LEFT = 0.35\n"
+        "define STAGE_CENTER = 0.5\n"
+        "define STAGE_RIGHT = 0.65\n"
+        "define STAGE_FAR_RIGHT = 0.75\n",
+        encoding = "utf-8",
+    )
+    context = ScanContext(
+        base_game_root = tmp_path,
+        project_root = tmp_path,
+        repo_root = tmp_path,
+        include_tnh = True,
+    )
+
+    result = stages.extract(context)
+
+    assert {entry.name for entry in result.entries} == {"stage_left", "stage_center", "stage_right"}
+    assert next(entry for entry in result.entries if entry.name == "stage_left").source_line == 2
+    assert result.warnings == []
+
+
 def test_warns_when_expected_file_missing(tmp_path):
     context = ScanContext(
         base_game_root = tmp_path,

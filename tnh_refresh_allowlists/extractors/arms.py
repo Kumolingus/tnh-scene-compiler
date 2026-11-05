@@ -2,11 +2,13 @@
 
 Rules (spec §5.4):
 
-- Find every ``define <Character>_poses["<pose_name>"] = {`` block.
+- Find every ``define CHARACTERS.<Character>.poses["<pose_name>"] = {``
+  block (TNH 0.9c.beta.28; ``define <Character>_poses[...]`` before).
 - Walk the block with a naive brace counter to isolate its body.
 - Inside the body, find the set literals keyed on ``"arms"``, ``"left_arm"``,
   and ``"right_arm"``; extract every string literal from each set.
-- Additionally, scan every ``define <Character>_arms["<preset>"]`` top-level
+- Additionally, scan every ``define CHARACTERS.<Character>.arms["<preset>"]``
+  (``<Character>_arms[...]`` before beta.28) top-level
   declaration and register the preset name under the ``arms`` subgroup.
   Presets defined this way are valid arguments to ``<Char>.change_arms(...)``
   and must appear in the allowlist even when no existing pose references
@@ -24,15 +26,16 @@ from pathlib import Path
 
 from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
+from ..patterns import character_attribute, character_of
 from ..scanner import iter_all_rpy, safe_read_text
 
 _POSE_START_RE = re.compile(
-    r'^[ \t]*define[ \t]+(?P<character>[A-Z][A-Za-z0-9]+)_poses\["(?P<pose>[^"]+)"\][ \t]*=[ \t]*\{',
+    r'^[ \t]*define[ \t]+' + character_attribute("poses") + r'\["(?P<pose>[^"]+)"\][ \t]*=[ \t]*\{',
     re.MULTILINE,
 )
 
 _ARMS_PRESET_RE = re.compile(
-    r'^[ \t]*define[ \t]+(?P<character>[A-Z][A-Za-z0-9]+)_arms\["(?P<preset>[^"]+)"\]',
+    r'^[ \t]*define[ \t]+' + character_attribute("arms") + r'\["(?P<preset>[^"]+)"\]',
     re.MULTILINE,
 )
 
@@ -84,7 +87,7 @@ def extract(context: ScanContext) -> ExtractionResult:
         # Only standing poses are relevant for writers.
         if _is_standing_pose_file(path):
             for match in _POSE_START_RE.finditer(cleaned):
-                character = match.group("character")
+                character = character_of(match)
                 open_brace = match.end() - 1
                 end = _find_block_end(cleaned, open_brace)
                 if end is None:
@@ -121,7 +124,7 @@ def extract(context: ScanContext) -> ExtractionResult:
         # values like ``clenched`` / ``shrug`` / ``hips`` even though
         # ``<Char>.change_arms("clenched")`` works at runtime.
         for preset_match in _ARMS_PRESET_RE.finditer(cleaned):
-            character = preset_match.group("character")
+            character = character_of(preset_match)
             preset = preset_match.group("preset")
             line = cleaned[: preset_match.start()].count("\n") + 1
             entry = AllowlistEntry(

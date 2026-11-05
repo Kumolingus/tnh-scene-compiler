@@ -2,10 +2,12 @@
 
 Rules (spec §5.3):
 
-- Keys declared via ``define base_moods["<name>"]`` go into the shared pool
-  and are emitted to ``moods/_shared.yaml``.
-- Keys declared via ``define <Character>_moods["<name>"]`` (or the legacy
-  ``define base_moods_<Character>["<name>"]`` variant) go into the per-
+- Keys declared via ``define BASE.moods["<name>"]`` (TNH 0.9c.beta.28) or
+  ``define base_moods["<name>"]`` go into the shared pool and are emitted
+  to ``moods/_shared.yaml``.
+- Keys declared via ``define CHARACTERS.<Character>.moods["<name>"]``
+  (beta.28), ``define <Character>_moods["<name>"]`` or the legacy
+  ``define base_moods_<Character>["<name>"]`` variant go into the per-
   character pool and are emitted to ``moods/<Character>.yaml``. Per-
   character files get an ``inherits_from_shared: _shared.yaml`` pointer
   so consumers assemble the full list for one character.
@@ -17,20 +19,21 @@ import re
 
 from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
+from ..patterns import character_attribute, character_of
 from ..scanner import iter_all_rpy, safe_read_text
 
 _SHARED_RE = re.compile(
-    r'^[ \t]*define[ \t]+base_moods\["(?P<name>[^"]+)"\][ \t]*=[ \t]*\{',
+    r'^[ \t]*define[ \t]+(?:BASE\.moods|base_moods)\["(?P<name>[^"]+)"\][ \t]*=[ \t]*\{',
     re.MULTILINE,
 )
 
 _PER_CHAR_RE = re.compile(
-    r'^[ \t]*define[ \t]+(?P<character>[A-Z][A-Za-z0-9]+)_moods\["(?P<name>[^"]+)"\][ \t]*=[ \t]*\{',
+    r'^[ \t]*define[ \t]+' + character_attribute("moods") + r'\["(?P<name>[^"]+)"\][ \t]*=[ \t]*\{',
     re.MULTILINE,
 )
 
 _LEGACY_BASE_PER_CHAR_RE = re.compile(
-    r'^[ \t]*define[ \t]+base_moods_(?P<character>[A-Z][A-Za-z0-9]+)\["(?P<name>[^"]+)"\][ \t]*=[ \t]*\{',
+    r'^[ \t]*define[ \t]+base_moods_(?P<flat>[A-Z][A-Za-z0-9]+)\["(?P<name>[^"]+)"\][ \t]*=[ \t]*\{',
     re.MULTILINE,
 )
 
@@ -106,7 +109,7 @@ def extract(context: ScanContext) -> ExtractionResult:
 
         for pattern in (_PER_CHAR_RE, _LEGACY_BASE_PER_CHAR_RE):
             for match in pattern.finditer(cleaned):
-                character = match.group("character")
+                character = character_of(match)
                 name = match.group("name")
                 seen = per_char_seen.setdefault(character, set())
                 if name in seen:

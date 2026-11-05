@@ -3,8 +3,9 @@
 Rules (spec §5.4):
 
 - Scan every ``.rpy`` across TNH (when included) and the mod.
-- Match ``define <Character>_faces["<name>"]`` declarations; the
-  character name is inferred from the identifier before ``_faces``.
+- Match ``define CHARACTERS.<Character>.faces["<name>"]`` (TNH
+  0.9c.beta.28) or ``define <Character>_faces["<name>"]`` (earlier builds)
+  declarations; the character name is read from the identifier.
 - Produce one output file per character under ``faces/<Character>.yaml``.
 """
 
@@ -14,10 +15,11 @@ import re
 
 from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
+from ..patterns import character_attribute, character_of
 from ..scanner import iter_all_rpy, safe_read_text
 
 _FACE_RE = re.compile(
-    r'^[ \t]*define[ \t]+(?P<character>[A-Z][A-Za-z0-9]+)_faces\["(?P<name>[^"]+)"\]',
+    r'^[ \t]*define[ \t]+' + character_attribute("faces") + r'\["(?P<name>[^"]+)"\]',
     re.MULTILINE,
 )
 
@@ -38,7 +40,7 @@ def extract(context: ScanContext) -> ExtractionResult:
 
         cleaned = strip_noise(text)
         for match in _FACE_RE.finditer(cleaned):
-            character = match.group("character")
+            character = character_of(match)
             name = match.group("name")
             seen_names = seen.setdefault(character, set())
             if name in seen_names:

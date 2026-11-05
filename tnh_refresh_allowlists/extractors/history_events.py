@@ -1,11 +1,16 @@
 """Extract history event names from TNH and the mod.
 
-Scans for event strings passed to the History tracking API:
+Scans for the literal first argument of the History tracking API, in either
+quote and followed by more arguments or not
+(``History.check('sleepover', tracker = 'yesterday')``):
 
-- ``History.check("event_name")``
-- ``History.add("event_name")``
-- ``History.record("event_name")``
+- ``History.update`` — the recording call since TNH 0.9c.beta.28
+  (``core/base/history.py``); ``add`` and ``record``, its older spellings
+- ``History.check``, ``check_when``, ``remove``
 - ``.did("event_name")`` (DSL sugar)
+
+Both ``.rpy`` files and the game's ``.py`` modules are read. An f-string
+argument names no single event and is skipped.
 """
 
 from __future__ import annotations
@@ -14,19 +19,17 @@ import re
 
 from ..comments import strip_noise
 from ..models import AllowlistEntry, ExtractionResult, ScanContext
-from ..scanner import iter_all_rpy, safe_read_text
+from ..scanner import iter_all_sources, safe_read_text
 
-# Matches History.check("..."), History.add("..."), History.record("...")
+_LITERAL = r"""\(\s*(?P<quote>["'])(?P<name>[^"'{}\n]+)(?P=quote)\s*[,)]"""
+
 _HISTORY_API_RE = re.compile(
-    r'History\.(?:check|add|record)\(\s*"(?P<name>[^"]+)"\s*\)',
+    r"History\.(?:update|check|check_when|remove|add|record)" + _LITERAL,
     re.MULTILINE,
 )
 
-# Matches .did("...") — DSL sugar that also appears in source
-_DID_RE = re.compile(
-    r'\.did\(\s*"(?P<name>[^"]+)"\s*\)',
-    re.MULTILINE,
-)
+# .did("...") — DSL sugar that also appears in source
+_DID_RE = re.compile(r"\.did" + _LITERAL, re.MULTILINE)
 
 
 def extract(context: ScanContext) -> ExtractionResult:
@@ -34,7 +37,7 @@ def extract(context: ScanContext) -> ExtractionResult:
     result = ExtractionResult(category = "history_events")
     seen: set[str] = set()
 
-    for path in iter_all_rpy(context):
+    for path in iter_all_sources(context):
         text = safe_read_text(path)
         if text is None:
             continue
