@@ -1,27 +1,36 @@
 source: TNH + Mod
-generated_at: '2026-07-22'
+generated_at: '2026-11-05'
 values:
+- name: bitter
+  source_file: game/events/ch1/s4_finale.rpy
+  source_line: 859
+- name: determined
+  source_file: game/events/ch1/s4_finale.rpy
+  source_line: 857
 - name: dominant
   source_file: game/characters/JeanGrey/events/relationship/asked_on_date.rpy
   source_line: 220
 - name: loner
-  source_file: game/events/chapter_one/Shadow_King_showdown.rpy
-  source_line: 491
+  source_file: game/events/ch1/s4_finale.rpy
+  source_line: 537
 - name: masochistic
   source_file: game/characters/Rogue/events/relationship/boyfriend.rpy
-  source_line: 577
+  source_line: 561
 - name: neurotic
   source_file: game/characters/JeanGrey/events/relationship/love.rpy
   source_line: 247
 - name: protective
   source_file: game/characters/JeanGrey/events/relationship/disclosing.rpy
   source_line: 237
+- name: reluctant
+  source_file: game/events/ch1/s4_finale.rpy
+  source_line: 861
 - name: self_doubt
-  source_file: game/characters/Rogue/interactions/dirty_talk.rpy
-  source_line: 14
+  source_file: game/characters/Rogue/interactions/compliments.rpy
+  source_line: 107
 - name: siblings
   source_file: game/characters/JeanGrey/events/relationship/asked_on_date.rpy
   source_line: 103
 - name: submissive
   source_file: game/characters/Rogue/events/relationship/boyfriend.rpy
-  source_line: 480
+  source_line: 466

@@ -1,153 +1,178 @@
 source: TNH + Mod
-generated_at: '2026-07-23'
+generated_at: '2026-11-05'
 values:
 - name: '[CHARLESXAVIER.NAME]''S ROOM'
-  source_file: game/characters/CharlesXavier/locations/locations.rpy
+  source_file: game/locations/XavierSchool/CharlesXavierRoom/location.rpy
   source_line: 1
-  location_id: loc_CharlesXavierRoom
+  location_id: XavierSchool.CharlesXavierRoom
   display_name: '[CharlesXavier.name]''s Room'
 - name: '[CHARLESXAVIER.NAME]''S STUDY'
   source_file: game/locations/XavierSchool/Office/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Office
+  location_id: XavierSchool.Office
   display_name: '[CharlesXavier.name]''s Study'
 - name: '[JEANGREY.NAME]''S ROOM'
-  source_file: game/characters/JeanGrey/locations/locations.rpy
-  source_line: 3
-  location_id: loc_JeanGreyRoom
+  source_file: game/locations/XavierSchool/JeanGreyRoom/location.rpy
+  source_line: 1
+  location_id: XavierSchool.JeanGreyRoom
   display_name: '[JeanGrey.name]''s Room'
 - name: '[JEANGREY.NAME]''S SHOWER'
-  source_file: game/characters/JeanGrey/locations/locations.rpy
-  source_line: 34
-  location_id: loc_JeanGreyShower
+  source_file: game/locations/XavierSchool/JeanGreyRoom/location.rpy
+  source_line: 2
+  location_id: XavierSchool.JeanGreyShower
   display_name: '[JeanGrey.name]''s Shower'
 - name: '[KURTWAGNER.NAME]''S ROOM'
-  source_file: game/characters/KurtWagner/locations/locations.rpy
+  source_file: game/locations/XavierSchool/KurtWagnerRoom/location.rpy
   source_line: 1
-  location_id: loc_KurtWagnerRoom
+  location_id: XavierSchool.KurtWagnerRoom
   display_name: '[KurtWagner.name]''s Room'
 - name: '[LAURAKINNEY.NAME]''S ROOM'
-  source_file: game/characters/LauraKinney/locations/locations.rpy
-  source_line: 3
-  location_id: loc_LauraKinneyRoom
+  source_file: game/locations/XavierSchool/LauraKinneyRoom/location.rpy
+  source_line: 1
+  location_id: XavierSchool.LauraKinneyRoom
   display_name: '[LauraKinney.name]''s Room'
 - name: '[LAURAKINNEY.NAME]''S SHOWER'
-  source_file: game/characters/LauraKinney/locations/locations.rpy
-  source_line: 36
-  location_id: loc_LauraKinneyShower
+  source_file: game/locations/XavierSchool/LauraKinneyRoom/location.rpy
+  source_line: 2
+  location_id: XavierSchool.LauraKinneyShower
   display_name: '[LauraKinney.name]''s Shower'
 - name: '[PLAYER.FIRST_NAME]''S ROOM'
-  source_file: game/characters/Player/locations/locations.rpy
-  source_line: 3
-  location_id: loc_PlayerRoom
+  source_file: game/locations/XavierSchool/PlayerRoom/location.rpy
+  source_line: 1
+  location_id: XavierSchool.PlayerRoom
   display_name: '[Player.first_name]''s Room'
 - name: '[ROGUE.NAME]''S ROOM'
-  source_file: game/characters/Rogue/locations/locations.rpy
-  source_line: 3
-  location_id: loc_RogueRoom
+  source_file: game/locations/XavierSchool/RogueRoom/location.rpy
+  source_line: 1
+  location_id: XavierSchool.RogueRoom
   display_name: '[Rogue.name]''s Room'
 - name: '[ROGUE.NAME]''S SHOWER'
-  source_file: game/characters/Rogue/locations/locations.rpy
-  source_line: 38
-  location_id: loc_RogueShower
+  source_file: game/locations/XavierSchool/RogueRoom/location.rpy
+  source_line: 2
+  location_id: XavierSchool.RogueShower
   display_name: '[Rogue.name]''s Shower'
 - name: ATTIC HALLWAY
   source_file: game/locations/XavierSchool/AtticHallway/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_AtticHallway
+  location_id: XavierSchool.AtticHallway
   display_name: Attic Hallway
 - name: BASEMENT HALLWAY
   source_file: game/locations/XavierSchool/BasementHallway/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_BasementHallway
+  location_id: XavierSchool.BasementHallway
   display_name: Basement Hallway
+- name: BATHROOM STALL
+  source_file: game/locations/EmpireState/BathroomStall/location.rpy
+  source_line: 1
+  location_id: EmpireState.BathroomStall
+  display_name: Bathroom Stall
 - name: BAYVILLE MALL
   source_file: game/locations/BayvilleTown/Mall/location.rpy
   source_line: 1
-  location_id: loc_BayvilleTown_Mall
+  location_id: BayvilleTown.Mall
   display_name: Bayville Mall
 - name: BOYS' HALL
   source_file: game/locations/XavierSchool/Hallway/location.rpy
   source_line: 43
-  location_id: loc_XavierSchool_BoysHallway
+  location_id: XavierSchool.BoysHallway
   display_name: Boys' Hall
+- name: CABIN
+  source_file: game/locations/LakeHouse/CabinInterior/location.rpy
+  source_line: 1
+  location_id: LakeHouse.CabinInterior
+  display_name: Cabin
 - name: CEREBRO
   source_file: game/locations/XavierSchool/Cerebro/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Cerebro
+  location_id: XavierSchool.Cerebro
   display_name: Cerebro
 - name: CLASSROOM
   source_file: game/locations/XavierSchool/Classroom/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Classroom
+  location_id: XavierSchool.Classroom
   display_name: Classroom
 - name: DANGER ROOM
   source_file: game/locations/XavierSchool/DangerRoom/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_DangerRoom
+  location_id: XavierSchool.DangerRoom
   display_name: Danger Room
 - name: DOWNTOWN
   source_file: game/locations/BayvilleTown/Downtown/location.rpy
   source_line: 1
-  location_id: loc_BayvilleTown_Downtown
+  location_id: BayvilleTown.Downtown
   display_name: Downtown
 - name: GIRLS' HALL
   source_file: game/locations/XavierSchool/Hallway/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_GirlsHallway
+  location_id: XavierSchool.GirlsHallway
   display_name: Girls' Hall
 - name: GROUNDS
   source_file: game/locations/XavierSchool/Grounds/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Grounds
+  location_id: XavierSchool.Grounds
   display_name: Grounds
 - name: INFIRMARY
   source_file: game/locations/XavierSchool/Infirmary/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Infirmary
+  location_id: XavierSchool.Infirmary
   display_name: Infirmary
 - name: KITCHEN
   source_file: game/locations/XavierSchool/Kitchen/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Kitchen
+  location_id: XavierSchool.Kitchen
   display_name: Kitchen
+- name: LAKE HOUSE
+  source_file: game/locations/LakeHouse/CabinExterior/location.rpy
+  source_line: 1
+  location_id: LakeHouse.CabinExterior
+  display_name: Lake House
+- name: LECTURE HALL
+  source_file: game/locations/EmpireState/LectureHall/location.rpy
+  source_line: 1
+  location_id: EmpireState.LectureHall
+  display_name: Lecture Hall
 - name: LOCKER ROOMS
   source_file: game/locations/XavierSchool/Lockers/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Lockers
+  location_id: XavierSchool.Lockers
   display_name: Locker Rooms
 - name: MANSION ENTRANCE
   source_file: game/locations/XavierSchool/Entrance/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Entrance
+  location_id: XavierSchool.Entrance
   display_name: Mansion Entrance
 - name: MOVIE THEATER
   source_file: game/locations/Cinema/location.rpy
   source_line: 1
-  location_id: loc_Cinema
+  location_id: Cinema
   display_name: Movie Theater
-- name: MUIR ISLAND (I)
+- name: MUIR ISLAND FACILITY
   source_file: game/locations/MuirIsland/Facility/location.rpy
   source_line: 1
-  location_id: loc_MuirIsland_Facility1
-  display_name: Muir Island (I)
+  location_id: MuirIsland.Facility
+  display_name: Muir Island Facility
 - name: MUIR ISLAND LABORATORY
   source_file: game/locations/MuirIsland/Laboratory/location.rpy
   source_line: 1
-  location_id: loc_MuirIsland_Laboratory
+  location_id: MuirIsland.Laboratory
   display_name: Muir Island Laboratory
 - name: POOL
   source_file: game/locations/XavierSchool/Pool/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_Pool
+  location_id: XavierSchool.Pool
   display_name: Pool
 - name: REC ROOM
   source_file: game/locations/XavierSchool/RecRoom/location.rpy
   source_line: 1
-  location_id: loc_XavierSchool_RecRoom
+  location_id: XavierSchool.RecRoom
   display_name: Rec Room
 - name: RESTAURANT
   source_file: game/locations/BayvilleTown/Restaurant/location.rpy
   source_line: 1
-  location_id: loc_BayvilleTown_Restaurant
+  location_id: BayvilleTown.Restaurant
   display_name: Restaurant
+- name: RESTAURANT BATHROOM
+  source_file: game/locations/BayvilleTown/Restaurant/location.rpy
+  source_line: 56
+  location_id: BayvilleTown.RestaurantBathroom
+  display_name: Restaurant Bathroom

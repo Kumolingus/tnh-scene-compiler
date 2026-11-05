@@ -1,5 +1,5 @@
 source: TNH + Mod
-generated_at: '2026-07-23'
+generated_at: '2026-11-05'
 values:
 - name: AlexanderSummers.name
   source_file: game/characters/AlexanderSummers
@@ -54,15 +54,6 @@ values:
   source_line: 1
 - name: ArmandoMunoz.Player_petname
   source_file: game/characters/ArmandoMunoz
-  source_line: 1
-- name: Balrog.name
-  source_file: game/characters/Balrog
-  source_line: 1
-- name: Balrog.petname
-  source_file: game/characters/Balrog
-  source_line: 1
-- name: Balrog.Player_petname
-  source_file: game/characters/Balrog
   source_line: 1
 - name: CainMarko.name
   source_file: game/characters/CainMarko
@@ -235,15 +226,6 @@ values:
 - name: NegaNexus.Player_petname
   source_file: game/characters/Silhouettes/NegaNexus
   source_line: 1
-- name: Nexu.name
-  source_file: game/characters/Nexu
-  source_line: 1
-- name: Nexu.petname
-  source_file: game/characters/Nexu
-  source_line: 1
-- name: Nexu.Player_petname
-  source_file: game/characters/Nexu
-  source_line: 1
 - name: OroroMunroe.name
   source_file: game/characters/OroroMunroe
   source_line: 1
@@ -322,45 +304,9 @@ values:
 - name: Sentinel.Player_petname
   source_file: game/characters/Sentinel
   source_line: 1
-- name: SliferTheSkyDragon.name
-  source_file: game/characters/SliferTheSkyDragon
-  source_line: 1
-- name: SliferTheSkyDragon.petname
-  source_file: game/characters/SliferTheSkyDragon
-  source_line: 1
-- name: SliferTheSkyDragon.Player_petname
-  source_file: game/characters/SliferTheSkyDragon
-  source_line: 1
-- name: Spinosaurus.name
-  source_file: game/characters/Spinosaurus
-  source_line: 1
-- name: Spinosaurus.petname
-  source_file: game/characters/Spinosaurus
-  source_line: 1
-- name: Spinosaurus.Player_petname
-  source_file: game/characters/Spinosaurus
-  source_line: 1
 - name: time_index
   source_file: <builtin>
   source_line: 0
 - name: weekday
   source_file: <builtin>
   source_line: 0
-- name: XenomorphDrone.name
-  source_file: game/characters/XenomorphDrone
-  source_line: 1
-- name: XenomorphDrone.petname
-  source_file: game/characters/XenomorphDrone
-  source_line: 1
-- name: XenomorphDrone.Player_petname
-  source_file: game/characters/XenomorphDrone
-  source_line: 1
-- name: XenomorphKing.name
-  source_file: game/characters/XenomorphKing
-  source_line: 1
-- name: XenomorphKing.petname
-  source_file: game/characters/XenomorphKing
-  source_line: 1
-- name: XenomorphKing.Player_petname
-  source_file: game/characters/XenomorphKing
-  source_line: 1

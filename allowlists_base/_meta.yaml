@@ -1,21 +1,20 @@
-generated_at: '2026-07-23'
+generated_at: '2026-11-05'
 tool_version: 1.0.0
 base_game_root: .
 project_root: C:/Users/flori/AppData/Local/Temp/claude/D--Projets-Development-NullHypothesisPregnancyMod/0e6acb9d-67a6-4aa6-9591-76bae5940051/scratchpad/empty_mod
 include_tnh: true
 stats:
-  characters: 40
+  characters: 34
   stages: 3
   sfx: 10
   fx: 29
-  locations: 30
+  locations: 35
   looks: 8
-  interpolation: 121
+  interpolation: 103
   condition_functions: 0
-  traits: 310
-  personalities: 8
-  history_events: 105
-  # Added 2026-07-25 by a targeted run, like the features block below.
+  traits: 282
+  personalities: 11
+  history_events: 295
   inventory_items: 58
   faces:
     AlisonBlaire: 49
@@ -54,7 +53,6 @@ stats:
     KurtWagner: 4
     LauraKinney: 34
     OroroMunroe: 5
-  # Added 2026-07-26 by a clothing_items-only run, same as the blocks above.
   # These are inventory KEYS ("<Owner>_<id>"), not bare clothing ids.
   clothing_items:
     CeciliaReyes: 10
@@ -66,10 +64,9 @@ stats:
     OroroMunroe: 41
     Player: 40
     Rogue: 60
-  # Added 2026-07-25 by a features-only run; the counts above are from the
-  # 2026-07-23 full refresh and were not regenerated.
   features:
     AlisonBlaire: 3
+    CeciliaReyes: 3
     CharlesXavier: 2
     JeanGrey: 22
     KittyPryde: 3
@@ -78,29 +75,10 @@ stats:
     OroroMunroe: 3
     Rogue: 23
 warnings:
-- Location loc_PlayerShower declares the same name as loc_PlayerRoom, so both derive
-  the slugline "[PLAYER.FIRST_NAME]'S ROOM". loc_PlayerRoom keeps it. Give loc_PlayerShower
-  its own slugline in locations_overrides.yaml if a scene needs to open there.
-- Location loc_MuirIsland_Facility2 is declared via .copy() and is not resolved in
-  V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_CharlesXavierRoom is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_JeanGreyRoom is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_JeanGreyShower is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_KurtWagnerRoom is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_LauraKinneyRoom is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_LauraKinneyShower is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_PlayerRoom is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_PlayerShower is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_RogueRoom is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_RogueShower is declared via .copy() and is not resolved
-  in V1; add it manually to locations_overrides.yaml if needed
-- Location loc_XavierSchool_Shower has no 'name' field
+- Location cinematic has no 'name' field
+- Location traveling has no 'name' field
+- Location XavierSchool.PlayerShower declares the same name as XavierSchool.PlayerRoom,
+  so both derive the slugline "[PLAYER.FIRST_NAME]'S ROOM". XavierSchool.PlayerRoom
+  keeps it. Give XavierSchool.PlayerShower its own slugline in locations_overrides.yaml
+  if a scene needs to open there.
+- Location XavierSchool.Shower has no 'name' field

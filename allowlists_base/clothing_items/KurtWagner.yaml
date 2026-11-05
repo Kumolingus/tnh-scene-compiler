@@ -1,6 +1,6 @@
 character: KurtWagner
 source: TNH + Mod
-generated_at: '2026-07-26'
+generated_at: '2026-11-05'
 values:
 - name: KurtWagner_black_cotton_pants
   source_file: game/characters/KurtWagner/clothing/items/black_cotton_pants.rpy
@@ -11,6 +11,6 @@ values:
 - name: KurtWagner_blackred_ch1_suit
   source_file: game/characters/KurtWagner/clothing/items/blackred_ch1_suit.rpy
   source_line: 1
-- name: KurtWagner_short_straight_quiff
-  source_file: game/characters/KurtWagner/clothing/items/short_straight_quiff.rpy
+- name: KurtWagner_medium_straight_quiff
+  source_file: game/characters/KurtWagner/clothing/items/medium_straight_quiff.rpy
   source_line: 1

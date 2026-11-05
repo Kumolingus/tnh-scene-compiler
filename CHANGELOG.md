@@ -75,7 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   them.
 - **Effects that TNH 0.9c turned into functions compile to a Python call.**
   In 0.9c `bamf` and the character animations
-  (`KurtWagner_animations_teleports_in`, `LauraKinney_animations_unsheathes_claws`,
+  (`KurtWagner_animations_teleports_in`, `LauraKinney_animations_unsheathe_claws`,
   `JeanGrey_animations_activate_power`, …) are `def`s, no longer labels, so the
   `call bamf()` the compiler emitted raised at runtime. The allowlist refresh
   now lists, next to the labels, the functions of `effects.rpy` that have a
@@ -104,10 +104,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- `allowlists_base/fx.yaml` describes TNH 0.9c.beta.17: same 29 effects, new
+- `allowlists_base/fx.yaml` describes TNH 0.9c.beta.28: same 29 effects, new
   source paths and typed signatures, and nine of them now compiled as Python
   calls. Scenes using a character animation compiled with it need 0.9c — on
   0.9b those animations are labels.
+- **Laura's claw effects take TNH 0.9c.beta.28's names:**
+  `LauraKinney_animations_unsheathe_claws()` and
+  `LauraKinney_animations_sheathe_claws()` (they were `unsheathes` and
+  `sheathes`). A scene using the old names no longer validates — rename the
+  call; the arguments are the same.
+- **The game's allowlists describe TNH 0.9c.beta.28.** A scene using a value
+  the game dropped no longer validates. For example:
+  - the season finales' history events (`ch1_mutant_hate_scared` is
+    `ch1.s3.finale.scared`);
+  - the `cheated_on_*` traits, which the game replaced with its own record of
+    breaches;
+  - Kurt's `KurtWagner_short_straight_quiff`, now
+    `KurtWagner_medium_straight_quiff`;
+  - Balrog, Nexu and the other creatures, which this build does not ship.
 - Three base-game functions are listed under their TNH 0.9c names:
   `check_if_need_to_change` is `needs_to_change` (in the conditions and in
   `[[run]]`; its second parameter is now `Arrivals`), `chance_of_repeat_Event`

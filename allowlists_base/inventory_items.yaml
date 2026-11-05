@@ -1,5 +1,5 @@
 source: TNH + Mod
-generated_at: '2026-07-25'
+generated_at: '2026-11-05'
 values:
 - name: acoustic_guitar
   source_file: game/inventory/acoustic_guitar.rpy
@@ -14,8 +14,8 @@ values:
   source_file: game/inventory/baseball_flag.rpy
   source_line: 1
 - name: belly_piercings_barbell
-  source_file: game/inventory/piercings/belly_piercings_barbell.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 21
 - name: box_of_chocolates
   source_file: game/inventory/box_of_chocolates.rpy
   source_line: 1
@@ -44,8 +44,8 @@ values:
   source_file: game/inventory/electric_guitar.rpy
   source_line: 1
 - name: eyebrow_piercings_barbell
-  source_file: game/inventory/piercings/eyebrow_piercings_barbell.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 22
 - name: flowers
   source_file: game/inventory/flowers.rpy
   source_line: 1
@@ -65,23 +65,23 @@ values:
   source_file: game/inventory/journal.rpy
   source_line: 1
 - name: labia_piercings_barbell
-  source_file: game/inventory/piercings/labia_piercings_barbell.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 23
 - name: labia_piercings_ring
-  source_file: game/inventory/piercings/labia_piercings_ring.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 24
 - name: lip_piercings_labret
-  source_file: game/inventory/piercings/lip_piercings_labret.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 25
 - name: lip_piercings_medusa
-  source_file: game/inventory/piercings/lip_piercings_medusa.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 26
 - name: lip_piercings_vertical_labret_ring
-  source_file: game/inventory/piercings/lip_piercings_vertical_labret_ring.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 27
 - name: lip_piercings_vertical_labret_round
-  source_file: game/inventory/piercings/lip_piercings_vertical_labret_round.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 28
 - name: mirror
   source_file: game/inventory/mirror.rpy
   source_line: 1
@@ -98,17 +98,17 @@ values:
   source_file: game/inventory/mystery_novel.rpy
   source_line: 1
 - name: nipple_piercings_barbell
-  source_file: game/inventory/piercings/nipple_piercings_barbell.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 29
 - name: nipple_piercings_ring
-  source_file: game/inventory/piercings/nipple_piercings_ring.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 30
 - name: nostril_piercings_ring
-  source_file: game/inventory/piercings/nostril_piercings_ring.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 31
 - name: nostril_piercings_round
-  source_file: game/inventory/piercings/nostril_piercings_round.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 32
 - name: occult_posters
   source_file: game/inventory/occult_posters.rpy
   source_line: 1
@@ -137,17 +137,17 @@ values:
   source_file: game/inventory/round_anal_plug.rpy
   source_line: 1
 - name: septum_piercings_ring
-  source_file: game/inventory/piercings/septum_piercings_ring.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 33
 - name: septum_piercings_round
-  source_file: game/inventory/piercings/septum_piercings_round.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 34
 - name: snakebite_piercings_ring
-  source_file: game/inventory/piercings/snakebite_piercings_ring.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 35
 - name: snakebite_piercings_round
-  source_file: game/inventory/piercings/snakebite_piercings_round.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 36
 - name: sound_system
   source_file: game/inventory/sound_system.rpy
   source_line: 1
@@ -164,8 +164,8 @@ values:
   source_file: game/inventory/teddy_bear.rpy
   source_line: 1
 - name: tongue_piercings_barbell
-  source_file: game/inventory/piercings/tongue_piercings_barbell.rpy
-  source_line: 1
+  source_file: game/inventory/piercings.rpy
+  source_line: 37
 - name: vibrator
   source_file: game/inventory/vibrator.rpy
   source_line: 1

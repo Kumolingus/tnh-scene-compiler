@@ -1,7 +1,7 @@
 character: KittyPryde
 source: TNH + Mod
-generated_at: '2026-07-22'
+generated_at: '2026-11-05'
 values:
 - name: Nude
   source_file: game/characters/KittyPryde/clothing/outfits.rpy
-  source_line: 6
+  source_line: 10

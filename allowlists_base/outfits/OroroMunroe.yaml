@@ -1,13 +1,13 @@
 character: OroroMunroe
 source: TNH + Mod
-generated_at: '2026-07-22'
+generated_at: '2026-11-05'
 values:
 - name: Casual 1
   source_file: game/characters/OroroMunroe/clothing/outfits.rpy
-  source_line: 8
+  source_line: 14
 - name: Hero (Chapter I)
   source_file: game/characters/OroroMunroe/clothing/outfits.rpy
-  source_line: 26
+  source_line: 32
 - name: Nude
   source_file: game/characters/OroroMunroe/clothing/outfits.rpy
-  source_line: 43
+  source_line: 49

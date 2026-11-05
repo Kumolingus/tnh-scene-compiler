@@ -1,5 +1,5 @@
 source: TNH + Mod
-generated_at: '2026-07-22'
+generated_at: '2026-11-05'
 values:
 - name: AlexanderSummers
   source_file: game/characters/AlexanderSummers
@@ -18,9 +18,6 @@ values:
   source_line: 1
 - name: ArmandoMunoz
   source_file: game/characters/ArmandoMunoz
-  source_line: 1
-- name: Balrog
-  source_file: game/characters/Balrog
   source_line: 1
 - name: CainMarko
   source_file: game/characters/CainMarko
@@ -79,9 +76,6 @@ values:
 - name: NegaNexus
   source_file: game/characters/Silhouettes/NegaNexus
   source_line: 1
-- name: Nexu
-  source_file: game/characters/Nexu
-  source_line: 1
 - name: OroroMunroe
   source_file: game/characters/OroroMunroe
   source_line: 1
@@ -108,16 +102,4 @@ values:
   source_line: 1
 - name: Sentinel
   source_file: game/characters/Sentinel
-  source_line: 1
-- name: SliferTheSkyDragon
-  source_file: game/characters/SliferTheSkyDragon
-  source_line: 1
-- name: Spinosaurus
-  source_file: game/characters/Spinosaurus
-  source_line: 1
-- name: XenomorphDrone
-  source_file: game/characters/XenomorphDrone
-  source_line: 1
-- name: XenomorphKing
-  source_file: game/characters/XenomorphKing
   source_line: 1

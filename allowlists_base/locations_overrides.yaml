@@ -4,13 +4,14 @@
 #
 # Fields:
 #   name:        the slugline a scene writes after INT. / EXT. (uppercase)
-#   location_id: the all_Locations key it resolves to
+#   location_id: the ALL_LOCATIONS key it resolves to
 overrides:
-  # TNH gives loc_PlayerShower the bedroom's display name
+  # TNH gives the player's shower (XavierSchool.PlayerShower since
+  # 0.9c.beta.28) the bedroom's display name
   # ("[Player.first_name]'s Room"), so both locations derive the same
   # slugline and the extractor can only keep one — the bedroom. Without an
   # entry here the shower has no slugline at all and no scene can open
   # there. This one is invented rather than derived from the game's text,
   # which is exactly what this file is for.
   - name: "[PLAYER.FIRST_NAME]'S SHOWER"
-    location_id: loc_PlayerShower
+    location_id: XavierSchool.PlayerShower

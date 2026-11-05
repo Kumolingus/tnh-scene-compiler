@@ -1,46 +1,46 @@
 character: JeanGrey
 source: TNH + Mod
-generated_at: '2026-07-22'
+generated_at: '2026-11-05'
 values:
 - name: Casual 1
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 8
+  source_line: 14
 - name: Casual 2
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 37
+  source_line: 43
 - name: Casual 3
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 74
+  source_line: 80
 - name: Datenight 1
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 200
+  source_line: 206
 - name: Datenight 2
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 236
+  source_line: 242
 - name: Exercise
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 122
+  source_line: 128
 - name: Formal
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 272
+  source_line: 278
 - name: Hero (Chapter I)
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 146
+  source_line: 152
 - name: Lingerie 1
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 321
+  source_line: 327
 - name: Lingerie 2
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 343
+  source_line: 349
 - name: Nude
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 356
+  source_line: 362
 - name: Pajamas
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 295
+  source_line: 301
 - name: Swimsuit (Bikini)
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 186
+  source_line: 192
 - name: Swimsuit (One-Piece)
   source_file: game/characters/JeanGrey/clothing/outfits.rpy
-  source_line: 170
+  source_line: 176
