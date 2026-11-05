@@ -726,7 +726,7 @@ Named tiers are preferred; they keep the emitted line readable and benefit from 
 - Records a history event for a character.
 - Character is validated against `characters.yaml`.
 - Event is validated against `history_events.yaml` (with fuzzy suggestions).
-- Compiles to `$ JeanGrey.History.add("kissed_player")`.
+- Compiles to `$ JeanGrey.History.update("kissed_player")`.
 
 ### 8.17 set_personality
 
@@ -738,7 +738,7 @@ Named tiers are preferred; they keep the emitted line readable and benefit from 
 - Character validated against `characters.yaml`.
 - Trait validated against `personalities.yaml` (with fuzzy suggestions).
 - Value must be an integer.
-- Compiles to `$ JeanGrey.set_personality("dominant", 3)`.
+- Compiles to `$ JeanGrey.personality["dominant"] = 3`, the way the game itself sets a score.
 
 ---
 

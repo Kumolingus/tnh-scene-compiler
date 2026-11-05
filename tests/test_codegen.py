@@ -382,6 +382,39 @@ def test_codegen_fx_kept_in_a_named_store_calls_its_home() -> None:
     assert "$ CHARACTERS.LauraKinney.animations.sheathe_claws(0.5)" in cinematic
 
 
+def test_codegen_record_calls_history_update(allowlists: Allowlists) -> None:
+    # TNH's HistoryClass records an occurrence with `update` and has no `add`
+    # (core/base/history.py on 0.9c.beta.28, core/base/history.rpy on beta.17):
+    # `History.add` raised AttributeError the moment the line ran.
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "[[record JeanGrey kissed_player]]\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    assert '$ JeanGrey.History.update("kissed_player")' in output
+    assert "History.add(" not in output
+
+
+def test_codegen_set_personality_assigns_the_score(allowlists: Allowlists) -> None:
+    # TNH has no `set_personality` method (neither 0.9c.beta.17 nor beta.28):
+    # the game sets a score by assigning into the character's `personality`
+    # dict (`$ Rogue.personality["submissive"] = 1`, characters/*/events/
+    # relationship/quirk.rpy).
+    text = (
+        "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
+        "[[set_personality JeanGrey dominant -1]]\n"
+    )
+    scene = parse(text, path = "inline.scene")
+
+    output = generate(scene, allowlists, _CTX)
+
+    assert '$ JeanGrey.personality["dominant"] = -1' in output
+    assert "set_personality(" not in output
+
+
 def test_codegen_sfx_emits_sound_play(allowlists: Allowlists) -> None:
     text = (
         "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"

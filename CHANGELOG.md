@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **`[[record]]` and `[[set_personality]]` no longer stop the game.** They
+  compiled to `History.add(…)` and `set_personality(…)`, which TNH has never
+  had (0.9b or 0.9c), so the line raised `AttributeError` when it ran. They
+  now compile to `X.History.update("event")` and
+  `X.personality["trait"] = value`, the way the game itself records an event
+  and sets a score.
 - **Character animations and `bamf` are called where TNH 0.9c.beta.28 keeps
   them.** beta.28 moved the animations into each character's namespace
   (`CHARACTERS.KurtWagner.animations.teleports_in`) and `bamf` into

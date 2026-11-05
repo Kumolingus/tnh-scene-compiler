@@ -1453,10 +1453,12 @@ def _emit_body(
         elif isinstance(node, RemoveTrait):
             lines.append(f'{indent}$ {node.character}.remove_trait("{node.trait}")')
         elif isinstance(node, RecordEvent):
-            lines.append(f'{indent}$ {node.character}.History.add("{node.event}")')
+            # HistoryClass records an occurrence with `update`; it has no `add`.
+            lines.append(f'{indent}$ {node.character}.History.update("{node.event}")')
         elif isinstance(node, SetPersonality):
+            # TNH has no setter: the game assigns into the `personality` dict.
             lines.append(
-                f'{indent}$ {node.character}.set_personality("{node.trait}", {node.value})'
+                f'{indent}$ {node.character}.personality["{node.trait}"] = {node.value}'
             )
     return lines
 
