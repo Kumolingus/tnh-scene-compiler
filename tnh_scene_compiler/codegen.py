@@ -24,7 +24,7 @@ Output skeleton::
         $ ongoing_Event = True
         $ _scene_state = {}
 
-        $ set_the_scene(location = "<loc_id>", greetings = False)
+        $ set_the_scene(get_location("<loc_id>"), greetings = False)
 
         "Narration paragraph."
         CHARACTER "Dialogue line."
@@ -922,11 +922,13 @@ def _emit_set_scene(
 ) -> list[str]:
     """Emit the set-scene block: optional time_index, then ``set_the_scene``.
 
-    TNH's ``set_the_scene`` does not take a time argument (see
-    ``core/mechanics/characters.rpy:143``). When the slugline carries a
-    time-of-day suffix the codegen emits a ``$ time_index = N``
-    assignment first so the background renders with the correct
-    lighting / tint.
+    Since TNH 0.9c.beta.28 ``set_the_scene`` takes the ``LocationClass``
+    itself as its first parameter, ``Location`` (``core/locations/
+    characters.py``); ``get_location`` returns the location a registry key
+    names, base or mod (``core/locations/utilities.py``). It takes no time
+    argument: when the slugline carries a time-of-day suffix the codegen
+    emits a ``$ time_index = N`` assignment first so the background
+    renders with the correct lighting / tint.
 
     When ``clean_present`` is set (cinematic scenes), the codegen passes
     ``show_Characters = False`` to ``set_the_scene`` AND follows it with
@@ -934,12 +936,12 @@ def _emit_set_scene(
 
     - ``show_Characters = False`` only suppresses *rendering*; it does
       not empty ``Location.Present``. ``set_the_scene`` (and the
-      ``rebalance_Location_Characters`` it runs while travelling) leaves
+      ``rebalance_Characters`` it runs while travelling) leaves
       stray NPCs in ``Present``, so a later ``add_Characters`` re-renders
       them — e.g. Jean popping into Rogue's announcement.
     - ``remove_everyone_but([], send_Offscreen = True)`` empties
-      ``Present`` (``get_visible_Characters`` reads ``Location.Present``,
-      not the rendered set, so it still finds the suppressed NPCs). The
+      ``Present`` (it reads ``Location.Visible``, not the rendered set,
+      so it still finds the suppressed NPCs). The
       ``send_Offscreen`` path goes through ``hide_Character`` rather than
       ``remove_Characters``, so no ``set_Outfits(instant=False)`` re-dress
       animation runs. ``show_Characters = False`` means nobody was drawn,
@@ -954,7 +956,7 @@ def _emit_set_scene(
         lines.append(f"{indent}$ time_index = {time_index}")
     extra_args = ", show_Characters = False" if clean_present else ""
     lines.append(
-        f"{indent}$ set_the_scene(location = \"{location_id}\", "
+        f"{indent}$ set_the_scene(get_location(\"{location_id}\"), "
         f"greetings = False{extra_args})",
     )
     if clean_present:
@@ -1134,12 +1136,13 @@ def _emit_dialogue(
     if emit_as_text:
         # Phone-text medium compiles to the TNH core primitives
         # (``send_text`` when the Player is the speaker, ``receive_text``
-        # otherwise). ``phone_Chat`` is the conversation ``open_texts`` put
-        # on screen (``interfaces/phone/main.rpy``); TNH 0.9b named it
+        # otherwise). ``interfaces.phone.Chat`` is the conversation
+        # ``open_texts`` put on screen (``interfaces/phone/main.rpy``); TNH
+        # 0.9c.beta.17 kept it in the store as ``phone_Chat``, 0.9b as
         # ``current_phone_Chat``.
         if companion == "Player":
             output.append(
-                f"{indent}$ send_text(phone_Chat, \"{text}\")",
+                f"{indent}$ send_text(interfaces.phone.Chat, \"{text}\")",
             )
         else:
             output.append(
@@ -1231,17 +1234,32 @@ def _emit_call_scene(node: CallScene, indent: str) -> str:
 def _emit_approval(node: Approval, indent: str) -> str:
     """Emit ``$ update_approval(Char, "axis", [-]magnitude)``.
 
-    The magnitude keeps its source form (named tier or integer literal).
-    A negative sign is rendered as a ``-`` prefix; positive is rendered
-    bare so the line reads like the rest of the TNH codebase.
+    A named tier becomes the game's constant (``large_stat`` ->
+    ``LARGE_STAT``, ``core/characters/approval.py``, TNH 0.9c.beta.28); an
+    integer literal is kept as written. A negative sign is rendered as a
+    ``-`` prefix; positive is rendered bare so the line reads like the rest
+    of the TNH codebase.
     """
     sign_prefix = "" if node.sign == "+" else "-"
+    magnitude = _STAT_TIER_CONSTANTS.get(node.magnitude_text, node.magnitude_text)
     return (
         f"{indent}$ update_approval("
         f"{node.character}, "
         f'"{node.axis}", '
-        f"{sign_prefix}{node.magnitude_text})"
+        f"{sign_prefix}{magnitude})"
     )
+
+
+# The ``[[approval]]`` tier a writer names, and the game constant it compiles
+# to. TNH 0.9c.beta.17 bound the lowercase names in the store; beta.28 has only
+# the constants.
+_STAT_TIER_CONSTANTS: dict[str, str] = {
+    "tiny_stat": "TINY_STAT",
+    "small_stat": "SMALL_STAT",
+    "medium_stat": "MEDIUM_STAT",
+    "large_stat": "LARGE_STAT",
+    "massive_stat": "MASSIVE_STAT",
+}
 
 
 def _emit_choice(
@@ -1421,6 +1439,12 @@ def _emit_body(
             elif is_label:
                 lines.append(f"{indent}call {call_text}")
             else:
+                # A function the game keeps in a named store is called at
+                # its home; the flat name the writer typed is, at most, an
+                # alias the game keeps for old saves.
+                home = allow.fx_calls.get(node.target_name)
+                if home:
+                    call_text = home + call_text[len(node.target_name):]
                 lines.append(f"{indent}$ {call_text}")
         elif isinstance(node, Approval):
             lines.append(_emit_approval(node, indent))

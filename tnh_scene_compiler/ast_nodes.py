@@ -252,8 +252,8 @@ class CallScene:
 class Approval:
     """``[[approval Char love +large_stat]]`` — call ``update_approval(...)``.
 
-    Maps to TNH's ``update_approval(Character, flavor, value)`` helper at
-    ``core/mechanics/approval.rpy:59``. The two flavours TNH branches on
+    Maps to TNH's ``update_approval(Character, flavor, value)`` helper
+    (``core/characters/approval.py`` since 0.9c.beta.28). The two flavours TNH branches on
     are ``"love"`` and ``"trust"``; any other value would raise at runtime
     (the helper relies on ``shade`` being set in those two branches), so
     the parser keeps that enum closed.
@@ -266,10 +266,10 @@ class Approval:
             codegen — either a stat-tier name (``tiny_stat``,
             ``small_stat``, ``medium_stat``, ``large_stat``,
             ``massive_stat``) or a positive integer literal as a string.
-            TNH defines the stat-tier constants at
-            ``core/mechanics/approval.rpy:1-7`` so referencing them by
-            name in the emitted ``$ update_approval(...)`` line keeps the
-            output readable and benefits from any base-game rebalance.
+            Codegen emits a tier as the game's constant (``LARGE_STAT``,
+            ``core/characters/approval.py``), so the emitted
+            ``$ update_approval(...)`` line stays readable and benefits
+            from any base-game rebalance.
         sign: ``"+"`` or ``"-"``. Required (no implicit sign) so a writer
             cannot accidentally swap the direction of an approval change.
     """

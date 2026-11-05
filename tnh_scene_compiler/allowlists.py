@@ -679,6 +679,11 @@ class Allowlists:
     fx_signatures: dict[str, str] = field(default_factory=dict)
     fx_param_choices: dict[str, dict[str, list[str]]] = field(default_factory=dict)
     fx_call_modes: dict[str, str] = field(default_factory=dict)
+    # Per effect, the path a compiled scene calls it by when the game keeps it
+    # in a named store (``CHARACTERS.LauraKinney.animations.sheathe_claws``),
+    # "" when it is called by its own name. Every loaded effect has a key, so
+    # a layer redefining an effect also replaces its path.
+    fx_calls: dict[str, str] = field(default_factory=dict)
     condition_functions: set[str] = field(default_factory=set)
     condition_function_signatures: dict[str, str] = field(default_factory=dict)
     condition_function_categories: dict[str, str] = field(default_factory=dict)
@@ -770,6 +775,7 @@ class Allowlists:
         fx_signatures: dict[str, str] = {}
         fx_param_choices: dict[str, dict[str, list[str]]] = {}
         fx_call_modes: dict[str, str] = {}
+        fx_calls: dict[str, str] = {}
         for fx_file in ("fx.yaml", "fx_custom.yaml"):
             fx_payload = _read_yaml(allowlists_dir / fx_file)
             if not (fx_payload and isinstance(fx_payload.get("effects"), list)):
@@ -789,6 +795,8 @@ class Allowlists:
                     call_mode = item.get("call_mode")
                     if isinstance(call_mode, str):
                         fx_call_modes[item["name"]] = call_mode
+                    call = item.get("call")
+                    fx_calls[item["name"]] = call if isinstance(call, str) else ""
 
         # Condition-functions allowlist (hand-maintained). Helpers
         # callable from [[if]] / [[elif]] / [[choice ... if]]. The
@@ -952,6 +960,7 @@ class Allowlists:
             fx_signatures = fx_signatures,
             fx_param_choices = fx_param_choices,
             fx_call_modes = fx_call_modes,
+            fx_calls = fx_calls,
             condition_functions = condition_functions,
             condition_function_signatures = condition_function_signatures,
             condition_function_categories = condition_function_categories,
@@ -1154,6 +1163,7 @@ class Allowlists:
             fx_signatures={**self.fx_signatures, **other.fx_signatures},
             fx_param_choices={**self.fx_param_choices, **other.fx_param_choices},
             fx_call_modes={**self.fx_call_modes, **other.fx_call_modes},
+            fx_calls={**self.fx_calls, **other.fx_calls},
             condition_functions=self.condition_functions | other.condition_functions,
             condition_function_signatures={
                 **self.condition_function_signatures,

@@ -189,12 +189,14 @@ Rules:
   ```yaml
   values:
     - name: "JEANGREY'S ROOM"
-      location_id: "loc_XavierSchool_JeanGreyRoom"
+      location_id: "XavierSchool.JeanGreyRoom"
     - name: "PLAYER'S ROOM"
-      location_id: "loc_XavierSchool_PlayerRoom"
+      location_id: "XavierSchool.PlayerRoom"
   ```
 - If the slugline text is not in the table, the compiler reports an error with fuzzy-match suggestions.
-- Compiles to `$ set_the_scene(location = "loc_...", greetings = False)`.
+- Compiles to `$ set_the_scene(get_location("<location_id>"), greetings = False)`:
+  since TNH 0.9c.beta.28, `set_the_scene` takes the location itself, and
+  `get_location` returns the one a registry key names.
 - For **cinematic** scenes, the codegen also passes
   `show_Characters = False` to `set_the_scene()` so the destination
   starts with a clean stage. The writer then opts in to specific
@@ -348,7 +350,7 @@ I'm not panicking.
 
 `spoken` is the default medium. It is legal but redundant to write explicitly.
 
-When the speaker is `PLAYER`, `(text)` compiles to `$ send_text(phone_Chat, "...")` -- `phone_Chat` is the conversation the last
+When the speaker is `PLAYER`, `(text)` compiles to `$ send_text(interfaces.phone.Chat, "...")` -- `interfaces.phone.Chat` is the conversation the last
 `[[phone open <Character>]]` put on screen. For any other character, it compiles to `$ receive_text(<Character>, "...")`.
 
 ---
@@ -397,7 +399,10 @@ Names are validated against `_allowlists/fx.yaml`. Unknown name is a compile err
 The emitted code depends on the effect's `call_mode` metadata in `fx.yaml`:
 
 - **`call_mode: label`** (effects defined as Ren'Py labels in `effects.rpy`, `animations.rpy`, etc.): compiles to `call <name>(args)`.
-- **No `call_mode`** (plain Python functions like `phone_buzz`, `knock_on_door`): compiles to `$ <name>(args)`.
+- **No `call_mode`** (plain Python functions like `phone_buzz`, `knock_on_door`): compiles to `$ <name>(args)`, or to
+  `$ <call>(args)` when the entry has a `call`: the path of a function the game keeps in a named store. Since TNH 0.9c.beta.28,
+  `[[fx LauraKinney_animations_sheathe_claws()]]` compiles to `$ CHARACTERS.LauraKinney.animations.sheathe_claws()`; the flat
+  name is the one the game's own compatibility alias uses, and the scene calls the function's home.
 
 #### Cinematic auto-prefixing
 
@@ -430,11 +435,11 @@ effects:
   source_file: game/core/mechanics/phone.rpy
   source_line: 3
   signature: "phone_buzz(x: float = 0.5, ...) -> None"
-- name: LauraKinney_animations_unsheathes_claws
+- name: LauraKinney_animations_unsheathe_claws
   source_file: game/characters/LauraKinney/animations.rpy
-  source_line: 1
-  signature: LauraKinney_animations_unsheathes_claws(..., hand = "both") -> None
-  call_mode: label
+  source_line: 7
+  signature: 'LauraKinney_animations_unsheathe_claws(x: float = 0.675, y: float = 0.25, hand: str = "both") -> None'
+  call: CHARACTERS.LauraKinney.animations.unsheathe_claws
   param_choices:
     hand:
     - '"both"'
@@ -447,6 +452,7 @@ effects:
 | `name`          | Yes      | Function/label name as written in `[[fx]]`.          |
 | `signature`     | Yes      | Full Python signature (for GUI and cheatsheet).      |
 | `call_mode`     | No       | `"label"` = Ren'Py label → `call`; absent → `$`.     |
+| `call`          | No       | Path a `$` call uses instead of `name` (named store).|
 | `param_choices` | No       | Param name → valid values list (GUI autocompletion). |
 | `source_file`   | No       | Provenance (for allowlist refresh).                  |
 | `source_line`   | No       | Provenance (for allowlist refresh).                  |
@@ -683,7 +689,9 @@ You spend the next few hours talking, the tension slowly bleeding away.
 
 Named tiers are preferred; they keep the emitted line readable and benefit from any base-game rebalance.
 
-- Compiles to `$ update_approval(<Character>, "<axis>", [-]<magnitude>)`.
+- Compiles to `$ update_approval(<Character>, "<axis>", [-]<magnitude>)`, a
+  named tier as the game's constant: `+large_stat` becomes `LARGE_STAT`
+  (TNH 0.9c.beta.28 has no lowercase names).
 - Use `[[approval]]` instead of `[[run update_approval(...)]]`. The
   dedicated directive enforces the closed enums and produces better
   error messages.
@@ -940,8 +948,8 @@ and refreshes the allowlists.
 
 #### fx.yaml
 
-Uses an `effects` key (not `values`) at the top level. Each entry carries `signature`, optional `call_mode`, and optional `param_choices`
-metadata. See section 8.3 for the full entry structure and how `call_mode` drives codegen behaviour.
+Uses an `effects` key (not `values`) at the top level. Each entry carries `signature`, optional `call_mode`, optional `call` and
+optional `param_choices` metadata. See section 8.3 for the full entry structure and how `call_mode` drives codegen behaviour.
 
 #### condition_functions.yaml / character_methods.yaml
 
@@ -1057,7 +1065,7 @@ label my_mod_dialogue_jeangrey_greeting:
     $ ongoing_Event = True
     $ _scene_state = dict(getattr(my_mod_runtime, 'scene_state', None) or {})
 
-    $ set_the_scene(location = "loc_XavierSchool_JeanGreyRoom", greetings = False, show_Characters = False)
+    $ set_the_scene(get_location("XavierSchool.JeanGreyRoom"), greetings = False, show_Characters = False)
 
     "She sits on her bed and sighs."
     ch_JeanGrey "Hey [player.petname], you awake?"

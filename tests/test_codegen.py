@@ -85,7 +85,10 @@ def test_codegen_emits_set_the_scene_for_body_slugline(
 
     output = generate(scene, allowlists, _CTX)
 
-    assert "$ set_the_scene(location = \"loc_XavierSchool_JeanGreyRoom\"" in output
+    # TNH 0.9c.beta.28's set_the_scene takes the LocationClass itself, as its
+    # first parameter `Location`; get_location resolves the registry key.
+    assert "$ set_the_scene(get_location(\"loc_XavierSchool_JeanGreyRoom\")" in output
+    assert "location =" not in output
 
 
 def test_codegen_title_page_location_emits_set_the_scene(
@@ -97,7 +100,7 @@ def test_codegen_title_page_location_emits_set_the_scene(
 
     output = generate(scene, allowlists, _CTX)
 
-    assert "$ set_the_scene(location = \"loc_XavierSchool_PlayerRoom\"" in output
+    assert "$ set_the_scene(get_location(\"loc_XavierSchool_PlayerRoom\")" in output
 
 
 def test_codegen_narration_uses_bare_quoted_string(
@@ -342,6 +345,43 @@ def test_codegen_pause_emits_renpy_pause(allowlists: Allowlists) -> None:
     assert "$ renpy.pause(0.5)" in output
 
 
+def test_codegen_fx_kept_in_a_named_store_calls_its_home() -> None:
+    # TNH 0.9c.beta.28 keeps Laura's claws in CHARACTERS.LauraKinney.animations
+    # and bamf in displayables.effects; the flat store names are aliases kept
+    # for old saves (definitions/compatibility.rpy).
+    allow = Allowlists(
+        characters = ["LauraKinney"],
+        fx = {"LauraKinney_animations_sheathe_claws", "bamf", "phone_buzz"},
+        fx_calls = {
+            "LauraKinney_animations_sheathe_claws": "CHARACTERS.LauraKinney.animations.sheathe_claws",
+            "bamf": "displayables.effects.bamf",
+            "phone_buzz": "",
+        },
+    )
+    body = (
+        "[[fx LauraKinney_animations_sheathe_claws(0.5)]]\n"
+        "[[fx bamf()]]\n"
+        "[[fx phone_buzz()]]\n"
+    )
+
+    phone = generate(parse(
+        "Title: T\nScene Id: s\nCharacter: LauraKinney\nScene Type: phone\nTrigger: manual\n\n" + body,
+        path = "inline.scene",
+    ), allow, _CTX)
+    assert "$ CHARACTERS.LauraKinney.animations.sheathe_claws(0.5)" in phone
+    assert "$ displayables.effects.bamf()" in phone
+    assert "$ phone_buzz()" in phone
+    assert "LauraKinney_animations_" not in phone.split("label ", 1)[1]
+
+    # A cinematic scene still calls the effect's cinematic_ label.
+    cinematic = generate(parse(
+        "Title: T\nScene Id: s\nCharacter: LauraKinney\nScene Type: cinematic\nTrigger: manual\n\n" + body,
+        path = "inline.scene",
+    ), allow, _CTX)
+    assert "call cinematic_bamf()" in cinematic
+    assert "$ CHARACTERS.LauraKinney.animations.sheathe_claws(0.5)" in cinematic
+
+
 def test_codegen_sfx_emits_sound_play(allowlists: Allowlists) -> None:
     text = (
         "Title: T\nScene Id: s\nCharacter: JeanGrey\nScene Type: cinematic\nTrigger: manual\n\n"
@@ -546,10 +586,11 @@ def test_codegen_text_medium_emits_send_text_for_player(allowlists: Allowlists) 
 
     output = generate(scene, allowlists, _CTX)
 
-    # phone_Chat is the conversation open_texts put on screen; TNH 0.9c removed
-    # 0.9b's current_phone_Chat, so the old name raised NameError on send.
-    assert "$ send_text(phone_Chat, \"I'm here.\")" in output
-    assert "current_phone_Chat" not in output
+    # The conversation open_texts put on screen: TNH 0.9c.beta.28 keeps it in
+    # the interfaces.phone store (interfaces/phone/main.rpy); the store name
+    # phone_Chat (0.9c.beta.17) and current_phone_Chat (0.9b) raise NameError.
+    assert "$ send_text(interfaces.phone.Chat, \"I'm here.\")" in output
+    assert "phone_Chat" not in output
 
 
 def test_codegen_phone_scene_omits_ongoing_event_wrapping(allowlists: Allowlists) -> None:
@@ -919,7 +960,7 @@ def test_codegen_cinematic_passes_show_characters_false_to_set_the_scene(
     output = generate(scene, allowlists, _CTX)
 
     assert (
-        "$ set_the_scene(location = \"loc_XavierSchool_JeanGreyRoom\", "
+        "$ set_the_scene(get_location(\"loc_XavierSchool_JeanGreyRoom\"), "
         "greetings = False, show_Characters = False)"
     ) in output
     # The cinematic slugline must also clear Present so a later
@@ -985,8 +1026,12 @@ def test_codegen_emits_approval_with_named_stat_tier(
 
     output = generate(scene, allowlists, _CTX)
 
-    assert "$ update_approval(JeanGrey, \"love\", large_stat)" in output
-    assert "$ update_approval(JeanGrey, \"trust\", -medium_stat)" in output
+    # The writer's tier names the game's constant: TNH 0.9c.beta.28 renamed
+    # large_stat to LARGE_STAT (core/characters/approval.py) and dropped the
+    # lowercase store names, so the old emission raised NameError.
+    assert "$ update_approval(JeanGrey, \"love\", LARGE_STAT)" in output
+    assert "$ update_approval(JeanGrey, \"trust\", -MEDIUM_STAT)" in output
+    assert "large_stat" not in output and "medium_stat" not in output
 
 
 def test_codegen_emits_approval_with_integer_literal(

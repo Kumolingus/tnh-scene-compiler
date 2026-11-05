@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Character animations and `bamf` are called where TNH 0.9c.beta.28 keeps
+  them.** beta.28 moved the animations into each character's namespace
+  (`CHARACTERS.KurtWagner.animations.teleports_in`) and `bamf` into
+  `displayables.effects`, keeping the old names only as aliases for old saves.
+  You keep typing `KurtWagner_animations_teleports_in()`; the compiled line
+  calls the game's own path. An effect your project redefines in
+  `fx_custom.yaml` is still called by its own name.
+- **Sluglines, player texts and `[[approval]]` run on TNH 0.9c.beta.28.**
+  Each stopped the game when its line ran: beta.28's `set_the_scene` takes
+  the location itself and no `location` keyword, and the store names
+  `phone_Chat` and `large_stat` (and the other tiers) are gone. They now
+  compile to `set_the_scene(get_location("<location_id>"), …)`,
+  `send_text(interfaces.phone.Chat, …)` and `LARGE_STAT`.
 - **Conditions use TNH 0.9c.beta.28's names.** beta.28 renamed
   `are_Characters_friends` to `are_friends`, `get_Characters_opinion` to
   `get_friendship`, `seen_Player_recently` to `has_seen_Player_recently`, and

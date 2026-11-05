@@ -574,7 +574,7 @@ _FX_LABEL_STRIP_RE = re.compile(r"^[A-Z][A-Za-z]+_animations_")
 def _fx_button_label(fx_name: str) -> str:
     """Shorten long character FX names for button display.
 
-    ``LauraKinney_animations_unsheathes_claws`` → ``Laura: unsheathes_claws``
+    ``LauraKinney_animations_unsheathe_claws`` → ``Laura: unsheathe_claws``
     ``KurtWagner_animations_teleports_in`` → ``Kurt: teleports_in``
     """
     m = _FX_LABEL_STRIP_RE.match(fx_name)

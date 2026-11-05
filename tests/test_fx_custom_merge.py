@@ -59,6 +59,51 @@ def test_fx_custom_wins_on_name_collision(tmp_path: Path) -> None:
     assert allowlists.fx_call_modes["shared_effect"] == "function"
 
 
+def test_an_effect_kept_in_a_named_store_loads_its_call_path(tmp_path: Path) -> None:
+    # TNH 0.9c.beta.28 keeps a character's animations in a named store; the
+    # writer types the flat name, the scene calls the function's home.
+    _write(tmp_path / "fx.yaml", (
+        "effects:\n"
+        "- name: LauraKinney_animations_sheathe_claws\n"
+        "  signature: LauraKinney_animations_sheathe_claws(x = 0.675) -> None\n"
+        "  call: CHARACTERS.LauraKinney.animations.sheathe_claws\n"
+        "- name: phone_buzz\n"
+        "  signature: phone_buzz() -> None\n"
+    ))
+
+    allowlists = Allowlists.load(tmp_path)
+
+    assert allowlists.fx_calls["LauraKinney_animations_sheathe_claws"] == "CHARACTERS.LauraKinney.animations.sheathe_claws"
+    assert allowlists.fx_calls["phone_buzz"] == ""
+
+
+def test_a_project_effect_of_the_same_name_drops_the_base_call_path(tmp_path: Path) -> None:
+    # A project redefining a base effect calls its own function, by its name.
+    base, project = tmp_path / "base", tmp_path / "project"
+    base.mkdir()
+    project.mkdir()
+    _write(base / "fx.yaml", (
+        "effects:\n"
+        "- name: bamf\n"
+        "  signature: bamf() -> None\n"
+        "  call: displayables.effects.bamf\n"
+    ))
+    _write(project / "fx_custom.yaml", (
+        "effects:\n"
+        "- name: bamf\n"
+        "  signature: bamf(override) -> None\n"
+    ))
+
+    assert Allowlists.load(base).merge(Allowlists.load(project)).fx_calls["bamf"] == ""
+
+    _write(base / "fx_custom.yaml", (
+        "effects:\n"
+        "- name: bamf\n"
+        "  signature: bamf(override) -> None\n"
+    ))
+    assert Allowlists.load(base).fx_calls["bamf"] == ""
+
+
 def test_missing_fx_custom_is_tolerated(tmp_path: Path) -> None:
     _write(tmp_path / "fx.yaml", (
         "effects:\n"
