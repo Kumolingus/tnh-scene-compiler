@@ -84,8 +84,8 @@ pip install Pillow
 python scripts/import_thumbnails.py path/to/TNH-VisualReference
 ```
 
-This creates a `thumbnails/` directory with resized PNGs and a mapping file. The thumbnails are bundled into the release `.exe`
-automatically.
+This creates a `thumbnails/` directory with resized PNGs and a mapping file, which the editor reads when run from source. A release
+build does not embed them in the `.exe`: `scripts/build_release.py` ships them as `thumbnails.zip`, to unzip next to the exe.
 
 ## License
 
