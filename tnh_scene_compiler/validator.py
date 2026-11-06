@@ -62,6 +62,7 @@ from .expr_parser import (
     Compare,
     Expr,
     ListExpr,
+    Literal,
     Member,
     Name,
     UnaryNot,
@@ -1142,7 +1143,7 @@ def _validate_condition_calls(
     """Validate calls and bare property access in a condition expression.
 
     The condition is first run through the DSL transformation layer so
-    writer-friendly sugar (``X.love >= medium``, ``X.has("shy")``) is
+    writer-friendly sugar (``X.has("shy")``, ``X.did("kiss")``) is
     rewritten to canonical calls before validation.
 
     Standalone calls (``func()``) are checked against ``condition_functions``.
@@ -1164,6 +1165,87 @@ def _validate_condition_calls(
         elif isinstance(call.target, Attribute):
             _validate_method_call(call, allow, errors, path, line)
     _validate_condition_attributes(condition, allow, errors, path, line)
+    _reject_approval_tier_comparisons(condition, errors, path, line)
+
+
+# The stat tiers of `[[approval]]` (tiny_stat ... massive_stat) are amounts an
+# approval CHANGE moves by, not levels to compare against. `X.love >= medium`
+# used to be rewritten to check_approval(X, "love", "medium_stat"), which TNH
+# reads as the threshold row "medium_stat": no such row exists, its default
+# requirement is (0, 0), so the condition held for everyone and the operator
+# and the axis were ignored. Refused by name, with the two forms that work.
+_APPROVAL_AXES = frozenset({"love", "trust"})
+_STAT_TIERS = ("tiny", "small", "medium", "large", "massive")
+_STAT_TIER_NAMES = frozenset(_STAT_TIERS) | {f"{tier}_stat" for tier in _STAT_TIERS}
+
+
+def _iter_compares(expr: Expr) -> list[Compare]:
+    """Return every ``Compare`` node of ``expr``, call arguments included."""
+    if isinstance(expr, Compare):
+        result = [expr]
+        result.extend(_iter_compares(expr.left))
+        for _, right in expr.ops_and_rights:
+            result.extend(_iter_compares(right))
+        return result
+    if isinstance(expr, Call):
+        result = []
+        for arg in expr.args:
+            result.extend(_iter_compares(arg))
+        return result
+    if isinstance(expr, BoolOp):
+        result = []
+        for operand in expr.operands:
+            result.extend(_iter_compares(operand))
+        return result
+    if isinstance(expr, UnaryNot):
+        return _iter_compares(expr.operand)
+    if isinstance(expr, Member):
+        return _iter_compares(expr.left) + _iter_compares(expr.right)
+    if isinstance(expr, ListExpr):
+        result = []
+        for element in expr.elements:
+            result.extend(_iter_compares(element))
+        return result
+    return []
+
+
+def _reject_approval_tier_comparisons(
+    condition: Expr,
+    errors: list[CompileError],
+    path: str,
+    line: int,
+) -> None:
+    """Refuse ``Character.love`` / ``.trust`` compared with a stat tier name.
+
+    condition: the condition after the DSL transform.
+    errors: the list the error is appended to.
+    path, line: where the condition was written.
+    """
+    for compare in _iter_compares(condition):
+        left = compare.left
+        if not (isinstance(left, Attribute) and len(left.parts) == 1 and left.parts[0] in _APPROVAL_AXES):
+            continue
+        for op, right in compare.ops_and_rights:
+            tier = right.name if isinstance(right, Name) else right.value if isinstance(right, Literal) else None
+            if not isinstance(tier, str) or tier not in _STAT_TIER_NAMES:
+                continue
+            character = left.root.name
+            axis = left.parts[0]
+            errors.append(CompileError(
+                path = path,
+                line = line,
+                col = compare.col_offset,
+                message = (
+                    f"`{character}.{axis} {op} {tier}` is not a valid check: "
+                    f"{tier} is an amount an approval change moves by, not a "
+                    f"level of {axis}."
+                ),
+                hint = (
+                    f"Compare the value itself ({character}.{axis} >= 500), or "
+                    "name one of the character's relationship thresholds: "
+                    f'check_approval({character}, None, "dating").'
+                ),
+            ))
 
 
 def _validate_standalone_call(

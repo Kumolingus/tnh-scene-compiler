@@ -221,14 +221,16 @@ write than the raw function calls listed above. Use these inside
 ### Love / Trust check
 
 ```
-[[if Character.love >= tier]]
-[[if Character.trust >= tier]]
+[[if Character.love >= 500]]
+[[if Character.trust >= 500]]
 ```
 
-Tiers from weakest to strongest:
-`tiny` < `small` < `medium` < `large` < `massive`
+The raw value: how the character feels about the player. To ask for a
+relationship level, name one of the character's thresholds:
+`[[if check_approval(JeanGrey, None, "dating")]]`
 
-Example: `[[if JeanGrey.love >= medium]]`
+`tiny` ... `massive` are amounts for `[[approval]]`, not levels: comparing
+love or trust with one is a compile error.
 
 ### Trait check
 
@@ -292,9 +294,9 @@ Example: `[[if JeanGrey.personality("bold")]]`
 Use `AND`, `OR`, `NOT`, and parentheses (lowercase works too):
 
 ```
-[[if JeanGrey.love >= medium AND JeanGrey.has("romantic")]]
+[[if JeanGrey.love >= 500 AND JeanGrey.has("romantic")]]
 [[if NOT LauraKinney.nearby]]
-[[if (Rogue.trust >= small) OR JeanGrey.friends_with(Rogue)]]
+[[if (Rogue.trust >= 300) OR JeanGrey.friends_with(Rogue)]]
 ```
 
 ## Title page keys

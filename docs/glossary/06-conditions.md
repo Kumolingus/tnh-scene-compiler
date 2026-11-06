@@ -98,8 +98,11 @@ always want to **compare** it with an operator (see
 
 How a character feels — about the player, and about other characters:
 
-- **Love / Trust** — `JeanGrey.love >= 500` (raw value) or use a tier name
-  (`>= medium`). How the character feels about the *player*.
+- **Love / Trust** — `JeanGrey.love >= 500` — the raw value: how the
+  character feels about the *player*. To ask for a relationship level, name
+  one of the character's thresholds: `check_approval(JeanGrey, None, "dating")`. The
+  approval amounts (`tiny` ... `massive`) only move love and trust; comparing
+  with one is a compile error.
 - **Friendship check** — `JeanGrey.friends_with(Rogue)` — yes/no, are these
   two friends.
 - **In a relationship** — `are_Characters_in_Partners([JeanGrey], False)` —

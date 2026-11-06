@@ -209,8 +209,9 @@ _DESCRIPTIONS: dict[str, str] = {
     "approval": (
         "Checks if the character’s love or trust\n"
         "for the player meets the threshold.\n\n"
-        "Enter a numeric value (e.g. 500) or a tier\n"
-        "name (tiny, small, medium, large, massive)."
+        "Enter a numeric value (e.g. 500). To check\n"
+        "a relationship level such as dating, use\n"
+        "\"Love / trust (combined or by tier)\"."
     ),
     "trait": (
         "Checks if the character has a specific trait\n"
@@ -288,9 +289,9 @@ def build_condition(
     kind
         One of the ``CONDITION_TYPES`` keys.
     threshold
-        For ``approval``: a numeric value (e.g. ``"500"``) or a tier
-        name (``"medium"``).  For ``personality``: optional numeric
-        threshold.
+        For ``approval``: a numeric value (e.g. ``"500"``); a stat tier
+        name (``"medium"``) is refused at compile time.  For
+        ``personality``: optional numeric threshold.
     method_path
         For ``method``: the attribute chain to call on ``character``,
         e.g. ``"check_trait"`` or ``"History.check"`` — resolved by the
@@ -1175,9 +1176,9 @@ class _ConditionClausePanel(ttk.Frame):
     # -- Per-type parameter builders -----------------------------------------
 
     def _params_approval(self, parent: ttk.Frame) -> None:
-        # Written as `Char.love >= tier`, but dsl.py rewrites it to
-        # check_approval(Char, ...) — so it is an argument, and the function
-        # returns 0 for anyone outside all_Companions.
+        # Written as `Char.love >= 500`. The player is left out of the picker:
+        # love and trust live on a companion and measure how she feels about
+        # the player, so the player has none to compare.
         row = self._add_character_field(parent, "Character", 0, as_argument=True)
         row = self._add_combo_field(parent, "Axis", row, "axis", AXES)
         row = self._add_text_field(

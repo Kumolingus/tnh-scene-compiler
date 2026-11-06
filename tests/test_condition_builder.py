@@ -118,11 +118,6 @@ class TestBuildConditionApproval:
         )
         assert result == "Rogue.trust >= 300"
 
-    def test_tier_name_still_works(self):
-        result = build_condition(
-            "approval", character="JeanGrey", axis="love", threshold="medium",
-        )
-        assert result == "JeanGrey.love >= medium"
 
 
 class TestBuildConditionTrait:
@@ -315,19 +310,19 @@ class TestResolveMethodPath:
 # -- wrap_condition ----------------------------------------------------------
 
 class TestWrapCondition:
-    COND = "JeanGrey.love >= medium"
+    COND = "JeanGrey.love >= 500"
 
     def test_if_block(self):
         result = wrap_condition(self.COND, "if_block")
-        assert result == "[[if JeanGrey.love >= medium]]\n\n[[/if]]\n"
+        assert result == "[[if JeanGrey.love >= 500]]\n\n[[/if]]\n"
 
     def test_elif(self):
         result = wrap_condition(self.COND, "elif")
-        assert result == "[[elif JeanGrey.love >= medium]]\n"
+        assert result == "[[elif JeanGrey.love >= 500]]\n"
 
     def test_if_open(self):
         result = wrap_condition(self.COND, "if_open")
-        assert result == "[[if JeanGrey.love >= medium]]\n"
+        assert result == "[[if JeanGrey.love >= 500]]\n"
 
     def test_bare(self):
         result = wrap_condition(self.COND, "bare")

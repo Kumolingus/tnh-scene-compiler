@@ -356,7 +356,7 @@ The compiler provides writer-friendly shortcuts for common checks. Both the shor
 **Combining conditions:**
 
 ```
-[[if JeanGrey.love >= medium and JeanGrey.mood == "normal"]]
+[[if JeanGrey.love >= 500 and JeanGrey.mood == "normal"]]
 [[if not JeanGrey.has("angry")]]
 [[if JeanGrey.mood == "mad" or JeanGrey.mood == "miffed"]]
 ```
@@ -757,6 +757,12 @@ time-of-day suffix like `- NIGHT`.
 ### "Unknown interpolation path"
 
 You wrote `[player.foo]` but `player.foo` is not in the allowed list. Check the cheatsheet.
+
+### "is not a valid check: ... is an amount an approval change moves by"
+
+You wrote `[[if JeanGrey.love >= medium]]`. `tiny` to `massive` are how much `[[approval]]` moves love or trust, not levels to compare
+with. Compare the value itself (`[[if JeanGrey.love >= 500]]`), or ask for one of the character's relationship thresholds
+(`[[if check_approval(JeanGrey, None, "dating")]]`).
 
 ### "Arbitrary expression not allowed"
 

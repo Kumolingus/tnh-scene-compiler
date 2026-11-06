@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from tnh_scene_compiler.allowlists import Allowlists, signature_arity
 from tnh_scene_compiler.parser import parse
 from tnh_scene_compiler.validator import validate
@@ -672,6 +674,47 @@ def test_numeric_approval_form_passes_when_love_registered() -> None:
     # attribute — must pass because love is a registered property.
     scene = _scene(_PROP_HEAD + "[[if JeanGrey.love >= 500]]\nOk.\n[[/if]]\n")
     assert validate(scene, _prop_allowlists()) == []
+
+
+@pytest.mark.parametrize("condition, tier", [
+    ("JeanGrey.love >= medium", "medium"),
+    ("JeanGrey.trust > small_stat", "small_stat"),
+    ('JeanGrey.love >= "large"', "large"),
+    ('JeanGrey.has("shy") and Rogue.love < tiny', "tiny"),
+    ("not JeanGrey.trust >= massive", "massive"),
+])
+def test_approval_compared_with_a_stat_tier_is_rejected(condition: str, tier: str) -> None:
+    # The old rewrite, check_approval(X, "love", "medium_stat"), named a
+    # threshold row that does not exist: always true, operator ignored.
+    scene = _scene(_PROP_HEAD + f"[[if {condition}]]\nOk.\n[[/if]]\n")
+    errors = [e for e in validate(scene, _prop_allowlists()) if "not a valid check" in e.message]
+
+    assert len(errors) == 1, errors
+    assert f" {tier}` is not a valid check" in errors[0].message
+    assert "check_approval(" in (errors[0].hint or "")
+    assert '"dating"' in (errors[0].hint or "")
+
+
+def test_a_stat_tier_in_a_choice_condition_is_rejected() -> None:
+    scene = _scene(
+        _PROP_HEAD
+        + "[[choice]]\n"
+        + "= Ask her out [[if JeanGrey.love >= medium]]\n    Ok.\n"
+        + "= Leave\n    Bye.\n"
+        + "[[/choice]]\n"
+    )
+    errors = [e for e in validate(scene, _prop_allowlists()) if "not a valid check" in e.message]
+
+    assert len(errors) == 1, errors
+
+
+def test_a_stat_tier_is_no_longer_rewritten_to_check_approval() -> None:
+    from tnh_scene_compiler.dsl import transform
+    from tnh_scene_compiler.expr_parser import parse_expression
+
+    rendered = transform(parse_expression("JeanGrey.love >= medium"))
+
+    assert "check_approval" not in repr(rendered)
 
 
 def test_property_check_skipped_when_allowlist_empty() -> None:

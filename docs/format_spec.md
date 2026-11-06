@@ -1238,6 +1238,7 @@ The compiler's error messages are part of the authoring experience. Required pro
 | Arbitrary expr in set    | `[[set x = foo(1)]]` | Function calls not allowed in set.  |
 | Exclusive medium         | `(text, face=smirk)` | Cannot combine text with visuals.   |
 | Forbidden expression     | `[[if x + 1 > 0]]`   | Arithmetic not allowed in `[[if]]`. |
+| Approval amount as level | `[[if X.love >= medium]]` | Not a valid check: an amount, not a level of love. |
 | Non-allowlisted fn       | `[[if eval("...")]]` | Not allowlisted for conditions.     |
 
 ---

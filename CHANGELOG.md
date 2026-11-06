@@ -137,6 +137,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Character_is_in_close_proximity` is `is_close_by`. A scene written with the
   old names no longer validates — rename the call; the arguments are the same.
 
+### Removed
+
+- **`[[if X.love >= medium]]` no longer compiles**, nor any comparison of love
+  or trust with `tiny` ... `massive`. The game answered yes to it for every
+  character, whatever their feelings and whichever comparison you wrote: those names
+  are the amounts `[[approval]]` moves love and trust by, not levels. Write the
+  value itself (`[[if JeanGrey.love >= 500]]`) or one of the character's
+  relationship thresholds (`[[if check_approval(JeanGrey, None, "dating")]]`);
+  the error message suggests both. The Condition Builder's Love / Trust check
+  now asks for a number only.
+
 ## [0.2.1] - 2026-10-03
 
 ### Added

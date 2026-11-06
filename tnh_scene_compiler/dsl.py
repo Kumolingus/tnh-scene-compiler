@@ -7,8 +7,6 @@ canonical forms.
 
 Supported rewrites:
 
-    Character.love >= tier   → check_approval(Character, "love", "tier_stat")
-    Character.trust >= tier  → check_approval(Character, "trust", "tier_stat")
     Character.has("x")       → Character.check_trait("x")
     Character.mood == "normal" → Character.is_in_normal_mood()
     Character.mood == "x"    → Character.get_status() == "x"
@@ -17,6 +15,11 @@ Supported rewrites:
     Character.nearby         → is_close_by(Character)
     Character.personality("t") → Character.check_personality("t")
     Character.personality("t", n) → Character.check_personality("t", n)
+
+``Character.love >= medium`` (and the other stat tiers) is not rewritten any
+more: it became ``check_approval(Character, "love", "medium_stat")``, which
+TNH reads as a threshold row that does not exist, so it was always true. The
+validator rejects it (``_reject_approval_tier_comparisons``).
 """
 
 from __future__ import annotations
@@ -33,16 +36,6 @@ from .expr_parser import (
     Name,
     UnaryNot,
 )
-
-_APPROVAL_AXES = frozenset({"love", "trust"})
-_TIER_MAP: dict[str, str] = {
-    "tiny": "tiny_stat",
-    "small": "small_stat",
-    "medium": "medium_stat",
-    "large": "large_stat",
-    "massive": "massive_stat",
-}
-
 
 def transform(
     expr: Expr,
@@ -141,7 +134,7 @@ def _transform_compare(
     ca: dict[str, str],
     fa: dict[str, str],
 ) -> Expr:
-    """Handle ``Character.love >= tier`` and ``Character.mood == value``."""
+    """Handle ``Character.mood == value``."""
     left = transform(node.left, ca, fa)
 
     if (
@@ -152,20 +145,6 @@ def _transform_compare(
         prop = left.parts[0]
         op, right_raw = node.ops_and_rights[0]
         right = transform(right_raw, ca, fa)
-
-        # Character.love/trust >= tier
-        if prop in _APPROVAL_AXES:
-            tier_name = _extract_tier(right)
-            if tier_name is not None:
-                return Call(
-                    target=Name("check_approval", col_offset=node.col_offset),
-                    args=(
-                        Name(left.root.name, col_offset=left.col_offset),
-                        Literal(prop),
-                        Literal(tier_name),
-                    ),
-                    col_offset=node.col_offset,
-                )
 
         # Character.mood == "normal" / "mad" / ...
         if prop == "mood" and op == "==":
@@ -203,15 +182,6 @@ def _transform_compare(
         ops_and_rights=transformed_ops,
         col_offset=node.col_offset,
     )
-
-
-def _extract_tier(expr: Expr) -> str | None:
-    """Return the stat tier string if *expr* is a known tier name."""
-    if isinstance(expr, Name) and expr.name in _TIER_MAP:
-        return _TIER_MAP[expr.name]
-    if isinstance(expr, Literal) and isinstance(expr.value, str) and expr.value in _TIER_MAP:
-        return _TIER_MAP[expr.value]
-    return None
 
 
 # ---------------------------------------------------------------------------
