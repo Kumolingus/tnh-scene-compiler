@@ -1,4 +1,4 @@
-generated_at: '2026-11-05'
+generated_at: '2026-11-14'
 tool_version: 1.0.0
 base_game_root: .
 project_root: C:/Users/flori/AppData/Local/Temp/claude/D--Projets-Development-NullHypothesisPregnancyMod/0e6acb9d-67a6-4aa6-9591-76bae5940051/scratchpad/empty_mod
@@ -12,9 +12,9 @@ stats:
   looks: 8
   interpolation: 103
   condition_functions: 0
-  traits: 282
+  traits: 283
   personalities: 11
-  history_events: 295
+  history_events: 304
   inventory_items: 58
   faces:
     AlisonBlaire: 49

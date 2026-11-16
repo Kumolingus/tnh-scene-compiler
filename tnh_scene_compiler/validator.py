@@ -1347,6 +1347,7 @@ _PLAYER_EXCLUDING_FUNCTIONS: dict[str, str] = {
     "get_effective_friendship": _RELATIONSHIP_HINT,
     "get_friendship": _RELATIONSHIP_HINT,
     "get_max_friendship": _RELATIONSHIP_HINT,
+    "get_worst_Enemy": _RELATIONSHIP_HINT,
     "is_close_by": _PROXIMITY_HINT,
 }
 

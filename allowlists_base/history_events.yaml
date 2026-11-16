@@ -1,24 +1,24 @@
 source: TNH + Mod
-generated_at: '2026-11-05'
+generated_at: '2026-11-14'
 values:
 - name: accepted_hug
   source_file: game/characters/LauraKinney/interactions/flirting.rpy
-  source_line: 239
+  source_line: 261
 - name: agreed_to_polyamory
   source_file: game/characters/JeanGrey/events/relationship/boyfriend.rpy
   source_line: 542
 - name: anal
   source_file: game/characters/JeanGrey/events/sandbox/random/flirting.rpy
-  source_line: 67
+  source_line: 56
 - name: anal_creampie
   source_file: game/characters/JeanGrey/interactions/sex/dirty_talk.rpy
-  source_line: 1677
+  source_line: 1909
 - name: angry_response
   source_file: game/core/dates/invitations.py
   source_line: 41
 - name: anus_penetrated
   source_file: game/characters/LauraKinney/interactions/sex/reactions/anal.rpy
-  source_line: 8
+  source_line: 9
 - name: asked_if_hair_dyed
   source_file: game/characters/Rogue/interactions/compliments.rpy
   source_line: 18
@@ -27,40 +27,40 @@ values:
   source_line: 295
 - name: asked_to_be_breeding
   source_file: game/characters/JeanGrey/interactions/quirks/breeding/change.rpy
-  source_line: 26
+  source_line: 28
 - name: asked_to_be_dominant
   source_file: game/characters/JeanGrey/interactions/quirks/dominant.rpy
-  source_line: 31
+  source_line: 33
 - name: asked_to_be_masochistic
   source_file: game/characters/Rogue/interactions/quirks/masochistic.rpy
-  source_line: 30
+  source_line: 32
 - name: asked_to_be_protective
   source_file: game/characters/LauraKinney/interactions/quirks/protective.rpy
-  source_line: 32
+  source_line: 34
 - name: asked_to_be_siblings
   source_file: game/characters/JeanGrey/interactions/quirks/siblings.rpy
-  source_line: 24
+  source_line: 26
 - name: asked_to_be_submissive
   source_file: game/characters/Rogue/interactions/quirks/submissive.rpy
   source_line: 24
 - name: asked_to_not_be_breeding
   source_file: game/characters/JeanGrey/interactions/quirks/breeding/change.rpy
-  source_line: 88
+  source_line: 94
 - name: asked_to_not_be_dominant
   source_file: game/characters/JeanGrey/interactions/quirks/dominant.rpy
-  source_line: 61
+  source_line: 67
 - name: asked_to_not_be_masochistic
   source_file: game/characters/Rogue/interactions/quirks/masochistic.rpy
-  source_line: 67
+  source_line: 73
 - name: asked_to_not_be_protective
   source_file: game/characters/LauraKinney/interactions/quirks/protective.rpy
-  source_line: 75
+  source_line: 79
 - name: asked_to_not_be_siblings
   source_file: game/characters/JeanGrey/interactions/quirks/siblings.rpy
-  source_line: 85
+  source_line: 91
 - name: asked_to_not_be_submissive
   source_file: game/characters/Rogue/interactions/quirks/submissive.rpy
-  source_line: 51
+  source_line: 53
 - name: ass_to_mouth
   source_file: game/core/sex/actions.py
   source_line: 177
@@ -69,13 +69,13 @@ values:
   source_line: 50
 - name: attended_class_with_Player
   source_file: game/characters/JeanGrey/events/sandbox/random/texting.rpy
-  source_line: 391
+  source_line: 398
 - name: Bitter
   source_file: game/events/ch1/s4_finale.rpy
   source_line: 892
 - name: blowjob
-  source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/sex.rpy
-  source_line: 62
+  source_file: game/characters/JeanGrey/events/sandbox/random/sexting.rpy
+  source_line: 685
 - name: bought_JeanGrey.events.some_snacks
   source_file: game/characters/JeanGrey/events/optional/ch1/s3/exam_freakout.rpy
   source_line: 243
@@ -94,6 +94,9 @@ values:
 - name: breeding_reject_dirty_talk
   source_file: game/characters/JeanGrey/interactions/quirks/breeding/debrief.rpy
   source_line: 3
+- name: breeding_talk
+  source_file: game/characters/LauraKinney/interactions/sex/dirty_talk.rpy
+  source_line: 143
 - name: called_big_sis
   source_file: game/characters/JeanGrey/events/relationship/enjoying.rpy
   source_line: 173
@@ -165,7 +168,7 @@ values:
   source_line: 3030
 - name: changed_name
   source_file: game/characters/LauraKinney/interactions/names.rpy
-  source_line: 97
+  source_line: 113
 - name: changed_name_to_Anna
   source_file: game/characters/Rogue/events/sandbox/dates/first_date.rpy
   source_line: 920
@@ -174,7 +177,7 @@ values:
   source_line: 925
 - name: changed_name_to_Laura
   source_file: game/characters/LauraKinney/interactions/names.rpy
-  source_line: 35
+  source_line: 38
 - name: changed_name_to_Rogue
   source_file: game/characters/Rogue/interactions/names.rpy
   source_line: 15
@@ -215,8 +218,8 @@ values:
   source_file: game/characters/KurtWagner/interactions/texting.rpy
   source_line: 31
 - name: choke
-  source_file: game/characters/Rogue/events/sandbox/dates/first_date.rpy
-  source_line: 850
+  source_file: game/characters/JeanGrey/interactions/sex/reactions/choke.rpy
+  source_line: 44
 - name: classroom_trivia
   source_file: game/modules/trivia/classroom.rpy
   source_line: 6
@@ -224,14 +227,14 @@ values:
   source_file: game/definitions/leaderboards.rpy
   source_line: 31
 - name: clean_cum
-  source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/sex.rpy
-  source_line: 272
+  source_file: game/characters/LauraKinney/events/sandbox/special/sexy_study.rpy
+  source_line: 197
 - name: combat
   source_file: game/core/combat/mechanics.rpy
-  source_line: 61
+  source_line: 76
 - name: combat_defeat
   source_file: game/core/combat/mechanics.rpy
-  source_line: 78
+  source_line: 93
 - name: combat_leaderboard_lost
   source_file: game/definitions/achievements.rpy
   source_line: 782
@@ -240,25 +243,28 @@ values:
   source_line: 781
 - name: combat_victory
   source_file: game/core/combat/mechanics.rpy
-  source_line: 73
+  source_line: 88
 - name: cooked_fried_chicken_and_biscuits
   source_file: game/characters/Rogue/events/sandbox/dates/kitchen/fried_chicken_and_biscuits.rpy
   source_line: 4
 - name: cooked_group_meal
   source_file: game/core/characters/companions.py
-  source_line: 658
+  source_line: 676
 - name: cooked_homemade_pizza
   source_file: game/characters/JeanGrey/events/sandbox/dates/kitchen/homemade_pizza.rpy
-  source_line: 10
+  source_line: 12
 - name: cooked_seafood_pasta
   source_file: game/characters/JeanGrey/events/sandbox/dates/kitchen/seafood_pasta.rpy
   source_line: 4
+- name: cooked_spaghetti_and_meatballs
+  source_file: game/characters/LauraKinney/events/sandbox/dates/kitchen/spaghetti_and_meatballs.rpy
+  source_line: 98
 - name: cooked_steak_and_potatoes
   source_file: game/characters/LauraKinney/events/sandbox/dates/kitchen/steak_and_potatoes.rpy
   source_line: 4
 - name: creampie
   source_file: game/characters/JeanGrey/events/sandbox/dates/kitchen/breakfast_for_dinner.rpy
-  source_line: 67
+  source_line: 69
 - name: cuddled_with_Player_naked
   source_file: game/events/ch1/s2_finale.rpy
   source_line: 799
@@ -282,7 +288,7 @@ values:
   source_line: 176
 - name: date_kitchen
   source_file: game/characters/JeanGrey/events/sandbox/dates/kitchen/homemade_pizza.rpy
-  source_line: 97
+  source_line: 107
 - name: day_three.afternoon_class
   source_file: game/events/ch1/day_three.rpy
   source_line: 356
@@ -321,10 +327,10 @@ values:
   source_line: 892
 - name: dildo_ass
   source_file: game/characters/Rogue/interactions/sex/reactions/anal.rpy
-  source_line: 36
+  source_line: 44
 - name: dildo_pussy
   source_file: game/characters/Rogue/interactions/sex/reactions/self_dildo_pussy.rpy
-  source_line: 8
+  source_line: 10
 - name: discussed_breeding
   source_file: game/characters/JeanGrey/interactions/quirks/breeding/debrief.rpy
   source_line: 50
@@ -351,19 +357,19 @@ values:
   source_line: 90
 - name: eat_ass
   source_file: game/characters/LauraKinney/events/sandbox/random/flirting.rpy
-  source_line: 69
+  source_line: 66
 - name: eat_pussy
-  source_file: game/characters/JeanGrey/events/sandbox/dates/restaurant/sex.rpy
-  source_line: 37
+  source_file: game/characters/LauraKinney/events/sandbox/random/flirting.rpy
+  source_line: 66
 - name: exercised_with_Player
   source_file: game/characters/JeanGrey/events/sandbox/random/texting.rpy
-  source_line: 433
+  source_line: 440
 - name: finger_ass
   source_file: game/characters/LauraKinney/interactions/sex/narrations/initiations/finger_ass.rpy
   source_line: 7
 - name: finger_pussy
-  source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/sex.rpy
-  source_line: 49
+  source_file: game/characters/LauraKinney/interactions/sex/reactions/finger_pussy.rpy
+  source_line: 5
 - name: flirt_bonus
   source_file: game/core/relationships/flirting.py
   source_line: 45
@@ -376,18 +382,24 @@ values:
 - name: flirted_with
   source_file: game/core/friendships/intimacy.py
   source_line: 98
+- name: flirted_with_dirty_talk
+  source_file: game/core/relationships/prompts/dirty_talk.rpy
+  source_line: 30
 - name: flirted_with_in_public
   source_file: game/core/relationships/flirting.py
   source_line: 67
 - name: flirted_with_Player
   source_file: game/core/events/random.py
-  source_line: 70
+  source_line: 72
 - name: fondle_balls
   source_file: game/characters/JeanGrey/interactions/sex/narrations/continuations/fondle_balls.rpy
-  source_line: 6
+  source_line: 9
 - name: footjob
-  source_file: game/characters/Rogue/interactions/sex/reactions/footjob.rpy
-  source_line: 33
+  source_file: game/characters/JeanGrey/interactions/sex/dirty_talk.rpy
+  source_line: 1269
+- name: french_kiss
+  source_file: game/core/sex/narrations/continuations/makeout.rpy
+  source_line: 57
 - name: friends_with_benefits
   source_file: game/core/characters/thresholds.rpy
   source_line: 152
@@ -420,19 +432,19 @@ values:
   source_line: 759
 - name: grab_ass
   source_file: game/characters/Rogue/interactions/sex/reactions/grab_ass.rpy
-  source_line: 9
+  source_line: 11
 - name: grab_ass_over_clothes
   source_file: game/characters/Rogue/interactions/sex/reactions/grab_ass.rpy
-  source_line: 8
+  source_line: 10
 - name: grind_ass
   source_file: game/characters/Rogue/events/sandbox/random/flirting.rpy
-  source_line: 88
+  source_line: 83
 - name: grind_pussy
   source_file: game/characters/Rogue/events/sandbox/random/flirting.rpy
-  source_line: 88
+  source_line: 83
 - name: group_hookup
   source_file: game/core/sex/request.py
-  source_line: 111
+  source_line: 150
 - name: group_sleepover
   source_file: game/core/behavior/sleeping/sleeping.rpy
   source_line: 130
@@ -441,22 +453,31 @@ values:
   source_line: 13
 - name: guitar_serenade
   source_file: game/characters/JeanGrey/interactions/guitar_serenade.rpy
-  source_line: 456
+  source_line: 453
+- name: had_mall_dessert
+  source_file: game/characters/LauraKinney/events/sandbox/dates/mall/mall.rpy
+  source_line: 76
 - name: handjob
-  source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/sex.rpy
-  source_line: 21
+  source_file: game/characters/JeanGrey/interactions/sex/narrations/continuations/handjob.rpy
+  source_line: 10
 - name: headpat
   source_file: game/characters/JeanGrey/interactions/flirting.rpy
-  source_line: 835
+  source_line: 831
 - name: hookup
-  source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/sex.rpy
-  source_line: 167
+  source_file: game/characters/JeanGrey/events/sandbox/random/sexting.rpy
+  source_line: 450
 - name: horny
   source_file: game/core/characters/npcs.py
   source_line: 133
 - name: hug
   source_file: game/characters/JeanGrey/events/optional/ch1/s2/exam_freakout.rpy
   source_line: 287
+- name: hung_out_at_barbecue_with_Player
+  source_file: game/characters/LauraKinney/events/sandbox/social/barbecue/decision.rpy
+  source_line: 11
+- name: hung_out_at_pool_party_with_Player
+  source_file: game/characters/LauraKinney/events/sandbox/social/pool_party/decision.rpy
+  source_line: 25
 - name: initiated_dirty_talk
   source_file: game/core/sex/dialogue.py
   source_line: 135
@@ -471,10 +492,13 @@ values:
   source_line: 795
 - name: kiss
   source_file: game/characters/JeanGrey/events/sandbox/dates/date.rpy
-  source_line: 229
+  source_line: 355
 - name: LauraKinney.events.cheating_aftermath
   source_file: game/characters/LauraKinney/events/relationship/cheating/aftermath.rpy
   source_line: 215
+- name: leaderboard_chatting
+  source_file: game/core/events/random.rpy
+  source_line: 19
 - name: lick_cock
   source_file: game/characters/JeanGrey/events/sandbox/special/exam_reward.rpy
   source_line: 197
@@ -494,8 +518,8 @@ values:
   source_file: game/definitions/achievements.rpy
   source_line: 819
 - name: makeout
-  source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/sex.rpy
-  source_line: 9
+  source_file: game/characters/LauraKinney/interactions/sex/reactions/makeout.rpy
+  source_line: 5
 - name: masturbated
   source_file: game/core/time/resets.py
   source_line: 102
@@ -507,7 +531,7 @@ values:
   source_line: 446
 - name: mouth_penetrated
   source_file: game/characters/JeanGrey/interactions/sex/reactions/blowjob.rpy
-  source_line: 12
+  source_line: 14
 - name: movie_night_with_Player
   source_file: game/characters/LauraKinney/events/sandbox/dates/first_date.rpy
   source_line: 492
@@ -519,16 +543,16 @@ values:
   source_line: 522
 - name: orgasmed
   source_file: game/characters/JeanGrey/interactions/remote_vibrator.rpy
-  source_line: 10
+  source_line: 8
 - name: orgasmed_with_Player
   source_file: game/characters/JeanGrey/events/sandbox/random/sexting.rpy
   source_line: 139
 - name: paizuri
   source_file: game/characters/LauraKinney/interactions/sex/narrations/initiations/paizuri.rpy
-  source_line: 13
+  source_line: 16
 - name: pet_hair
   source_file: game/characters/Rogue/interactions/flirting.rpy
-  source_line: 715
+  source_line: 764
 - name: pinch_nipples
   source_file: game/characters/Rogue/interactions/sex/reactions/pinch_nipples.rpy
   source_line: 13
@@ -561,7 +585,7 @@ values:
   source_line: 94
 - name: Player_ignored_text
   source_file: game/core/phone/mechanics.py
-  source_line: 307
+  source_line: 309
 - name: Player_impressed_her
   source_file: game/events/ch1/day_three.rpy
   source_line: 494
@@ -624,13 +648,13 @@ values:
   source_line: 19
 - name: rejected_knock_on_door
   source_file: game/characters/JeanGrey/events/sandbox/random/sexting.rpy
-  source_line: 904
+  source_line: 906
 - name: rejected_Player_knocking
   source_file: game/core/locations/rooms.rpy
   source_line: 60
 - name: rejected_talk_late
   source_file: game/interfaces/phone/blah.rpy
-  source_line: 224
+  source_line: 226
 - name: rejected_training
   source_file: game/characters/LauraKinney/events/sandbox/training/ch1/s2/first_training_session.rpy
   source_line: 22
@@ -679,9 +703,12 @@ values:
 - name: seen_beautiful_flower
   source_file: game/characters/JeanGrey/events/sandbox/dates/first_date.rpy
   source_line: 779
+- name: seen_bra
+  source_file: game/characters/LauraKinney/interactions/sex/undress/breasts.rpy
+  source_line: 313
 - name: seen_breast
   source_file: game/characters/JeanGrey/clothing/reactions/bras.rpy
-  source_line: 32
+  source_line: 43
 - name: seen_cock
   source_file: game/core/relationships/mechanics.py
   source_line: 109
@@ -696,19 +723,19 @@ values:
   source_line: 26
 - name: seen_pussy
   source_file: game/characters/JeanGrey/clothing/reactions/underwear.rpy
-  source_line: 20
+  source_line: 27
 - name: seen_ron_bic1
   source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/ron_bic2.rpy
-  source_line: 7
+  source_line: 9
 - name: seen_underwear
-  source_file: game/characters/LauraKinney/interactions/sex/undress/breasts.rpy
-  source_line: 246
+  source_file: game/characters/Rogue/interactions/sex/undress/breasts.rpy
+  source_line: 265
 - name: self_dildo_ass
   source_file: game/characters/Rogue/interactions/sex/reactions/anal.rpy
-  source_line: 37
+  source_line: 45
 - name: self_dildo_pussy
   source_file: game/characters/Rogue/interactions/sex/reactions/self_dildo_pussy.rpy
-  source_line: 9
+  source_line: 11
 - name: self_finger_ass
   source_file: game/characters/LauraKinney/interactions/sex/reactions/self_finger_ass.rpy
   source_line: 3
@@ -720,7 +747,7 @@ values:
   source_line: 659
 - name: sexted_with_Player
   source_file: game/core/events/random.py
-  source_line: 266
+  source_line: 311
 - name: sexual_in_company
   source_file: game/core/friendships/intimacy.py
   source_line: 104
@@ -741,7 +768,7 @@ values:
   source_line: 4
 - name: sleepover
   source_file: game/characters/JeanGrey/events/sandbox/random/sexting.rpy
-  source_line: 323
+  source_line: 325
 - name: spank
   source_file: game/characters/LauraKinney/interactions/quirks/breeding/first_time.rpy
   source_line: 291
@@ -759,10 +786,10 @@ values:
   source_line: 13
 - name: suck_balls
   source_file: game/characters/JeanGrey/events/sandbox/dates/kitchen/spaghetti_and_meatballs.rpy
-  source_line: 46
+  source_line: 50
 - name: suck_nipples
   source_file: game/characters/Rogue/interactions/sex/reactions/suck_nipples.rpy
-  source_line: 34
+  source_line: 42
 - name: sunbathed
   source_file: game/core/autojobs/maintenance.py
   source_line: 65
@@ -780,7 +807,7 @@ values:
   source_line: 194
 - name: tasted_cum
   source_file: game/characters/LauraKinney/interactions/sex/dirty_talk.rpy
-  source_line: 1500
+  source_line: 1704
 - name: teleported_in
   source_file: game/characters/KurtWagner/animations.rpy
   source_line: 63
@@ -789,7 +816,7 @@ values:
   source_line: 547
 - name: texted_with_Player
   source_file: game/characters/JeanGrey/events/sandbox/random/texting.rpy
-  source_line: 65
+  source_line: 864
 - name: throat_penetrated
   source_file: game/characters/Rogue/interactions/sex/reactions/deepthroat.rpy
   source_line: 7
@@ -818,14 +845,14 @@ values:
   source_file: game/characters/Rogue/interactions/sex/reactions/touch_breasts.rpy
   source_line: 8
 - name: touch_pussy
-  source_file: game/characters/JeanGrey/events/sandbox/dates/cinema/sex.rpy
-  source_line: 34
+  source_file: game/characters/Rogue/interactions/temp.rpy
+  source_line: 1209
 - name: touch_pussy_over_clothes
   source_file: game/characters/Rogue/interactions/temp.rpy
-  source_line: 879
+  source_line: 1237
 - name: trained
   source_file: game/characters/LauraKinney/events/sandbox/random/texting.rpy
-  source_line: 414
+  source_line: 426
 - name: trained_with_Player
   source_file: game/characters/JeanGrey/events/sandbox/bedrooms/LauraKinney_training_disagreements.rpy
   source_line: 19
@@ -843,10 +870,10 @@ values:
   source_line: 201
 - name: vagina_penetrated
   source_file: game/characters/Rogue/interactions/sex/reactions/finger_pussy.rpy
-  source_line: 31
+  source_line: 39
 - name: vibrator
   source_file: game/characters/Rogue/interactions/temp.rpy
-  source_line: 63
+  source_line: 84
 - name: vibrator_training_chose_high_second
   source_file: game/characters/LauraKinney/events/sandbox/special/vibrator_training.rpy
   source_line: 406

@@ -141,6 +141,16 @@ functions:
       group is empty — in an [[if]] it is truthy once someone qualifies.
     source_file: game/core/friendships/mechanics.py
     source_line: 350
+  - name: get_worst_Enemy
+    category: Relationships
+    label: "Worst enemy (of a group)"
+    signature: "get_worst_Enemy(Character, Characters) -> Character | None"
+    notes: |
+      Of the characters in the group, the one the first character likes least
+      (lowest effective friendship). Returns a Character, or None when the
+      group is empty.
+    source_file: game/core/friendships/mechanics.py
+    source_line: 353
   # The 4 below return a FriendshipTier (IntEnum: Enemies=-2, Rivals=-1,
   # Acquaintances=0, Friends=1, GoodFriends=2, BestFriends=3), so a writer
   # compares against a plain integer, e.g. get_effective_friendship(A, B)
@@ -279,7 +289,6 @@ retired:
   are_Characters_friends: "Renamed are_friends in TNH 0.9c.beta.28, which now reads each character's opinion of the group."
   get_Characters_opinion: "Renamed get_friendship in TNH 0.9c.beta.28."
   seen_Player_recently: "Renamed has_seen_Player_recently in TNH 0.9c.beta.28."
-  get_worst_Enemy: "Removed in TNH 0.9c.beta.28, with no replacement."
   get_Location: "Removed from conditions in TNH 0.9c.beta.28, where a location is an object: the current room is Player.Location."
   get_present_Characters: "Removed in TNH 0.9c.beta.28: the characters in the current room are Player.Location.Present."
   get_visible_Characters: "Removed in TNH 0.9c.beta.28: use Player.Location.Visible (the room plus its background crowd)."

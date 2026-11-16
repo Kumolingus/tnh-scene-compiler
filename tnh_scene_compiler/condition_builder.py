@@ -1807,7 +1807,7 @@ class _ConditionClausePanel(ttk.Frame):
         """Return one parameter's argument text, falling back to its default.
 
         A multi-select (``PARAM_WIDGET_CHARACTER_SET``) never yields an empty
-        string — it returns ``set()`` for no picks — so the default fallback
+        string — it returns ``[]`` for no picks — so the default fallback
         only ever applies to an untouched single-value field.
         """
         val = field.value().strip()

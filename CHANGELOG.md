@@ -54,8 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Condition Builder now writes `Player.Location.Present` and
   `Player.Location.Visible`. It no longer offers another room: the game has
   no condition for one, and the old form always read that room as empty.
-  Whose room it is: `Player.Location.Owner == JeanGrey`. `get_worst_Enemy` is
-  gone, with no replacement.
+  Whose room it is: `Player.Location.Owner == JeanGrey`.
 - **A scene still using a removed name says what replaced it.** It fails to
   compile with "no longer exists in the game" and the new form (also inside
   a `[[run]]` argument), instead of suggesting a similar-looking name or
@@ -121,8 +120,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `LauraKinney_animations_sheathe_claws()` (they were `unsheathes` and
   `sheathes`). A scene using the old names no longer validates — rename the
   call; the arguments are the same.
-- **The game's allowlists describe TNH 0.9c.beta.28.** A scene using a value
-  the game dropped no longer validates. For example:
+- **The game's allowlists describe TNH 0.9c.beta.32**, with its new history
+  events (`french_kiss`, `had_mall_dessert`, …) and its `superhero` trait. A
+  scene using a value the game dropped no longer validates. For example:
   - the season finales' history events (`ch1_mutant_hate_scared` is
     `ch1.s3.finale.scared`);
   - the `cheated_on_*` traits, which the game replaced with its own record of

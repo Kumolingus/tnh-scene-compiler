@@ -1,5 +1,5 @@
 source: TNH + Mod
-generated_at: '2026-11-05'
+generated_at: '2026-11-14'
 values:
 - name: absorption
   source_file: game/characters/Player/character.rpy
@@ -9,7 +9,7 @@ values:
   source_line: 16
 - name: academically_gifted
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 61
+  source_line: 62
 - name: active
   source_file: game/core/sex/actions.py
   source_line: 268
@@ -18,7 +18,7 @@ values:
   source_line: 43
 - name: anus_covered
   source_file: game/characters/Rogue/interactions/sex/dirty_talk.rpy
-  source_line: 1278
+  source_line: 1403
 - name: arcade_machine_on
   source_file: game/locations/XavierSchool/RecRoom/location.rpy
   source_line: 89
@@ -29,8 +29,8 @@ values:
   source_file: game/modules/social/pool_party/actions.rpy
   source_line: 11
 - name: ass_covered
-  source_file: game/core/sex/narrations/continuations/grind_ass.rpy
-  source_line: 11
+  source_file: game/core/relationships/prompts/compliments.rpy
+  source_line: 68
 - name: ass_hidden
   source_file: game/core/clothing/flags.py
   source_line: 308
@@ -57,7 +57,7 @@ values:
   source_line: 793
 - name: belly_covered
   source_file: game/characters/LauraKinney/interactions/sex/dirty_talk.rpy
-  source_line: 1778
+  source_line: 2016
 - name: birth_control
   source_file: game/characters/JeanGrey/events/relationship/first_sex.rpy
   source_line: 317
@@ -72,7 +72,7 @@ values:
   source_line: 18
 - name: bold
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 67
+  source_line: 68
 - name: bought_all_food_for_barbecue
   source_file: game/modules/social/barbecue/actions.rpy
   source_line: 13
@@ -81,25 +81,25 @@ values:
   source_line: 13
 - name: bought_food_for_barbecue
   source_file: game/modules/social/barbecue/barbecue.rpy
-  source_line: 86
+  source_line: 87
 - name: bought_food_for_pool_party
   source_file: game/modules/social/pool_party/pool_party.rpy
-  source_line: 191
+  source_line: 192
 - name: bra_covered
   source_file: game/characters/JeanGrey/interactions/undressing.rpy
-  source_line: 122
+  source_line: 123
 - name: bratty
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 68
+  source_line: 69
 - name: breast_covered
   source_file: game/characters/JeanGrey/interactions/clothing.rpy
-  source_line: 640
+  source_line: 822
 - name: breast_hidden
   source_file: game/core/sex/narrations/body_parts/seen.rpy
-  source_line: 49
+  source_line: 63
 - name: breasts_supported
   source_file: game/core/rogue2d/bindings.py
-  source_line: 379
+  source_line: 383
 - name: breeding
   source_file: game/characters/JeanGrey/interactions/quirks/breeding/debrief.rpy
   source_line: 255
@@ -114,7 +114,7 @@ values:
   source_line: 103
 - name: carnivore
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 69
+  source_line: 70
 - name: chandelier_on
   source_file: game/locations/LakeHouse/CabinInterior/displayables.rpy
   source_line: 12
@@ -135,13 +135,13 @@ values:
   source_line: 19
 - name: classroom
   source_file: game/core/locations/characters.py
-  source_line: 854
+  source_line: 857
 - name: clothes_on_floor
   source_file: game/characters/JeanGrey/events/optional/ch1/s4/blockbusters.rpy
   source_line: 165
 - name: cock_out
-  source_file: game/characters/LauraKinney/events/sandbox/special/vibrator_training.rpy
-  source_line: 332
+  source_file: game/characters/JeanGrey/interactions/sex/undress/pussy.rpy
+  source_line: 145
 - name: coke_frozen
   source_file: game/locations/XavierSchool/Kitchen/displayables.rpy
   source_line: 190
@@ -150,7 +150,7 @@ values:
   source_line: 2187
 - name: combat_expert
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 60
+  source_line: 61
 - name: combat_loser
   source_file: game/characters/EvanDaniels/character.rpy
   source_line: 17
@@ -219,7 +219,7 @@ values:
   source_line: 22
 - name: does_not_pick_movies
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 90
+  source_line: 91
 - name: dominant
   source_file: game/characters/JeanGrey/events/relationship/love.rpy
   source_line: 111
@@ -246,28 +246,28 @@ values:
   source_line: 2912
 - name: enjoyed_pool_party
   source_file: game/modules/social/pool_party/pool_party.rpy
-  source_line: 125
+  source_line: 126
 - name: exhibitionist
-  source_file: game/characters/JeanGrey/clothing/items/red_onepiece_swimsuit.rpy
-  source_line: 120
+  source_file: game/core/clothing/appropriateness.py
+  source_line: 197
 - name: extreme_senses
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 73
+  source_line: 74
 - name: fastball_special_projectile
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 82
+  source_line: 83
 - name: favors_academic
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 59
+  source_line: 60
 - name: favors_artistic
   source_file: game/characters/KittyPryde/character.rpy
-  source_line: 56
+  source_line: 57
 - name: favors_athletic
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 59
+  source_line: 60
 - name: favors_social
   source_file: game/characters/Rogue/character.rpy
-  source_line: 61
+  source_line: 62
 - name: fecundity
   source_file: game/core/sex/climax.py
   source_line: 419
@@ -276,13 +276,13 @@ values:
   source_line: 168
 - name: feet_lifted
   source_file: game/core/rogue2d/bindings.py
-  source_line: 289
+  source_line: 293
 - name: feminine
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 65
+  source_line: 66
 - name: feral
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 67
+  source_line: 68
 - name: fez
   source_file: game/events/ch1/s4_finale.rpy
   source_line: 1689
@@ -309,7 +309,7 @@ values:
   source_line: 25
 - name: friend
   source_file: game/characters/KurtWagner/character.rpy
-  source_line: 31
+  source_line: 32
 - name: gaped
   source_file: game/core/characters/descriptions.rpy
   source_line: 96
@@ -330,7 +330,7 @@ values:
   source_line: 27
 - name: grool_hidden
   source_file: game/core/clothing/appropriateness.py
-  source_line: 74
+  source_line: 90
 - name: ground_shadow
   source_file: game/core/characters/utilities.py
   source_line: 192
@@ -357,7 +357,7 @@ values:
   source_line: 2849
 - name: healing_factor
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 72
+  source_line: 73
 - name: healthy_diet
   source_file: game/definitions/player.rpy
   source_line: 90
@@ -426,7 +426,7 @@ values:
   source_line: 835
 - name: lights_on
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 100
+  source_line: 101
 - name: likes_anchovies
   source_file: game/characters/LauraKinney/events/sandbox/kitchen/anchovies.rpy
   source_line: 78
@@ -440,8 +440,8 @@ values:
   source_file: game/characters/JeanGrey/events/optional/ch1/s4/blockbusters.rpy
   source_line: 46
 - name: messy_hair
-  source_file: game/characters/JeanGrey/events/sandbox/dates/restaurant/sex.rpy
-  source_line: 339
+  source_file: game/characters/JeanGrey/interactions/quirks/breeding/hookup.rpy
+  source_line: 586
 - name: microwave1_on
   source_file: game/locations/XavierSchool/Kitchen/location.rpy
   source_line: 130
@@ -471,10 +471,10 @@ values:
   source_line: 331
 - name: natural_leader
   source_file: game/core/combat/mechanics.rpy
-  source_line: 50
+  source_line: 65
 - name: neurotic
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 66
+  source_line: 67
 - name: night_owl
   source_file: game/core/time/increment.py
   source_line: 201
@@ -483,7 +483,7 @@ values:
   source_line: 76
 - name: no_friends
   source_file: game/characters/KurtWagner/interactions/characters.rpy
-  source_line: 73
+  source_line: 81
 - name: no_underwear
   source_file: game/characters/CeciliaReyes/clothing/outfits.rpy
   source_line: 77
@@ -597,7 +597,7 @@ values:
   source_line: 188
 - name: protective
   source_file: game/characters/LauraKinney/clothing/reactions/boots.rpy
-  source_line: 42
+  source_line: 64
 - name: public
   source_file: game/core/behavior/showering/showering.rpy
   source_line: 31
@@ -609,7 +609,7 @@ values:
   source_line: 23
 - name: pussy_covered
   source_file: game/characters/JeanGrey/interactions/clothing.rpy
-  source_line: 612
+  source_line: 789
 - name: rain
   source_file: game/events/ch1/s4_finale.rpy
   source_line: 1640
@@ -639,7 +639,7 @@ values:
   source_line: 267
 - name: rough
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 65
+  source_line: 66
 - name: running_mascara
   source_file: game/characters/Rogue/interactions/quirks/breeding/discussion.rpy
   source_line: 231
@@ -648,7 +648,7 @@ values:
   source_line: 26
 - name: seasonal
   source_file: game/core/clothing/base.py
-  source_line: 671
+  source_line: 703
 - name: seated
   source_file: game/characters/JeanGrey/events/sandbox/dates/first_date.rpy
   source_line: 291
@@ -675,7 +675,7 @@ values:
   source_line: 679
 - name: shy
   source_file: game/characters/Rogue/character.rpy
-  source_line: 66
+  source_line: 67
 - name: siblings
   source_file: game/characters/JeanGrey/events/relationship/love.rpy
   source_line: 114
@@ -699,10 +699,10 @@ values:
   source_line: 582
 - name: staff
   source_file: game/characters/CeciliaReyes/character.rpy
-  source_line: 53
+  source_line: 54
 - name: stalker
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 68
+  source_line: 69
 - name: stamina_boost1
   source_file: game/definitions/abilities.rpy
   source_line: 64
@@ -716,8 +716,8 @@ values:
   source_file: game/characters/JeanGrey/interactions/quirks/breeding/hookup.rpy
   source_line: 681
 - name: stoic
-  source_file: game/characters/Rogue/interactions/gifts/piercings/piercings.rpy
-  source_line: 98
+  source_file: game/core/characters/moods.rpy
+  source_line: 5
 - name: storm
   source_file: game/events/ch1/s1_finale.rpy
   source_line: 487
@@ -744,13 +744,16 @@ values:
   source_line: 170
 - name: studious
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 60
+  source_line: 61
 - name: submissive
   source_file: game/characters/JeanGrey/interactions/quirks/breeding/hookup.rpy
   source_line: 290
 - name: sunbathe_available
   source_file: game/locations/XavierSchool/Pool/location.rpy
   source_line: 265
+- name: superhero
+  source_file: game/characters/AlisonBlaire/character.rpy
+  source_line: 53
 - name: surging
   source_file: game/events/ch1/s4_finale.rpy
   source_line: 349
@@ -768,13 +771,13 @@ values:
   source_line: 3
 - name: teasing
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 69
+  source_line: 70
 - name: telekinetic
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 73
+  source_line: 74
 - name: telepathic
   source_file: game/characters/CharlesXavier/character.rpy
-  source_line: 23
+  source_line: 27
 - name: telepathy_activated
   source_file: game/characters/CeciliaReyes/events/offers_work.rpy
   source_line: 28
@@ -786,7 +789,7 @@ values:
   source_line: 40
 - name: tough
   source_file: game/characters/LauraKinney/character.rpy
-  source_line: 66
+  source_line: 67
 - name: turret1_on
   source_file: game/locations/XavierSchool/DangerRoom/displayables.rpy
   source_line: 141
@@ -798,10 +801,10 @@ values:
   source_line: 79
 - name: twisted
   source_file: game/characters/KittyPryde/character.rpy
-  source_line: 66
+  source_line: 67
 - name: underwear_covered
   source_file: game/characters/JeanGrey/interactions/undressing.rpy
-  source_line: 122
+  source_line: 123
 - name: uses_cock
   source_file: game/core/sex/actions.py
   source_line: 136
@@ -813,10 +816,10 @@ values:
   source_line: 11
 - name: virgin
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 93
+  source_line: 94
 - name: vocal_during_sex
   source_file: game/characters/JeanGrey/character.rpy
-  source_line: 98
+  source_line: 99
 - name: volleyball_game
   source_file: game/locations/XavierSchool/Pool/location.rpy
   source_line: 254
@@ -831,7 +834,7 @@ values:
   source_line: 166
 - name: went_skinny_dipping
   source_file: game/modules/social/pool_party/pool_party.rpy
-  source_line: 143
+  source_line: 144
 - name: wet
   source_file: game/characters/JeanGrey/images/doggy/doggy.rpy
   source_line: 29
